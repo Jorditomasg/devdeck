@@ -1,0 +1,29 @@
+// ui-tooltip-overlay — themed tooltip surface (inventory §31, tokens §29).
+:host {
+  position: fixed;
+  z-index: 10000;
+  pointer-events: none;
+  max-width: var(--tooltip-wrap);
+  padding: 4px 8px;
+  background-color: var(--color-tooltip-bg-dark);
+  color: var(--color-tooltip-text-dark);
+  border: var(--geo-border-width) solid var(--color-tooltip-border-dark);
+  border-radius: var(--geo-corner-tooltip);
+  font-size: var(--font-size-md);
+  line-height: 1.35;
+  text-align: left;
+  white-space: pre-line;
+  overflow-wrap: break-word;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 45%);
+  animation: tooltip-in 120ms ease-out;
+}
+
+@keyframes tooltip-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}

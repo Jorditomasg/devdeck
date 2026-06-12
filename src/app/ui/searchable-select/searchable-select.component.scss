@@ -1,0 +1,145 @@
+// ui-searchable-select — SearchableCombo replacement (inventory §32).
+@use '../../../styles/mixins' as mx;
+
+// Row height × max 9 visible rows caps the list (§32 "Sizing").
+$row-height: 28px;
+$max-rows: 9;
+
+:host {
+  position: relative;
+  display: block;
+  min-width: 120px;
+}
+
+// ─── Collapsed display ───────────────────────────────────────────────────────
+
+.select__display {
+  @include mx.control-reset;
+  @include mx.interactive;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: var(--geo-btn-height-md);
+  padding: 0 0 0 8px;
+  background-color: var(--color-section);
+  border: var(--geo-border-width) solid var(--color-border-default);
+  border-radius: var(--geo-corner-combo);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+  text-align: left;
+
+  &:hover:not(:disabled),
+  &--open {
+    background-color: var(--color-card-hover);
+  }
+}
+
+.select__value {
+  @include mx.ellipsis;
+  flex: 1 1 auto;
+
+  &--placeholder {
+    color: var(--color-text-placeholder);
+  }
+}
+
+.select__sep {
+  flex-shrink: 0;
+  width: var(--geo-border-width);
+  height: 60%;
+  background-color: var(--color-divider);
+}
+
+.select__arrow {
+  flex-shrink: 0;
+  width: 26px;
+  text-align: center;
+  color: var(--color-text-accent-bright);
+  font-size: var(--font-size-sm);
+}
+
+// ─── Popup ───────────────────────────────────────────────────────────────────
+
+.select__popup {
+  @include mx.popup-surface;
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  min-width: 180px; // v1: max(widget width, 180)
+  z-index: 1000;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.select__search {
+  @include mx.control-reset;
+  height: var(--geo-btn-height-sm);
+  padding: 0 8px;
+  background-color: var(--color-section);
+  border: var(--geo-border-width) solid var(--color-border-default);
+  border-radius: var(--geo-corner-btn);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+
+  &::placeholder {
+    color: var(--color-text-placeholder);
+  }
+}
+
+.select__list {
+  max-height: $row-height * $max-rows;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.select__item {
+  @include mx.control-reset;
+  @include mx.ellipsis;
+  @include mx.transition(background-color);
+  flex-shrink: 0;
+  height: $row-height;
+  line-height: $row-height;
+  padding: 0 8px;
+  border-radius: var(--geo-corner-btn);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+  text-align: left;
+  cursor: pointer;
+
+  &:hover,
+  &--active {
+    background-color: var(--color-card-hover);
+  }
+
+  // v1: selected item highlighted with the `section` bg (§32).
+  &--selected {
+    background-color: var(--color-section);
+    color: var(--color-text-accent-bright);
+  }
+}
+
+.select__divider {
+  flex-shrink: 0;
+  height: var(--geo-border-width);
+  margin: 2px 6px;
+  background-color: var(--color-divider);
+}
+
+.select__empty {
+  padding: 8px;
+  color: var(--color-text-placeholder);
+  font-size: var(--font-size-md);
+  text-align: center;
+}
+
+.select__more {
+  flex-shrink: 0;
+  text-align: center;
+  color: var(--color-text-faint);
+  font-size: var(--font-size-md);
+  line-height: 16px;
+}

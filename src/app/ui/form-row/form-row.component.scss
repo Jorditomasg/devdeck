@@ -1,0 +1,24 @@
+// ui-form-row — label column + stretching control area.
+@use '../../../styles/mixins' as mx;
+
+:host {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--geo-btn-height-md);
+}
+
+.row__label {
+  @include mx.ellipsis;
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-base);
+}
+
+.row__control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+}

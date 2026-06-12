@@ -1,0 +1,58 @@
+# Versions verified against crates.io on 2026-06-10:
+#   tauri 2.11.2, tauri-build 2.6.2, tauri-plugin-single-instance 2.4.2,
+#   tauri-plugin-dialog 2.7.1, tauri-plugin-opener 2.5.4, tauri-plugin-log 2.8.0,
+#   serde 1.0.228, serde_json 1.0.150, serde_yaml_ng 0.10.0, tokio 1.52.3,
+#   regex 1.12.4, thiserror 2.0.18, dirs 6.0.0
+#
+# YAML note: `serde_yaml` is archived/deprecated upstream. We use `serde_yaml_ng`,
+# the maintained API-compatible fork, for repo-type definitions and Spring config IO.
+
+[package]
+name = "devops-manager"
+version = "2.0.0"
+description = "DevOps Manager v2 — desktop app for managing local development services"
+authors = ["Jorditomasg"]
+edition = "2021"
+
+[lib]
+# Library target so the binary stays a thin shim (src/main.rs) and the core is
+# testable / reusable from mobile entry points if ever needed.
+name = "devops_manager_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.6", features = [] }
+
+[dependencies]
+# `image-ico`/`image-png` parse the bundled `icons/icon.ico` for the tray
+# icon (`default_window_icon()` → `TrayIconBuilder::icon`, lib.rs).
+tauri = { version = "2.11", features = ["tray-icon", "image-ico", "image-png"] }
+tauri-plugin-dialog = "2.7"
+tauri-plugin-opener = "2.5"
+tauri-plugin-log = "2.8"
+log = "0.4"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml_ng = "0.10"
+tokio = { version = "1.52", features = ["macros", "rt-multi-thread", "process", "sync", "time", "io-util", "fs"] }
+regex = "1.12"
+thiserror = "2.0"
+dirs = "6.0"
+
+# Unix-only: process-GROUP signalling (`killpg`) for `process/kill.rs` — the
+# v1 POSIX self-kill fix (inventory-backend.md §22.1, architecture-v2.md §7.1)
+# needs kill-by-pgid, which std does not expose. The spawn side
+# (`process_group(0)`) is plain tokio; only the kill side needs libc.
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+# Desktop-only plugins (single-instance has no mobile support).
+[target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
+tauri-plugin-single-instance = "2.4"
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true

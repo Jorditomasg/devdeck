@@ -1,0 +1,98 @@
+// ═══════════════════════════════════════════════════════════════════════════
+// Generated from config/ui_theme.yml (v1) — single source of truth for v2
+// design tokens.
+//
+// THIS MODULE EMITS NO CSS. It holds only Sass definitions (maps + mixins),
+// so component stylesheets can `@use` it without re-emitting anything into
+// their bundles (style budget). The `:root` custom-property block lives in
+// `_tokens-root.scss`, imported exactly once from `styles.scss`.
+//
+// Note: `installing` status (#7c3aed) comes from gui/theme.py STATUS_ICONS,
+// not the YAML — it completes the 6-state service status model.
+// ═══════════════════════════════════════════════════════════════════════════
+
+@use 'sass:map';
+
+// ─── Button variants (16) ────────────────────────────────────────────────────
+// Each variant: fg (background), hover (hover background), border.
+// Usage in a Button component:
+//   .btn--start { @include btn-variant('start'); }
+
+$btn-variants: (
+  // positive / save / apply
+  'success': (fg: #064e3b, hover: #047857, border: #10b981),
+  // start service
+  'start': (fg: #144d28, hover: #16a34a, border: #22c55e),
+  // primary destructive (stop service)
+  'danger': (fg: #4c1616, hover: #dc2626, border: #ef4444),
+  // secondary destructive (failed install / unsaved quick-save)
+  'danger-alt': (fg: #7f1d1d, hover: #991b1b, border: #b91c1c),
+  // deep destructive (delete profile in list / docker stop)
+  'danger-deep': (fg: #450a0a, hover: #dc2626, border: #ef4444),
+  // warning / restart / reload / export
+  'warning': (fg: #4a3310, hover: #d97706, border: #f59e0b),
+  // primary blue (pull / clone / browse)
+  'blue': (fg: #172554, hover: #2563eb, border: #3b82f6),
+  // active blue (pull with commits behind)
+  'blue-active': (fg: #1d4ed8, hover: #2563eb, border: #3b82f6),
+  // neutral / cancel / settings
+  'neutral': (fg: #1e293b, hover: #475569, border: #64748b),
+  // neutral alt (installed-ok / file actions)
+  'neutral-alt': (fg: #334155, hover: #475569, border: #64748b),
+  // seed / import (soft purple)
+  'purple': (fg: #2e1065, hover: #6d28d9, border: #7c3aed),
+  // clean repo / docker compose / merge
+  'purple-alt': (fg: #4c1d95, hover: #6d28d9, border: #7c3aed),
+  // global panel purple actions (apply-db / seed-all)
+  'purple-global': (fg: #2e1065, hover: #9333ea, border: #a855f7),
+  // log action buttons (clear / detach / reload-branch)
+  'log-action': (fg: #1e1b4b, hover: #312e81, border: #4338ca),
+  // card expand/collapse chevron
+  'toggle-expand': (fg: transparent, hover: #312e81, border: #4338ca),
+  // profile combo accent
+  'profile-accent': (fg: #7c3aed, hover: #6d28d9, border: #7c3aed)
+);
+
+/// Apply a v1 button variant (background, border, hover background).
+/// @param {String} $name - one of the $btn-variants keys, e.g. 'start'.
+@mixin btn-variant($name) {
+  $variant: map.get($btn-variants, $name);
+
+  @if not $variant {
+    @error "Unknown button variant '#{$name}'. " +
+      "Valid: #{map.keys($btn-variants)}";
+  }
+
+  background-color: map.get($variant, fg);
+  border: var(--geo-border-width) solid map.get($variant, border);
+
+  &:hover:not(:disabled) {
+    background-color: map.get($variant, hover);
+  }
+}
+
+// ─── Service status map (6 states) ───────────────────────────────────────────
+// Mirrors the --color-status-* custom properties for use in @each loops
+// (e.g. generating .status-dot--running { … } classes).
+
+$status-colors: (
+  'running': var(--color-status-running),
+  'starting': var(--color-status-starting),
+  'stopped': var(--color-status-stopped),
+  'error': var(--color-status-error),
+  'installing': var(--color-status-installing),
+  'logging': var(--color-status-logging)
+);
+
+/// Color a status indicator for one of the 6 service states.
+/// @param {String} $state - running | starting | stopped | error |
+///   installing | logging.
+@mixin status-color($state) {
+  $color: map.get($status-colors, $state);
+
+  @if not $color {
+    @error "Unknown status '#{$state}'. Valid: #{map.keys($status-colors)}";
+  }
+
+  color: $color;
+}

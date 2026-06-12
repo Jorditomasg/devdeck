@@ -1,0 +1,59 @@
+// ═══════════════════════════════════════════════════════════════════════════
+// Shared SCSS mixins for the atomic UI kit (v2/src/app/ui/**).
+// Token values come exclusively from _tokens.scss — nothing hardcoded here
+// except structural micro-values (transition timing, press offset).
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Standard fast transition (~120ms) for hover/active/focus state changes.
+/// Pass the properties to animate, e.g. `@include transition(background-color, border-color);`
+@mixin transition($props...) {
+  transition-property: $props;
+  transition-duration: 120ms;
+  transition-timing-function: ease-out;
+}
+
+/// Single-line text truncation with ellipsis (v1 SearchableCombo / header
+/// hint ellipsizing — inventory-gui §32, §6).
+@mixin ellipsis {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/// Reset native control styling so component SCSS fully owns the look.
+@mixin control-reset {
+  appearance: none;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+/// Base for every clickable control: pointer cursor, fast transitions,
+/// subtle press feedback, disabled dimming. Keeps the kit's interactive
+/// feel consistent (desktop-app, not web-page).
+@mixin interactive {
+  @include transition(background-color, border-color, color, opacity);
+  cursor: pointer;
+  user-select: none;
+
+  &:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.5;
+  }
+}
+
+/// Popup / overlay surface (tooltip, searchable-select popup, dialogs).
+@mixin popup-surface {
+  background-color: var(--color-card);
+  border: var(--geo-border-width) solid var(--color-border-default);
+  border-radius: var(--geo-corner-combo);
+  box-shadow: 0 6px 24px rgb(0 0 0 / 55%);
+}

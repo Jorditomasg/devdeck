@@ -1,0 +1,78 @@
+// Global panel (inventory-gui §3) — card-styled batch-controls frame.
+// Token values only.
+@use '../../../styles/mixins' as mx;
+
+:host {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  gap: 6px;
+  margin: 10px 10px 6px;
+  padding: 8px 12px;
+  background-color: var(--color-card);
+  border: var(--geo-border-width) solid var(--color-border-card);
+  border-radius: var(--geo-corner-card);
+}
+
+.panel__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--geo-btn-height-md);
+}
+
+.panel__title {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-xxl);
+  font-weight: 700;
+}
+
+.panel__spacer {
+  flex: 1 1 0;
+}
+
+.panel__select-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-base);
+  cursor: pointer;
+
+  input[type='checkbox'] {
+    width: var(--geo-checkbox-size-sm);
+    height: var(--geo-checkbox-size-sm);
+    accent-color: var(--color-text-accent);
+    cursor: pointer;
+  }
+}
+
+.panel__label {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-base);
+}
+
+.panel__branch {
+  @include mx.control-reset;
+  @include mx.transition(border-color);
+  width: 180px;
+  flex-shrink: 0;
+  height: var(--geo-btn-height-md);
+  padding: 0 8px;
+  background-color: var(--color-section);
+  border: var(--geo-border-width) solid var(--color-border-default);
+  border-radius: var(--geo-corner-btn);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-md);
+
+  &::placeholder {
+    color: var(--color-text-placeholder);
+  }
+
+  &:focus {
+    outline: none;
+    border-color: var(--color-text-accent-bright);
+  }
+}

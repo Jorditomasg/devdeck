@@ -1,0 +1,13 @@
+// Global stylesheet entry (angular.json → architect.build.options.styles).
+//
+// `_tokens-root.scss` — the ONE `:root` emission of the design tokens
+//   (SCSS port of v1's `config/ui_theme.yml`, docs/migration/
+//   inventory-config-ci.md §3). Components must NOT import it — they `@use`
+//   `_tokens.scss` (maps/mixins only, no CSS output). Owned by the theme task.
+// `_base.scss` — global resets and document-level styles built on those
+//   tokens. Owned by the theme task.
+//
+// Do not add rules here: component styles live with their components, shared
+// primitives belong in `_base.scss`.
+@use './tokens-root';
+@use './base';

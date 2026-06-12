@@ -1,0 +1,167 @@
+# =============================================================================
+# DevDeck (DevOps Manager v2) — Build, Sign & Release (Tauri 2 + Angular)
+# =============================================================================
+# Successor of Jorditomasg/devops-manager's pipeline. Ships a self-contained
+# NSIS installer produced by `tauri build`, signed end-to-end via SignPath —
+# the released asset is the complete, installable, SIGNED artifact.
+#
+# Action versions (verified 2026-06-11):
+#   - actions/checkout@v4, actions/setup-node@v4, dtolnay/rust-toolchain@stable,
+#     Swatinem/rust-cache@v2 — verified via tauri-action official docs.
+#   - signpath/github-action-submit-signing-request@v2 — verified via
+#     docs.signpath.io/trusted-build-systems/github.
+#   - actions/upload-artifact@v4, softprops/action-gh-release@v2 — proven with
+#     the SignPath connector in the predecessor repo's pipeline.
+
+name: Build and Sign
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      release-tag:
+        description: >-
+          Tag name for a DRAFT release (e.g. v2.0.1). Leave empty to only
+          build + sign (artifacts available on the workflow run, no release).
+        required: false
+        default: ''
+        type: string
+
+# One release pipeline per ref at a time. Never cancel a run mid-signing —
+# SignPath requests are external state we don't want to abandon half-way.
+concurrency:
+  group: build-and-sign-${{ github.ref }}
+  cancel-in-progress: false
+
+# Minimal default; jobs that need more declare it explicitly.
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Build the NSIS installer on Windows (the only bundle target in
+  # src-tauri/tauri.conf.json: bundle.targets = ["nsis"]).
+  # ---------------------------------------------------------------------------
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    outputs:
+      artifact-id: ${{ steps.upload.outputs.artifact-id }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Setup Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      # Cheap frontend typecheck. Non-blocking: plain tsc does not check
+      # Angular templates (that's the compiler's job during `ng build`,
+      # which IS blocking below), so this is an early-warning signal only.
+      - name: Typecheck frontend (non-blocking)
+        continue-on-error: true
+        run: npx tsc -p tsconfig.app.json --noEmit
+
+      - name: Run frontend tests
+        run: npm test
+
+      # Build the Angular frontend BEFORE `cargo test`: tauri-build's build.rs
+      # validates that `frontendDist` (../dist/devops-manager/browser) exists,
+      # so cargo cannot even compile the crate without it.
+      - name: Build Angular frontend
+        run: npm run build
+
+      # Non-blocking for now: some tests exercise detection/docker/process
+      # code that shells out to git/docker and may be environment-sensitive
+      # on hosted runners. Flip to blocking once proven green in CI.
+      - name: Run Rust tests (non-blocking)
+        continue-on-error: true
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+
+      # Produces src-tauri/target/release/bundle/nsis/
+      #   "DevOps Manager_<version>_x64-setup.exe"
+      - name: Build Tauri app (NSIS installer)
+        run: npm run tauri build
+
+      - name: Verify installer exists
+        run: |
+          $installer = Get-ChildItem 'src-tauri/target/release/bundle/nsis/*-setup.exe' | Select-Object -First 1
+          if (-not $installer) { throw 'NSIS installer not found under src-tauri/target/release/bundle/nsis/' }
+          Write-Host "Installer: $($installer.Name) ($([math]::Round($installer.Length / 1MB, 1)) MB)"
+
+      # SignPath consumes the GitHub artifact by id (the connector downloads
+      # the artifact zip and signs the PE file inside per the artifact
+      # configuration). The artifact is the COMPLETE installer.
+      - name: Upload unsigned installer
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: devdeck-unsigned
+          path: src-tauri/target/release/bundle/nsis/*-setup.exe
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # Sign via SignPath, then publish the SIGNED installer.
+  # ---------------------------------------------------------------------------
+  sign-and-release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the GitHub Release
+      actions: read   # SignPath connector reads the workflow artifact
+
+    steps:
+      # ⚠ SignPath setup for THIS repo (one-time, before the first release):
+      #   1. In the SignPath dashboard, point the project's repository link at
+      #      Jorditomasg/devdeck (or create a new project and update the
+      #      slugs below).
+      #   2. Create an 'installer' artifact configuration (zip-file containing
+      #      a pe-file) — the predecessor's 'exe' config describes a bare PE.
+      #   3. Set the SIGNPATH_API_TOKEN secret in this repo.
+      - name: Sign NSIS installer with SignPath
+        uses: signpath/github-action-submit-signing-request@v2
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: '566b6bce-16ea-4c67-80a2-1654b3efdef4'
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG || 'devops-manager' }}
+          signing-policy-slug: 'release-signing'
+          artifact-configuration-slug: ${{ vars.SIGNPATH_ARTIFACT_CONFIG || 'installer' }}
+          github-artifact-id: ${{ needs.build.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: signed/
+
+      - name: Upload signed installer (workflow artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: devdeck-signed
+          path: signed/*-setup.exe
+          if-no-files-found: error
+
+      # Tag push => published release; manual dispatch with a release-tag
+      # input => DRAFT release for review.
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release-tag != '')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || inputs.release-tag }}
+          draft: ${{ github.event_name == 'workflow_dispatch' }}
+          files: signed/*-setup.exe
+          fail_on_unmatched_files: true

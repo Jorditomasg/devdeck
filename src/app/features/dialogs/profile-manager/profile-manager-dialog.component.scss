@@ -1,0 +1,71 @@
+// Profile manager dialog (inventory-gui §21) — save / list / import stack.
+@use '../shared/controls' as c;
+
+.profiles {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.profiles__heading {
+  margin: 0 0 4px;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-h2);
+  font-weight: 700;
+}
+
+.profiles__label {
+  margin: 6px 0 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-md);
+  font-weight: 700;
+}
+
+.profiles__save-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.profiles__input {
+  @include c.text-input;
+  flex: 1;
+  min-width: 0;
+}
+
+.profiles__check {
+  @include c.checkbox-row;
+}
+
+.profiles__error {
+  @include c.inline-error;
+  margin: 0;
+}
+
+.profiles__list {
+  @include c.list-surface;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  height: 120px; // v1 list height (§21)
+  padding: 4px;
+}
+
+.profiles__row {
+  @include c.list-row;
+  flex-shrink: 0;
+}
+
+.profiles__btn-row {
+  display: flex;
+  gap: 8px;
+}
+
+.profiles__import-btn {
+  align-self: flex-start;
+}
+
+.profiles__help {
+  @include c.hint;
+  margin: 6px 0 0;
+}

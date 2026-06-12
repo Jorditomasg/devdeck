@@ -1,0 +1,60 @@
+// Workspace page (inventory-gui §1) — full-height vertical layout: topbar /
+// divider / global panel / scrollable card list / global log / status bar.
+// Token values only.
+
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: var(--color-app);
+}
+
+// §4 scrollable card list — the only scrolling region of the shell.
+.page__cards {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+  padding: 4px 10px 10px;
+  overflow-y: auto;
+  overscroll-behavior: contain; // §33 overscroll prevention
+}
+
+.page__scanning {
+  display: flex;
+  justify-content: center;
+  padding: 24px 0;
+}
+
+.page__empty {
+  padding: 24px 0;
+  color: var(--color-text-faint);
+  font-size: var(--font-size-lg);
+  text-align: center;
+}
+
+// §1 status bar — 24px single line, accent text.
+.page__statusbar {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 12px;
+  height: 24px;
+  padding: 0 10px;
+  border-top: var(--geo-border-width) solid var(--color-divider);
+  color: var(--color-text-accent);
+  font-size: var(--font-size-md);
+}
+
+.page__status {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.page__counts {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+}

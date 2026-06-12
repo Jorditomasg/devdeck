@@ -1,0 +1,81 @@
+// Topbar (inventory-gui §2) — 56px fixed bar on the app background; right
+// action group reserves space (§33). Token values only.
+@use '../../../styles/mixins' as mx;
+
+:host {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 12px;
+  height: var(--geo-topbar-height);
+  padding: 0 12px;
+  background-color: var(--color-app);
+}
+
+.topbar__logo {
+  flex-shrink: 0;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-h1);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+// Workspace path — mono accent, click opens the explorer (§2).
+.topbar__path {
+  @include mx.control-reset;
+  @include mx.ellipsis;
+  @include mx.transition(color);
+  flex: 1 1 0;
+  min-width: 0;
+  color: var(--color-text-accent);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-base);
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--color-text-accent-bright);
+  }
+}
+
+// Group selector area (replaces the path label per the §2 swap rule).
+.topbar__group {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.topbar__group-label {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-base);
+}
+
+.topbar__group-select {
+  width: 160px;
+  flex-shrink: 0;
+}
+
+.topbar__actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+// Profile dropdown — profile-accent border; dirty = warning text + orange
+// border on a dark-amber field (§26 "Dirty styling").
+.topbar__profile {
+  width: 180px;
+  flex-shrink: 0;
+  --color-border-default: var(--color-status-installing); // profile accent
+
+  &--dirty {
+    --color-border-default: var(--color-status-logging);
+    --color-section: #2a1a00; // v1 dirty field bg (theme constant, §26)
+    --color-text-primary: var(--color-text-warning-badge);
+    font-weight: 700;
+  }
+}

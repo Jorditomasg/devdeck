@@ -1,0 +1,159 @@
+// Merge-branch dialog (inventory-gui §20).
+@use '../shared/controls' as c;
+@use '../../../../styles/mixins' as mx;
+
+.merge {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.merge__repo {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+  font-weight: 700;
+}
+
+.merge__section {
+  @include c.section;
+}
+
+.merge__section-title {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-md);
+  font-weight: 700;
+}
+
+.merge__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.merge__radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-base);
+  cursor: pointer;
+  user-select: none;
+
+  input[type='radio'] {
+    accent-color: var(--color-text-accent);
+    cursor: pointer;
+  }
+}
+
+.merge__sublabel {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-base);
+}
+
+.merge__combo {
+  min-width: 0;
+
+  // v1 widths (§20): destination 220, base 160, source 230.
+  &--dest {
+    width: 220px;
+  }
+
+  &--base {
+    width: 160px;
+  }
+
+  &--source {
+    width: 230px;
+  }
+}
+
+.merge__input {
+  @include c.text-input;
+  width: 170px; // v1 new-branch entry width (§20)
+}
+
+.merge__opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.merge__check {
+  @include c.checkbox-row;
+}
+
+.merge__error {
+  @include c.inline-error;
+  margin: 0;
+}
+
+// Outcome banner — distinct styling per state (§20).
+.merge__outcome {
+  padding: 8px 10px;
+  border: var(--geo-border-width) solid var(--color-border-subtle);
+  border-radius: var(--geo-corner-panel);
+  background-color: var(--color-section-alt);
+
+  &--success {
+    border-color: var(--color-status-running);
+  }
+
+  &--warning,
+  &--blocked {
+    border-color: var(--color-status-starting);
+  }
+
+  &--error {
+    border-color: var(--color-status-error);
+  }
+}
+
+.merge__outcome-msg {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+  white-space: pre-line;
+}
+
+.merge__outcome-files {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  max-height: 120px;
+  overflow-y: auto;
+  color: var(--color-text-muted);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+}
+
+.merge__revert-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.merge__revert-label {
+  @include mx.ellipsis;
+  min-width: 0;
+  color: var(--color-text-secondary);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-md);
+}
+
+.merge__log-label {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-md);
+  font-weight: 700;
+}
+
+.merge__log {
+  @include c.mono-textarea;
+  height: 140px; // v1 log textbox height (§20)
+  margin: 0;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}

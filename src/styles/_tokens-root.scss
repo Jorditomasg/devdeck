@@ -1,0 +1,108 @@
+// ═══════════════════════════════════════════════════════════════════════════
+// `:root` custom-property emission for the design tokens — imported ONCE,
+// from `styles.scss` only.
+//
+// Split from `_tokens.scss` on purpose: component stylesheets `@use` the
+// tokens module for its maps/mixins ($btn-variants, btn-variant(), …), and
+// any CSS in that module would be RE-EMITTED into every component bundle
+// (style budget bloat). Keep this file pure CSS output and `_tokens.scss`
+// pure Sass definitions. Do NOT `@use` this partial from components.
+//
+// Generated from config/ui_theme.yml (v1) — token names are kebab-case
+// versions of the YAML paths (e.g. backgrounds.card → --color-card).
+// `installing` status (#7c3aed) comes from gui/theme.py STATUS_ICONS.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ─── Typography ──────────────────────────────────────────────────────────────
+// v1 family kept first; modern fallback stack added for non-Windows platforms.
+
+:root {
+  --font-family: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial,
+    sans-serif;
+  --font-family-mono: Consolas, 'Cascadia Code', 'JetBrains Mono',
+    ui-monospace, 'SF Mono', Menlo, monospace;
+
+  // fonts.sizes (9)
+  --font-size-xs: 9px;
+  --font-size-sm: 10px;
+  --font-size-md: 11px;
+  --font-size-base: 12px;
+  --font-size-lg: 13px;
+  --font-size-xl: 14px;
+  --font-size-xxl: 15px;
+  --font-size-h2: 16px;
+  --font-size-h1: 22px;
+
+  // ─── Geometry (14) ─────────────────────────────────────────────────────────
+  --geo-corner-btn: 6px; // button / entry corner radius
+  --geo-corner-card: 10px; // main card radius
+  --geo-corner-panel: 8px; // expanded accordion panel radius
+  --geo-corner-badge: 4px; // small inline badges
+  --geo-corner-combo: 6px; // combobox radius
+  --geo-corner-tooltip: 6px; // tooltip outer radius
+  --geo-border-width: 1px; // standard border width
+  --geo-btn-height-sm: 24px; // small buttons (log actions)
+  --geo-btn-height-md: 28px; // standard buttons
+  --geo-btn-height-lg: 34px; // topbar / profile buttons
+  --geo-topbar-height: 56px; // top bar height
+  --geo-checkbox-size: 18px; // standard checkbox
+  --geo-checkbox-size-sm: 16px; // small (select-all) checkbox
+  --geo-checkbox-corner: 4px; // checkbox radius
+
+  // ─── Backgrounds (7) ───────────────────────────────────────────────────────
+  --color-app: #0f0e26; // root window / topbar / log textbox
+  --color-card: #16132e; // collapsed card / dialog root
+  --color-card-hover: #1c1940; // card header hover
+  --color-expand-panel: #120f28; // expanded accordion body
+  --color-section: #1e1b4b; // entries, combos, settings frames
+  --color-section-alt: #0f172a; // dialog list backgrounds
+  --color-divider: #312e81; // 1px separator line
+
+  // ─── Borders (4) ───────────────────────────────────────────────────────────
+  --color-border-card: #3b3768; // card / log textbox
+  --color-border-default: #4338ca; // combos, entries, search buttons
+  --color-border-settings: #312e81; // settings section frame
+  --color-border-subtle: #334155; // stopped docker btn / neutral lists
+
+  // ─── Text (13) ─────────────────────────────────────────────────────────────
+  --color-text-primary: #e0e7ff; // main content, log text, repo names
+  --color-text-secondary: #c7d2fe; // section labels, log header
+  --color-text-muted: #94a3b8; // status text, secondary checkboxes
+  --color-text-faint: #6b7280; // branch hint, dimmed labels
+  --color-text-placeholder: #888888; // placeholders / misc hints
+  --color-text-accent: #6366f1; // statusbar, port labels
+  --color-text-accent-bright: #818cf8; // expand/collapse chevron
+  --color-text-warning-badge: #facc15; // unsaved-changes badge
+  --color-text-white: #ffffff; // badge text, buttons on dark bg
+  --color-text-file-btn-light: #333333; // file-picker button (light mode)
+  --color-text-file-btn-dark: #dddddd; // file-picker button (dark mode)
+  --color-text-file-btn-hover-light: #e3f2fd; // file-picker hover (light)
+  --color-text-file-btn-hover-dark: #1a2332; // file-picker hover (dark)
+
+  // ─── Service status (6-state model) ────────────────────────────────────────
+  // logging = transient orange flash on the status dot while log lines stream
+  // (held ~3 s, then reverts to the underlying state).
+  --color-status-running: #22c55e; // green — service running
+  --color-status-starting: #eab308; // yellow — service starting
+  --color-status-stopped: #6b7280; // gray — service stopped
+  --color-status-error: #ef4444; // red — error
+  --color-status-installing: #7c3aed; // purple — installing deps (theme.py)
+  --color-status-logging: #f97316; // orange — active log streaming flash
+
+  // ─── Docker compose button states (5) ──────────────────────────────────────
+  --color-docker-btn-stopped-fg: #1e293b; // button bg when stack stopped
+  --color-docker-btn-active-fg: #0f172a; // button bg when active
+  --color-docker-border-running: #10b981; // border: ≥1 container running
+  --color-docker-border-active: #3b82f6; // border: profile active, 0 running
+  --color-docker-border-stopped: #334155; // border: fully stopped
+
+  // ─── Tooltip (6 colors + behavior) ─────────────────────────────────────────
+  --color-tooltip-bg-dark: #2a2a3e;
+  --color-tooltip-text-dark: #e0e0e0;
+  --color-tooltip-border-dark: #444466;
+  --color-tooltip-bg-light: #333344;
+  --color-tooltip-text-light: #f5f5f5;
+  --color-tooltip-border-light: #555577;
+  --tooltip-delay: 500ms;
+  --tooltip-wrap: 250px;
+}

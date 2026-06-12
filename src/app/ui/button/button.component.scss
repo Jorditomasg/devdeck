@@ -1,0 +1,78 @@
+// ui-button — all 16 v1 variants generated from $btn-variants (_tokens.scss).
+// `_tokens.scss` is CSS-emission-free (maps/mixins only — the :root block
+// lives in `_tokens-root.scss`, imported once from styles.scss), so this
+// @use adds nothing to the component bundle.
+@use '../../../styles/tokens' as tokens;
+@use '../../../styles/mixins' as mx;
+
+:host {
+  display: inline-flex;
+}
+
+.btn {
+  @include mx.control-reset;
+  @include mx.interactive;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  flex: 1 1 auto;
+  border-radius: var(--geo-corner-btn);
+  color: var(--color-text-white);
+  font-size: var(--font-size-base);
+  line-height: 1;
+  padding: 0 10px;
+  white-space: nowrap;
+
+  // Sizes — token heights (sm: log actions, md: standard, lg: topbar/profile).
+  &--sm {
+    height: var(--geo-btn-height-sm);
+    font-size: var(--font-size-sm);
+    padding: 0 8px;
+  }
+
+  &--md {
+    height: var(--geo-btn-height-md);
+  }
+
+  &--lg {
+    height: var(--geo-btn-height-lg);
+    font-size: var(--font-size-lg);
+    padding: 0 12px;
+  }
+
+  // The 16 variants (background, border, hover background) from the token map.
+  @each $name, $_ in tokens.$btn-variants {
+    &--#{$name} {
+      @include tokens.btn-variant($name);
+    }
+  }
+
+  // Chevron-style variant uses accent text on a transparent bg (inventory §6).
+  &--toggle-expand {
+    color: var(--color-text-accent-bright);
+  }
+}
+
+.btn__content {
+  @include mx.ellipsis;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.btn__spinner {
+  width: 0.9em;
+  height: 0.9em;
+  flex-shrink: 0;
+  border: 2px solid currentColor;
+  border-bottom-color: transparent;
+  border-radius: 50%;
+  animation: btn-spin 0.7s linear infinite;
+}
+
+@keyframes btn-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

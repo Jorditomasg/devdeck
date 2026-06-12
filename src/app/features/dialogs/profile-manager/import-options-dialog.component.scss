@@ -1,0 +1,100 @@
+// Import options wizard (inventory-gui §21) — options step + progress step.
+@use '../shared/controls' as c;
+
+.import {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.import__section-title {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-md);
+  font-weight: 700;
+}
+
+.import__block {
+  @include c.section;
+}
+
+// v1 yellow missing-repos title (§21 step 1).
+.import__missing-title {
+  margin: 0;
+  color: var(--color-text-warning-badge);
+  font-size: var(--font-size-base);
+  font-weight: 700;
+}
+
+.import__missing-names {
+  @include c.hint;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.import__check {
+  @include c.checkbox-row;
+}
+
+.import__java-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.import__java-label {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-base);
+}
+
+.import__java-combo {
+  flex: 1;
+  min-width: 0;
+}
+
+.import__java-hint {
+  @include c.hint;
+  margin: 0 0 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.import__preview,
+.import__log {
+  @include c.mono-textarea;
+  margin: 0;
+  height: 170px;
+  overflow: auto;
+  white-space: pre-wrap;
+}
+
+.import__progress-label {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-base);
+}
+
+.import__bar {
+  height: 8px;
+  overflow: hidden;
+  background-color: var(--color-section-alt);
+  border-radius: 4px;
+}
+
+.import__bar-fill {
+  height: 100%;
+  background-color: var(--color-status-running);
+  border-radius: 4px;
+  transition: width 150ms ease;
+}
+
+.import__log-label {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-md);
+  font-weight: 700;
+}

@@ -1,0 +1,71 @@
+// Workspace groups dialog (inventory-gui §24) — two-column grid.
+@use '../shared/controls' as c;
+
+.groups {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 14px;
+}
+
+.groups__left,
+.groups__right {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.groups__label {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-md);
+  font-weight: 700;
+}
+
+.groups__list {
+  @include c.list-surface;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  height: 220px;
+  padding: 4px;
+
+  &--paths {
+    height: 140px;
+  }
+}
+
+.groups__row {
+  @include c.list-row;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.groups__active-badge {
+  flex-shrink: 0;
+  margin-left: auto;
+  color: var(--color-status-running);
+  font-size: var(--font-size-xs);
+}
+
+.groups__btn-row {
+  display: flex;
+  gap: 8px;
+}
+
+.groups__name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.groups__input {
+  @include c.text-input;
+  flex: 1;
+  min-width: 0;
+}
+
+.groups__set-active {
+  align-self: flex-start;
+}

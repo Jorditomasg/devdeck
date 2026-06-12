@@ -1,0 +1,89 @@
+// Repo card header (inventory-gui §6) — dense single row, hover highlight,
+// right action group reserves space (§33). Token values only.
+@use '../../../../styles/mixins' as mx;
+
+:host {
+  display: block;
+}
+
+.header {
+  @include mx.transition(background-color);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 4px 10px;
+  border-radius: var(--geo-corner-card);
+  cursor: pointer;
+
+  &:hover {
+    background-color: var(--color-card-hover);
+  }
+}
+
+.header__check {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  cursor: pointer;
+
+  input[type='checkbox'] {
+    width: var(--geo-checkbox-size);
+    height: var(--geo-checkbox-size);
+    accent-color: var(--color-text-accent);
+    cursor: pointer;
+  }
+}
+
+.header__name {
+  @include mx.ellipsis;
+  flex-shrink: 0;
+  max-width: 260px;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-h2);
+  font-weight: 700;
+}
+
+// Grey hint fragments (⎇ branch  ⚙ profile  $ cmd) — fills remaining space.
+.header__hint {
+  @include mx.ellipsis;
+  flex: 1 1 0;
+  min-width: 0;
+  color: var(--color-text-faint);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+}
+
+// Right group packed "first" (§33): never shrinks, labels can't push it out.
+.header__right {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  cursor: default;
+}
+
+.header__status {
+  font-size: var(--font-size-md);
+  font-weight: 600;
+
+  &--running { color: var(--color-status-running); }
+  &--starting { color: var(--color-status-starting); }
+  &--stopped { color: var(--color-status-stopped); }
+  &--error { color: var(--color-status-error); }
+  &--installing { color: var(--color-status-installing); }
+}
+
+.header__port {
+  color: var(--color-text-accent);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-md);
+  font-weight: 700;
+}
+
+.header__actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+}

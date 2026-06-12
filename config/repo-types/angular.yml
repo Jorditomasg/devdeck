@@ -1,0 +1,40 @@
+# Angular Repository Definition (ported from v1 config/repo_types/angular.yml)
+type: "angular"
+priority: 40
+
+detection:
+  required_files:
+    - "package.json"
+    - "angular.json"
+
+commands:
+  install_cmd: "npm i"
+  reinstall_cmd: "rmdir /s /q node_modules & npm i"
+  # v2: POSIX reinstall variant (v1 shipped Windows-only syntax, §22.7 backend).
+  unix_reinstall_cmd: "rm -rf node_modules && npm i"
+  start_cmd: "npx ng serve"
+  ready_pattern: "compiled successfully|build at"
+  error_pattern: "Error:"
+  port_patterns:
+    - "Local:\\s*http://localhost:(\\d+)"
+    - "http://localhost:(\\d+)"
+
+env_files:
+  default_dir: "src/environments"
+  config_writer_type: "angular"
+  pull_ignore_patterns:
+    - "environment*.ts"
+  main_config_filename: "environment.ts"
+  patterns:
+    - "environment*.ts"
+  exclude_dirs:
+    - "node_modules"
+    - ".git"
+
+ui:
+  icon: "🅰"
+  color: "#ef4444"
+  selectors:
+    - label: "Env:"
+  install:
+    check_dirs: ["node_modules"]
