@@ -1,0 +1,35 @@
+// Java version editor (inventory-gui §22).
+@use '../shared/controls' as c;
+
+.java-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.java-editor__header {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+}
+
+.java-editor__input {
+  @include c.text-input;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.java-editor__path-row {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.java-editor__error {
+  @include c.inline-error;
+  margin: 0;
+}

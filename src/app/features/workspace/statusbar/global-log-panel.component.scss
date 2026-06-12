@@ -1,0 +1,60 @@
+// Global log panel (inventory-gui §5) — collapsible strip above the status
+// bar; enlarge toggle replaces the v1 detached window. Token values only.
+@use '../../../../styles/mixins' as mx;
+
+:host {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  border-top: var(--geo-border-width) solid var(--color-divider);
+  background-color: var(--color-app);
+}
+
+.glog__header {
+  @include mx.transition(background-color);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  cursor: pointer;
+  user-select: none;
+
+  &:hover {
+    background-color: var(--color-card-hover);
+  }
+}
+
+.glog__chevron {
+  color: var(--color-text-accent-bright);
+  font-size: var(--font-size-xs);
+}
+
+.glog__title {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-base);
+  font-weight: 700;
+}
+
+.glog__count {
+  color: var(--color-text-faint);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+}
+
+.glog__spacer {
+  flex: 1 1 0;
+}
+
+.glog__actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  cursor: default;
+}
+
+.glog__view {
+  height: 140px;
+  margin: 0 8px 6px;
+}

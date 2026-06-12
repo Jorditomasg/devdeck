@@ -1,0 +1,38 @@
+// Settings dialog (inventory-gui §22) — single-card form with 1px dividers.
+@use '../shared/controls' as c;
+
+.settings {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings__lang {
+  width: 220px;
+}
+
+.settings__hint {
+  @include c.hint;
+  margin: -4px 0 0 163px; // aligned under the control column (155px label + gap)
+}
+
+.settings__divider {
+  height: var(--geo-border-width);
+  background-color: var(--color-divider);
+}
+
+.settings__check {
+  @include c.checkbox-row;
+}
+
+.settings__java {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.settings__java-count {
+  color: var(--color-text-placeholder);
+  font-size: var(--font-size-md);
+}

@@ -1,0 +1,133 @@
+// Repo Config Manager dialog (inventory-gui §23) — fixed left list + editor.
+@use '../../../../styles/mixins' as mx;
+@use '../shared/controls' as c;
+
+.envmgr {
+  display: grid;
+  grid-template-columns: 250px 1fr;
+  gap: 14px;
+}
+
+.envmgr__left,
+.envmgr__right {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.envmgr__heading {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-md);
+  font-weight: 700;
+}
+
+.envmgr__module-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.envmgr__module-label {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.envmgr__list {
+  @include c.list-surface;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 260px;
+  padding: 4px;
+}
+
+.envmgr__row {
+  @include c.list-row;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+
+  // Dangerous configs: ⚠ prefix in warning yellow (§23 left panel).
+  &.danger {
+    color: var(--color-text-warning-badge);
+  }
+
+  &.danger.selected {
+    color: var(--color-text-warning-badge);
+  }
+}
+
+.envmgr__danger-mark {
+  flex-shrink: 0;
+  color: var(--color-text-warning-badge);
+}
+
+.envmgr__empty {
+  @include c.hint;
+  margin: 8px 4px;
+}
+
+.envmgr__btn-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.envmgr__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.envmgr__editing {
+  @include mx.ellipsis;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-base);
+  font-weight: 700;
+}
+
+.envmgr__spacer {
+  flex: 1;
+}
+
+// v1 ⚠ danger toggle (width 32): neutral when off, warning bg/border when on.
+.envmgr__danger-toggle {
+  width: 32px;
+  height: var(--geo-btn-height-sm);
+  background-color: var(--color-section);
+  border: var(--geo-border-width) solid var(--color-border-default);
+  border-radius: var(--geo-corner-btn);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-base);
+  cursor: pointer;
+
+  &.active {
+    background-color: var(--color-text-warning-badge);
+    border-color: var(--color-text-warning-badge);
+    color: #1a1a1a;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+}
+
+.envmgr__editor {
+  @include c.mono-textarea;
+  flex: 1;
+  min-height: 320px;
+
+  &:disabled {
+    opacity: 0.6;
+  }
+}
+
+.envmgr__save-row {
+  display: flex;
+  justify-content: flex-end;
+}

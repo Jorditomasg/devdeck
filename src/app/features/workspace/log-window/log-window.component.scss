@@ -1,0 +1,33 @@
+@use '../../../../styles/mixins' as mx;
+
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--color-app-bg);
+}
+
+.logwin__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-card);
+}
+
+.logwin__title {
+  @include mx.ellipsis;
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.logwin__spacer {
+  flex: 1;
+}
+
+.logwin__view {
+  flex: 1;
+  min-height: 0;
+  padding: 8px;
+}

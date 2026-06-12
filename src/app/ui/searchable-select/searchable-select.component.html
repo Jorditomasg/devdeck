@@ -1,0 +1,55 @@
+<!-- Collapsed display: ellipsized value + separator + ▾ arrow (inventory §32). -->
+<button
+  type="button"
+  class="select__display"
+  [class.select__display--open]="open()"
+  [disabled]="disabled()"
+  [attr.title]="value() || null"
+  (click)="toggle()"
+>
+  <span class="select__value" [class.select__value--placeholder]="!value()">
+    {{ value() || placeholder() }}
+  </span>
+  <span class="select__sep"></span>
+  <span class="select__arrow" aria-hidden="true">▾</span>
+</button>
+
+@if (open()) {
+  <div class="select__popup" role="listbox" (keydown)="onKeydown($event)">
+    <input
+      #searchInput
+      type="text"
+      class="select__search"
+      [placeholder]="searchPlaceholder()"
+      (input)="onSearch(searchInput.value)"
+    />
+
+    <div #list class="select__list" (scroll)="onListScroll()">
+      @for (option of visible(); track option) {
+        <button
+          type="button"
+          class="select__item"
+          role="option"
+          [attr.data-index]="$index"
+          [class.select__item--selected]="option === value()"
+          [class.select__item--active]="$index === activeIndex()"
+          [attr.aria-selected]="option === value()"
+          [attr.title]="option"
+          (click)="select(option)"
+        >
+          {{ option }}
+        </button>
+        <!-- Recents divider: only unfiltered, after the first recentCount items. -->
+        @if ($index === dividerAfter()) {
+          <div class="select__divider" role="separator"></div>
+        }
+      } @empty {
+        <div class="select__empty">{{ noResultsText() }}</div>
+      }
+
+      @if (hasMore()) {
+        <div class="select__more" aria-hidden="true">⋯</div>
+      }
+    </div>
+  </div>
+}

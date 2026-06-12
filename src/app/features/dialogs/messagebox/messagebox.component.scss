@@ -1,0 +1,49 @@
+// Messagebox — v1 icon/color language (inventory-gui §14):
+//   info ℹ #6366f1 · warning ⚠ #f59e0b · error ✕ #ef4444 · confirm ? #7c3aed
+// Colors resolved from tokens: text-accent, btn-variant('warning') border,
+// status-error, status-installing.
+@use 'sass:map';
+@use '../../../../styles/tokens' as tokens;
+
+$kind-colors: (
+  'info': var(--color-text-accent),
+  'warning': map.get(map.get(tokens.$btn-variants, 'warning'), border),
+  'error': var(--color-status-error),
+  'confirm': var(--color-status-installing),
+);
+
+.msg {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 4px 2px 4px 12px;
+  border-left: 5px solid transparent; // v1 colored accent bar
+
+  @each $kind, $color in $kind-colors {
+    &--#{$kind} {
+      border-left-color: $color;
+
+      .msg__icon {
+        color: $color;
+      }
+    }
+  }
+}
+
+.msg__icon {
+  flex-shrink: 0;
+  width: 28px;
+  font-size: var(--font-size-h1);
+  font-weight: bold;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.msg__text {
+  margin: 2px 0 0;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+  line-height: 1.55;
+  white-space: pre-line; // v1 messages embed \n
+  overflow-wrap: anywhere;
+}

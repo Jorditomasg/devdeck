@@ -1,0 +1,70 @@
+// ui-badge — git count / warning hints + solid repo-type pill (inventory §6).
+// Variant classes land on the host element → :host(...) selectors.
+@use '../../../styles/mixins' as mx;
+
+:host {
+  @include mx.ellipsis;
+  @include mx.transition(color, background-color, opacity);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  line-height: 1;
+}
+
+:host(.badge--accent) {
+  color: var(--color-text-accent);
+}
+
+:host(.badge--warning) {
+  color: var(--color-text-warning-badge);
+}
+
+:host(.badge--error) {
+  color: var(--color-status-error);
+}
+
+:host(.badge--muted) {
+  color: var(--color-text-faint);
+  font-weight: 400;
+}
+
+// Repo type pill: white xs bold on ui_config.color bg, height 18, radius badge.
+:host(.badge--solid) {
+  color: var(--color-text-white);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: var(--geo-corner-badge);
+  text-transform: capitalize;
+}
+
+:host(.badge--mono) {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+}
+
+:host(.badge--interactive) {
+  cursor: pointer;
+
+  &:hover {
+    filter: brightness(1.25);
+  }
+}
+
+:host(.badge--pulse) {
+  animation: badge-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes badge-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.45;
+  }
+}

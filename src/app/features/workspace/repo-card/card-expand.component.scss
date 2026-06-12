@@ -1,0 +1,132 @@
+// Repo card expand panel (inventory-gui §7) — dense stacked rows on the
+// expand-panel background. Token values only.
+@use '../../../../styles/mixins' as mx;
+
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  background-color: var(--color-expand-panel);
+  border-radius: var(--geo-corner-panel);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--geo-btn-height-md);
+
+  &--docker {
+    flex-wrap: wrap;
+    padding-left: 56px; // aligns under the controls column
+  }
+}
+
+.row__label {
+  flex-shrink: 0;
+  width: 50px;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-base);
+  text-align: right;
+}
+
+.row__branch,
+.row__config {
+  width: 180px;
+  flex-shrink: 0;
+}
+
+.row__java {
+  width: 150px;
+  flex-shrink: 0;
+}
+
+// Danger env: warning-yellow combo border (§10 danger badge styling).
+.row__config--danger {
+  --color-border-default: var(--color-text-warning-badge);
+}
+
+.row__check {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  cursor: pointer;
+
+  input[type='checkbox'] {
+    width: var(--geo-checkbox-size);
+    height: var(--geo-checkbox-size);
+    accent-color: var(--color-text-accent);
+    cursor: pointer;
+  }
+}
+
+.row__spacer {
+  flex: 1 1 0;
+}
+
+.row__dir {
+  @include mx.ellipsis;
+  color: var(--color-text-faint);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+}
+
+.row__recommended {
+  color: var(--color-text-faint);
+  font-size: var(--font-size-md);
+}
+
+.row__cmd {
+  @include mx.control-reset;
+  @include mx.transition(border-color);
+  flex: 1 1 0;
+  min-width: 0;
+  height: var(--geo-btn-height-md);
+  padding: 0 8px;
+  background-color: var(--color-section);
+  border: var(--geo-border-width) solid var(--color-border-default);
+  border-radius: var(--geo-corner-btn);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-md);
+
+  &::placeholder {
+    color: var(--color-text-placeholder);
+  }
+
+  &:focus {
+    outline: none;
+    border-color: var(--color-text-accent-bright);
+  }
+}
+
+// Docker compose file buttons (§7 row 3.5): 🐳 Name [r/t], state-colored.
+.docker-btn {
+  @include mx.control-reset;
+  @include mx.interactive;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: var(--geo-corner-btn);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-md);
+
+  &--running {
+    background-color: var(--color-docker-btn-active-fg);
+    border: var(--geo-border-width) solid var(--color-docker-border-running);
+  }
+
+  &--active {
+    background-color: var(--color-docker-btn-active-fg);
+    border: var(--geo-border-width) solid var(--color-docker-border-active);
+  }
+
+  &--stopped {
+    background-color: var(--color-docker-btn-stopped-fg);
+    border: var(--geo-border-width) solid var(--color-docker-border-stopped);
+  }
+
+  &:hover {
+    background-color: var(--color-card-hover);
+  }
+}

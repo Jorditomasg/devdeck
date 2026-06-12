@@ -1,0 +1,18 @@
+@use 'controls' as c;
+
+:host {
+  display: contents;
+}
+
+.prompt__label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-base);
+}
+
+.prompt__input {
+  @include c.text-input;
+  width: 100%;
+  box-sizing: border-box;
+}

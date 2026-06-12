@@ -1,0 +1,61 @@
+// Config editor (inventory-gui §16) — mono editor + scroll-synced gutter.
+@use '../shared/controls' as c;
+@use '../../../../styles/mixins' as mx;
+
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+
+.editor__path {
+  @include mx.ellipsis;
+  margin: 0;
+  color: var(--color-text-placeholder);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+}
+
+.editor__error {
+  @include c.inline-error;
+  margin: 0;
+}
+
+.editor__surface {
+  display: flex;
+  height: 380px;
+  background-color: var(--color-app);
+  border: var(--geo-border-width) solid var(--color-border-card);
+  border-radius: var(--geo-corner-btn);
+  overflow: hidden;
+}
+
+// Line numbers — same metrics as the textarea so rows align 1:1.
+.editor__gutter {
+  flex-shrink: 0;
+  width: 44px;
+  margin: 0;
+  padding: 8px 6px 8px 0;
+  border-right: var(--geo-border-width) solid var(--color-divider);
+  color: var(--color-text-faint);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-md);
+  line-height: 1.5;
+  text-align: right;
+  overflow: hidden;
+  user-select: none;
+}
+
+.editor__area {
+  @include c.mono-textarea;
+  flex: 1 1 auto;
+  border: none;
+  border-radius: 0;
+  white-space: pre;
+  overflow: auto;
+
+  &:focus {
+    border: none;
+  }
+}

@@ -1,0 +1,241 @@
+/**
+ * Topbar container (inventory-gui.md §2): logo, workspace path ↔ group
+ * selector swap (`showGroupSelector`, §2/§27), the profile dropdown with the
+ * §26 dirty `name *` styling, and the right action buttons (quick-save,
+ * manage profiles, clone, rescan, settings, groups).
+ *
+ * Scan orchestration stays in `workspace-page` — this container emits
+ * `groupChanged` / `rescanRequested` instead of scanning itself, so the
+ * rescan flow (scan → prune → repo-state restore → profile reload) has a
+ * single owner.
+ */
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  output,
+} from '@angular/core';
+
+import { TranslationService } from '../../core/i18n/translation.service';
+import { ProfilesStore } from '../../core/state/profiles.store';
+import { SettingsStore } from '../../core/state/settings.store';
+import {
+  ButtonComponent,
+  IconButtonComponent,
+  SearchableSelectComponent,
+  TooltipDirective,
+} from '../../ui';
+import { DialogService } from '../dialogs/dialog.service';
+import { OpenerService } from './opener.service';
+import { RepoActionsService } from './state/repo-actions.service';
+import { WorkspaceStore } from './state/workspace.store';
+import {
+  profileDisplayName,
+  profileDropdownOptions,
+  showGroupSelector,
+} from './workspace-logic';
+
+/** The v1 Default group maps to the profiles-store root (backend §15.1). */
+export function profileGroupArg(groupName: string | undefined): string | undefined {
+  return groupName === undefined || groupName === 'Default' ? undefined : groupName;
+}
+
+@Component({
+  selector: 'app-topbar',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [
+    ButtonComponent,
+    IconButtonComponent,
+    SearchableSelectComponent,
+    TooltipDirective,
+  ],
+  styleUrl: './topbar.component.scss',
+  template: `
+    <span class="topbar__logo">🚀 {{ i18n.t('label.app_title') }}</span>
+
+    <!-- §2 swap rule: group selector replaces the path label -->
+    @if (showGroups()) {
+      <div class="topbar__group">
+        <span class="topbar__group-label">{{ i18n.t('label.group') }}</span>
+        <ui-searchable-select
+          class="topbar__group-select"
+          [options]="groupNames()"
+          [value]="activeGroupName()"
+          [searchPlaceholder]="i18n.t('placeholder.search')"
+          [noResultsText]="i18n.t('placeholder.no_results')"
+          (selectionChange)="onGroupSelected($event)"
+        />
+        <ui-icon-button
+          variant="neutral"
+          [uiTooltip]="i18n.t('tooltip.manage_groups')"
+          (clicked)="dialogs.openWorkspaceGroups()"
+        >⚙</ui-icon-button>
+      </div>
+    } @else {
+      <button
+        type="button"
+        class="topbar__path"
+        [uiTooltip]="i18n.t('tooltip.workspace_dir', { path: workspacePath() })"
+        (click)="onPathClick()"
+      >{{ workspacePath() }}</button>
+    }
+
+    <!-- right group reserves space (§33) -->
+    <div class="topbar__actions">
+      <ui-searchable-select
+        class="topbar__profile"
+        [class.topbar__profile--dirty]="dirty()"
+        [options]="profileOptions()"
+        [value]="profileDisplay()"
+        [searchPlaceholder]="i18n.t('placeholder.search')"
+        [noResultsText]="i18n.t('placeholder.no_results')"
+        [uiTooltip]="i18n.t('tooltip.profile_selector')"
+        (selectionChange)="onProfileSelected($event)"
+      />
+      <ui-icon-button
+        variant="neutral"
+        size="lg"
+        [uiTooltip]="i18n.t('tooltip.save_profile')"
+        (clicked)="onQuickSave()"
+      >💾</ui-icon-button>
+      <ui-icon-button
+        variant="neutral"
+        size="lg"
+        [uiTooltip]="i18n.t('tooltip.manage_profiles')"
+        (clicked)="dialogs.openProfileManager()"
+      >👤</ui-icon-button>
+      <ui-button
+        variant="blue"
+        size="lg"
+        [uiTooltip]="i18n.t('tooltip.clone_btn')"
+        (clicked)="dialogs.openClone()"
+      >{{ i18n.t('btn.clone') }}</ui-button>
+      <ui-button
+        variant="warning"
+        size="lg"
+        [uiTooltip]="i18n.t('tooltip.rescan_btn')"
+        (clicked)="rescanRequested.emit()"
+      >{{ i18n.t('btn.rescan') }}</ui-button>
+      <ui-icon-button
+        variant="neutral"
+        size="lg"
+        [uiTooltip]="i18n.t('tooltip.settings_btn')"
+        (clicked)="dialogs.openSettings()"
+      >⚙</ui-icon-button>
+    </div>
+  `,
+})
+export class TopbarComponent {
+  /** Active group changed via the selector — the page rescans + reloads. */
+  readonly groupChanged = output<string>();
+  /** Rescan button — the page owns the scan flow (§4). */
+  readonly rescanRequested = output<void>();
+
+  protected readonly groupNames = computed(() =>
+    this.settings.workspaceGroups().map((g) => g.name),
+  );
+
+  protected readonly activeGroupName = computed(
+    () => this.settings.activeGroup()?.name ?? '',
+  );
+
+  /** §2 swap rule (`showGroupSelector`). */
+  protected readonly showGroups = computed(() =>
+    showGroupSelector(
+      this.settings.workspaceGroups().length,
+      this.settings.activeGroup()?.paths.length ?? 0,
+    ),
+  );
+
+  protected readonly workspacePath = computed(
+    () =>
+      this.settings.activeGroup()?.paths[0] ??
+      this.settings.config()?.workspace_dir ??
+      '',
+  );
+
+  /** Active name with the no-profile sentinel folded in (§26). */
+  private readonly activeName = computed(() =>
+    this.ws.noProfileSelected() ? null : this.profiles.activeProfileName(),
+  );
+
+  protected readonly dirty = computed(() => this.ws.profileDirty());
+
+  protected readonly profileDisplay = computed(() =>
+    profileDisplayName(
+      this.activeName(),
+      this.dirty(),
+      this.i18n.t('label.no_profile'),
+    ),
+  );
+
+  protected readonly profileOptions = computed(() =>
+    profileDropdownOptions(
+      this.profiles.profiles(),
+      this.activeName(),
+      this.i18n.t('label.no_profile'),
+    ),
+  );
+
+  constructor(
+    protected readonly i18n: TranslationService,
+    protected readonly dialogs: DialogService,
+    private readonly settings: SettingsStore,
+    private readonly profiles: ProfilesStore,
+    private readonly ws: WorkspaceStore,
+    private readonly actions: RepoActionsService,
+    private readonly opener: OpenerService,
+  ) {}
+
+  /** Path label click → OS file explorer (§2). */
+  protected onPathClick(): void {
+    const path = this.workspacePath();
+    if (path) {
+      void this.opener.openPath(path);
+    }
+  }
+
+  protected onGroupSelected(name: string): void {
+    if (name && name !== this.activeGroupName()) {
+      this.groupChanged.emit(name);
+    }
+  }
+
+  /** §26 dropdown: sentinel clears the active profile; a name loads+applies. */
+  protected async onProfileSelected(value: string): Promise<void> {
+    const group = profileGroupArg(this.settings.activeGroup()?.name);
+    if (value === this.i18n.t('label.no_profile')) {
+      this.ws.clearActiveProfile();
+      // Persist the sentinel so the next start does NOT re-apply a profile.
+      void this.settings.setLastProfile(group ?? null, null).catch(() => undefined);
+      return;
+    }
+    const doc = await this.profiles.load(value, group).catch(() => null);
+    if (!doc) {
+      await this.dialogs.error(
+        this.i18n.t('misc.error_title'),
+        this.i18n.t('log.profile_load_error', { name: value }),
+      );
+      return;
+    }
+    await this.actions.applyProfile(doc, { sideEffects: true });
+    // Persist as the group's last profile (§26 startup re-apply source).
+    void this.settings.setLastProfile(group ?? null, value).catch(() => undefined);
+  }
+
+  /** §26 quick save: overwrite the active profile, or open the manager. */
+  protected async onQuickSave(): Promise<void> {
+    const active = this.activeName();
+    if (!active) {
+      this.dialogs.openProfileManager();
+      return;
+    }
+    await this.profiles.save({
+      name: active,
+      group: profileGroupArg(this.settings.activeGroup()?.name),
+      doc: this.ws.buildProfileDocument(),
+      includeConfigFiles: true,
+    });
+    this.ws.scheduleDirtyCheck();
+  }
+}

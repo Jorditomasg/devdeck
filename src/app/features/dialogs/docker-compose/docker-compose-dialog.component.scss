@@ -1,0 +1,142 @@
+// Docker Compose manager (inventory-gui §19).
+@use '../shared/controls' as c;
+@use '../../../../styles/mixins' as mx;
+
+.docker {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.docker__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.docker__title {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+}
+
+.docker__count {
+  color: var(--color-text-accent-bright);
+  font-size: var(--font-size-md);
+}
+
+.docker__spacer {
+  flex: 1;
+}
+
+.docker__check {
+  @include c.checkbox-row;
+}
+
+.docker__file-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.docker__file-label {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-base);
+}
+
+.docker__file-combo {
+  flex: 1;
+  min-width: 0;
+}
+
+.docker__list {
+  @include c.list-surface;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 120px;
+  max-height: 280px;
+  padding: 8px;
+}
+
+.docker__hint {
+  @include c.hint;
+  margin: 0;
+}
+
+.docker__empty {
+  margin: 0;
+  color: var(--color-status-error);
+  font-size: var(--font-size-base);
+}
+
+// One service row (§19: height 44, section_alt bg, subtle border).
+.docker__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 10px;
+  background-color: var(--color-section-alt);
+  border: var(--geo-border-width) solid var(--color-border-subtle);
+  border-radius: var(--geo-corner-panel);
+}
+
+.docker__svc {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.docker__svc-name {
+  @include mx.ellipsis;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+  font-weight: 700;
+}
+
+.docker__svc-detail {
+  @include mx.ellipsis;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.docker__state {
+  flex-shrink: 0;
+  width: 85px; // v1 status text width (§19)
+  text-align: right;
+  font-size: var(--font-size-md);
+
+  &--running {
+    color: var(--color-status-running);
+  }
+
+  &--stopped {
+    color: var(--color-status-stopped);
+  }
+}
+
+.docker__log-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.docker__log-title {
+  @include mx.ellipsis;
+  min-width: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-md);
+  font-weight: 700;
+}
+
+.docker__log {
+  @include c.mono-textarea;
+  height: 150px; // v1 log box height (§19)
+  margin: 0;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}

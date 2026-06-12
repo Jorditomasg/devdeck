@@ -1,0 +1,46 @@
+// ui-icon-button — square compact action button (card header / dialog header).
+@use '../../../styles/tokens' as tokens;
+@use '../../../styles/mixins' as mx;
+
+:host {
+  display: inline-flex;
+}
+
+.icon-btn {
+  @include mx.control-reset;
+  @include mx.interactive;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--geo-corner-btn);
+  color: var(--color-text-white);
+  font-size: var(--font-size-lg);
+  line-height: 1;
+
+  &--sm {
+    width: var(--geo-btn-height-sm);
+    height: var(--geo-btn-height-sm);
+    font-size: var(--font-size-md);
+  }
+
+  &--md {
+    width: var(--geo-btn-height-md);
+    height: var(--geo-btn-height-md);
+  }
+
+  &--lg {
+    width: var(--geo-btn-height-lg);
+    height: var(--geo-btn-height-lg);
+    font-size: var(--font-size-xl);
+  }
+
+  @each $name, $_ in tokens.$btn-variants {
+    &--#{$name} {
+      @include tokens.btn-variant($name);
+    }
+  }
+
+  &--toggle-expand {
+    color: var(--color-text-accent-bright);
+  }
+}

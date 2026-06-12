@@ -1,0 +1,53 @@
+// Clone dialog (inventory-gui §15).
+@use '../shared/controls' as c;
+@use '../../../../styles/mixins' as mx;
+
+.clone {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.clone__input {
+  @include c.text-input;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.clone__dest {
+  @include mx.ellipsis;
+  min-width: 0;
+  color: var(--color-text-faint);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-md);
+}
+
+.clone__error {
+  @include c.inline-error;
+  margin: 0;
+}
+
+// v1 CTkProgressBar replacement.
+.clone__bar {
+  height: 8px;
+  background-color: var(--color-section);
+  border: var(--geo-border-width) solid var(--color-border-subtle);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.clone__bar-fill {
+  @include mx.transition(width);
+  height: 100%;
+  background-color: var(--color-text-accent);
+}
+
+.clone__log {
+  @include c.mono-textarea;
+  max-height: 80px;
+  margin: 0;
+  overflow-y: auto;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  white-space: pre-wrap;
+}

@@ -1,0 +1,14 @@
+// ui-divider — 1px line in --color-divider.
+:host {
+  display: block;
+  align-self: stretch;
+  flex-shrink: 0;
+  background-color: var(--color-divider);
+  height: var(--geo-border-width);
+  width: auto;
+}
+
+:host(.divider--vertical) {
+  height: auto;
+  width: var(--geo-border-width);
+}

@@ -1,0 +1,37 @@
+// ui-log-viewer — theme.log_textbox_style(): mono sm, app bg, card border (§29).
+:host {
+  display: block;
+  min-height: 0;
+}
+
+.log {
+  height: 100%;
+  min-height: 120px; // v1 embedded card log height (§8)
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 4px 6px;
+  background-color: var(--color-app);
+  border: var(--geo-border-width) solid var(--color-border-card);
+  border-radius: var(--geo-corner-panel);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+  color: var(--color-text-primary);
+  user-select: text; // logs must be copyable (overrides the app-wide none)
+  cursor: text;
+  overscroll-behavior: contain; // §33 overscroll prevention
+}
+
+.log__line {
+  // Perf: offscreen lines skip layout/paint; intrinsic size keeps the
+  // scrollbar stable (~one 15px row per line at sm mono).
+  content-visibility: auto;
+  contain-intrinsic-size: auto 15px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.log__empty {
+  color: var(--color-text-faint);
+  font-style: italic;
+}

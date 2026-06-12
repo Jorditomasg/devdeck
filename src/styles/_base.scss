@@ -1,0 +1,87 @@
+// ═══════════════════════════════════════════════════════════════════════════
+// Global base styles for DevOps Manager v2.
+// Token values come exclusively from _tokens.scss (config/ui_theme.yml).
+// Nothing component-specific belongs here.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ─── Box-sizing reset ────────────────────────────────────────────────────────
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+}
+
+// ─── Document ────────────────────────────────────────────────────────────────
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-app);
+  color: var(--color-text-primary);
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden; // desktop-app shell: panels scroll, the window does not
+  user-select: none; // desktop-app feel; re-enable per-element where needed
+}
+
+code,
+pre,
+kbd,
+samp {
+  font-family: var(--font-family-mono);
+}
+
+// ─── Scrollbars (dark theme) ─────────────────────────────────────────────────
+
+* {
+  scrollbar-width: thin; // Firefox
+  scrollbar-color: var(--color-divider) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--color-divider);
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+
+  &:hover {
+    background-color: var(--color-border-default);
+  }
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+// ─── Selection ───────────────────────────────────────────────────────────────
+
+::selection {
+  background-color: var(--color-text-accent);
+  color: var(--color-text-white);
+}
+
+// ─── Focus ───────────────────────────────────────────────────────────────────
+
+:focus-visible {
+  outline: var(--geo-border-width) solid var(--color-text-accent-bright);
+  outline-offset: 1px;
+}

@@ -1,0 +1,14 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Default capability for the main window and detached log windows (log-*): core APIs, tray, dialogs, opener (incl. open_path for folders/log files) and logging. Window manipulation (show/hide/focus/minimize) happens Rust-side only, so no core:window:allow-* permissions are granted to the webview.",
+  "windows": ["main", "log-*"],
+  "permissions": [
+    "core:default",
+    "core:tray:default",
+    "dialog:default",
+    "opener:default",
+    "opener:allow-open-path",
+    "log:default"
+  ]
+}

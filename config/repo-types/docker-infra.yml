@@ -1,0 +1,41 @@
+# Docker Infrastructure Repository Definition (ported from v1 config/repo_types/docker-infra.yml)
+type: "docker-infra"
+priority: 0
+
+detection:
+  required_files: []
+  # v2: replaces the v1 hardcoded "docker-infra may match non-git dirs"
+  # exemption (inventory-config-ci.md §1.3 step 1) with an explicit flag.
+  allow_no_git: true
+
+heuristics:
+  must_match_patterns:
+    - "docker-compose*.yml"
+    - "docker-compose*.yaml"
+
+# Docker infra is usually managed by the Global Panel directly (seeds, mysql, etc),
+# but defining standard commands allows for individual start/stop of the whole stack if needed.
+commands:
+  install_cmd: ""
+  start_cmd: "docker-compose up -d"
+  # v2: stop_cmd is now ENFORCED by the process layer (dead key in v1,
+  # §22.6 backend) — stopping a docker-infra card genuinely downs the stack
+  # instead of just killing the `docker-compose up -d` process tree.
+  stop_cmd: "docker-compose down"
+
+env_files:
+  default_dir: "."
+  config_writer_type: "raw"
+  pull_ignore_patterns:
+    - ".env*"
+  main_config_filename: ".env"
+  patterns:
+    - ".env"
+  exclude_dirs: []
+
+ui:
+  icon: "🐳"
+  color: "#3b82f6"
+
+features:
+  - "docker_checkboxes"

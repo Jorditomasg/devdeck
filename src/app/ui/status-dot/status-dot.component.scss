@@ -1,0 +1,63 @@
+// ui-status-dot — 6-state colors via the --color-status-* tokens (§33).
+// Uses the CSS custom properties directly (not the SASS map) so this
+// stylesheet does not re-emit the tokens' :root block.
+@use '../../../styles/mixins' as mx;
+
+:host {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+}
+
+.dot {
+  @include mx.transition(background-color, box-shadow, color);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: currentColor;
+  box-shadow: 0 0 5px currentColor;
+
+  &--running {
+    color: var(--color-status-running);
+  }
+
+  &--starting {
+    color: var(--color-status-starting);
+  }
+
+  &--stopped {
+    color: var(--color-status-stopped);
+  }
+
+  &--error {
+    color: var(--color-status-error);
+  }
+
+  &--installing {
+    color: var(--color-status-installing);
+  }
+
+  // Gentle breathing while transitioning states.
+  &--starting,
+  &--installing {
+    animation: dot-breathe 1.2s ease-in-out infinite;
+  }
+
+  // Transient logging flash: orange wins over the underlying state (§8).
+  &--flash {
+    color: var(--color-status-logging);
+    animation: none;
+  }
+}
+
+@keyframes dot-breathe {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.55;
+  }
+}

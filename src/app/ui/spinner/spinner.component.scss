@@ -1,0 +1,34 @@
+// ui-spinner — indeterminate ring, inherits currentColor.
+:host {
+  display: inline-flex;
+  color: var(--color-text-accent-bright);
+}
+
+.spinner {
+  border: 2px solid currentColor;
+  border-bottom-color: transparent;
+  border-radius: 50%;
+  animation: spinner-spin 0.7s linear infinite;
+
+  &--sm {
+    width: 12px;
+    height: 12px;
+  }
+
+  &--md {
+    width: 16px;
+    height: 16px;
+  }
+
+  &--lg {
+    width: 24px;
+    height: 24px;
+    border-width: 3px;
+  }
+}
+
+@keyframes spinner-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

@@ -1,0 +1,119 @@
+// ui-dialog-shell — BaseDialog replacement (inventory §13).
+@use '../../../styles/mixins' as mx;
+
+.dialog__backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgb(0 0 0 / 50%); // v1 _OVERLAY_DARKEN = 0.5 (§13.3)
+  animation: dialog-fade-in 120ms ease-out;
+}
+
+.dialog__panel {
+  display: flex;
+  flex-direction: column;
+  max-width: calc(100vw - 48px);
+  max-height: calc(100vh - 48px);
+  background-color: var(--color-card); // v1 dialog root bg
+  border: var(--geo-border-width) solid var(--color-border-card);
+  border-radius: var(--geo-corner-card);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 60%);
+  outline: none;
+
+  // Blocked-click "knock": subtle shake + border flash (§13.7).
+  &--knock {
+    animation: dialog-knock 360ms ease-out;
+  }
+}
+
+.dialog__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px 8px;
+  border-bottom: var(--geo-border-width) solid var(--color-divider);
+}
+
+.dialog__title {
+  @include mx.ellipsis;
+  flex: 1 1 auto;
+  font-size: var(--font-size-h2);
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.dialog__close {
+  @include mx.control-reset;
+  @include mx.interactive;
+  flex-shrink: 0;
+  width: var(--geo-btn-height-sm);
+  height: var(--geo-btn-height-sm);
+  border-radius: var(--geo-corner-btn);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-md);
+  line-height: 1;
+
+  &:hover {
+    background-color: var(--color-status-error);
+    color: var(--color-text-white);
+  }
+}
+
+.dialog__content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.dialog__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 8px 12px 10px;
+
+  &:empty {
+    display: none;
+  }
+}
+
+@keyframes dialog-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes dialog-knock {
+  0%,
+  100% {
+    border-color: var(--color-border-card);
+  }
+
+  10%,
+  50%,
+  90% {
+    border-color: var(--color-text-accent-bright);
+  }
+
+  20% {
+    margin-left: -6px;
+  }
+
+  40% {
+    margin-left: 5px;
+  }
+
+  60% {
+    margin-left: -3px;
+  }
+
+  80% {
+    margin-left: 2px;
+  }
+}

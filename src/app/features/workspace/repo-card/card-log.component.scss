@@ -1,0 +1,35 @@
+// Repo card log row (inventory-gui §8) — section header with right-aligned
+// log actions + the 120px log viewer (320px when enlarged). Token values only.
+@use '../../../../styles/mixins' as mx;
+
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+// Detected service URL — link-styled, clickable (§8 clickable port).
+.log-url {
+  @include mx.control-reset;
+  @include mx.transition(color);
+  @include mx.ellipsis;
+  max-width: 240px;
+  color: var(--color-text-accent);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+
+  &:hover {
+    color: var(--color-text-accent-bright);
+    text-decoration: underline;
+  }
+}
+
+.log-view {
+  @include mx.transition(height);
+  height: 120px; // v1 embedded textbox height (§8)
+
+  &--detached {
+    height: 320px; // in-page enlarge replaces the v1 detached window
+  }
+}
