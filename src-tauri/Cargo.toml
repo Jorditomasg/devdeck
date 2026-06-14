@@ -38,6 +38,11 @@ tokio = { version = "1.52", features = ["macros", "rt-multi-thread", "process", 
 regex = "1.12"
 thiserror = "2.0"
 dirs = "6.0"
+# Interactive PTY backend for the per-repo terminals subsystem (`src/terminal/`).
+# Cross-platform: openpty/forkpty on Unix, ConPTY on Windows (≥ Win10 1809).
+# SPIKE GATE: this must link under the `cargo-xwin` Windows cross-compile from
+# WSL (see CLAUDE.md build recipe) before the full subsystem is built on top.
+portable-pty = "0.8"
 
 # Unix-only: process-GROUP signalling (`killpg`) for `process/kill.rs` — the
 # v1 POSIX self-kill fix (inventory-backend.md §22.1, architecture-v2.md §7.1)

@@ -95,4 +95,16 @@ export class IpcEvents {
   onAppCloseRequested(handler: () => void): Promise<UnlistenFn> {
     return this.bridge.listen(EVT.appCloseRequested, handler);
   }
+
+  /**
+   * THIS window's close request (terminal windows): the close waits for the
+   * async `handler` so the PTY can be killed (`close_terminal`) before the
+   * window goes away. Not a Rust-emitted bus event — it wraps the window's
+   * own close lifecycle.
+   */
+  onWindowCloseRequested(
+    handler: () => Promise<void> | void,
+  ): Promise<UnlistenFn> {
+    return this.bridge.onCurrentWindowCloseRequested(handler);
+  }
 }

@@ -24,4 +24,14 @@ describe('validateBranchName (git check-ref-format subset)', () => {
       expect(validateBranchName(bad)).toBe('dialog.branch.error_invalid');
     }
   });
+
+  it('rejects @-forms, double slash and leading slash', () => {
+    for (const bad of ['@', 'feat@{upstream}', 'a//b', '/lead']) {
+      expect(validateBranchName(bad)).toBe('dialog.branch.error_invalid');
+    }
+  });
+
+  it('still accepts a name containing a lone @ (not @{)', () => {
+    expect(validateBranchName('feat@2')).toBeNull();
+  });
 });

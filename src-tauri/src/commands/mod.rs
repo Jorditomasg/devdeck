@@ -29,6 +29,7 @@ pub mod git;
 pub mod java;
 pub mod process;
 pub mod profiles;
+pub mod terminal;
 
 pub use error::{AppError, CmdResult};
 

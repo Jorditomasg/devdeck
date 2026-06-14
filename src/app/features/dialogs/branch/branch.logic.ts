@@ -7,7 +7,8 @@ const FORBIDDEN = /[ ~^:?*[\\]/;
  * Validate a proposed branch name. Returns the i18n key of the first problem,
  * or `null` when acceptable. Covers the common `git check-ref-format` rules:
  * non-empty; no spaces / `~^:?*[` / backslash / control chars; no `..`; no
- * leading `-`; no trailing `/`, `.` or `.lock`.
+ * `@{` and not the single `@`; no `//`; no leading `-` or `/`; no trailing
+ * `/`, `.` or `.lock`.
  */
 export function validateBranchName(name: string): string | null {
   const value = name.trim();
@@ -17,7 +18,11 @@ export function validateBranchName(name: string): string | null {
   if (
     FORBIDDEN.test(value) ||
     value.includes('..') ||
+    value.includes('@{') ||
+    value === '@' ||
+    value.includes('//') ||
     value.startsWith('-') ||
+    value.startsWith('/') ||
     value.endsWith('/') ||
     value.endsWith('.') ||
     value.endsWith('.lock')

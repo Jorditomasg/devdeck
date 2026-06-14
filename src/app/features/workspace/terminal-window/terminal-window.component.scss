@@ -1,0 +1,15 @@
+// Detached terminal window fills the whole webview; xterm.js paints inside.
+:host {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  background: #1e1e1e;
+  overflow: hidden;
+}
+
+.term__host {
+  width: 100%;
+  height: 100%;
+  padding: 4px;
+  box-sizing: border-box;
+}

@@ -240,9 +240,21 @@ export class IpcCommands {
     statusSummary: (repoPath: string): Promise<GitBadge> =>
       this.bridge.invoke<GitBadge>(CMD.gitStatusSummary, { repoPath }),
 
-    /** Reflog-recency ordered; default limit 7 (inventory-backend.md §10.1). */
-    branches: (repoPath: string, limit?: number): Promise<OrderedBranches> =>
-      this.bridge.invoke<OrderedBranches>(CMD.gitBranches, { repoPath, limit }),
+    /**
+     * Reflog-recency ordered; default limit 7 (inventory-backend.md §10.1).
+     * `includeRemote` defaults to `true` (Rust side); pass `false` for a
+     * local-only list (branch-management dialog).
+     */
+    branches: (
+      repoPath: string,
+      limit?: number,
+      includeRemote?: boolean,
+    ): Promise<OrderedBranches> =>
+      this.bridge.invoke<OrderedBranches>(CMD.gitBranches, {
+        repoPath,
+        limit,
+        includeRemote,
+      }),
 
     currentBranch: (repoPath: string): Promise<string> =>
       this.bridge.invoke<string>(CMD.gitCurrentBranch, { repoPath }),

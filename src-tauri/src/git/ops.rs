@@ -65,9 +65,15 @@ pub async fn get_recent_checked_out_branches(repo: &Path) -> Vec<String> {
 
 /// Branch list ordered by reflog recency: up to `limit` recent branches
 /// first, the rest alphabetical (v1 `order_branches_by_recency` over
-/// `get_branches(include_remote=True)`).
-pub async fn get_ordered_branches(repo: &Path, limit: usize) -> OrderedBranches {
-    let branches = get_branches(repo, true).await;
+/// `get_branches`). `include_remote` controls whether remote branches join
+/// the list (v1 always passed `true`; the branch-management dialog passes
+/// `false` so its local-only operations never target a remote-only name).
+pub async fn get_ordered_branches(
+    repo: &Path,
+    limit: usize,
+    include_remote: bool,
+) -> OrderedBranches {
+    let branches = get_branches(repo, include_remote).await;
     let recent = get_recent_checked_out_branches(repo).await;
     let (ordered, recent_count) = parse::order_branches_by_recency(&recent, &branches, limit);
     OrderedBranches { branches: ordered, recent_count }

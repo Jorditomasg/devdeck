@@ -23,7 +23,10 @@
             "browser": "src/main.ts",
             "tsConfig": "tsconfig.app.json",
             "inlineStyleLanguage": "scss",
-            "styles": ["src/styles/styles.scss"],
+            "styles": [
+              "node_modules/@xterm/xterm/css/xterm.css",
+              "src/styles/styles.scss"
+            ],
             "assets": [
               {
                 "glob": "**/*",

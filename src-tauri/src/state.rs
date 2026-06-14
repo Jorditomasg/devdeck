@@ -23,6 +23,7 @@ use crate::domain::{RepoInfo, RepoTypeDef, ServiceStatus};
 use crate::git::BadgePoller;
 use crate::process::ProcessManager;
 use crate::profiles::ProfileStore;
+use crate::terminal::TerminalManager;
 
 /// Git badge concurrency cap (inventory-gui.md §28 — do not raise).
 /// Aliased from the poll module so the two declarations can never drift.
@@ -71,6 +72,10 @@ pub struct AppState {
     /// a fresh webview has no event history, so it seeds from this cache
     /// (`get_log_backlog`) and then follows live `service://log-line` events.
     pub logs: Arc<LogCache>,
+    /// Interactive PTY terminal sessions (`open_terminal_window`), one per
+    /// detached `term-*` window. Isolated from `process` (no status machine);
+    /// `any_open()` gates the app-close confirmation alongside `tray`.
+    pub terminals: Arc<TerminalManager>,
 }
 
 /// Per-service ring buffer of recent log lines, fed by the event emitter on
@@ -143,6 +148,7 @@ impl AppState {
         pending_migration: Option<MigrationReport>,
         tray: Arc<TrayStatus>,
         logs: Arc<LogCache>,
+        terminals: Arc<TerminalManager>,
     ) -> Self {
         AppState {
             config,
@@ -157,6 +163,7 @@ impl AppState {
             pending_migration: Mutex::new(pending_migration),
             tray,
             logs,
+            terminals,
         }
     }
 

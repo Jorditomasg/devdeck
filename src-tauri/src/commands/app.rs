@@ -111,11 +111,17 @@ pub async fn get_log_backlog(
     Ok(state.logs.backlog(&service_id))
 }
 
-/// Window label for a service's detached log window. Tauri labels only allow
-/// `a-zA-Z0-9-/:_`; service ids may contain anything (e.g. `repo::module`),
-/// so non-allowed bytes are folded to `-`.
+/// Window label for a service's detached log window.
 fn log_window_label(service_id: &str) -> String {
-    let safe: String = service_id
+    window_label("log", service_id)
+}
+
+/// Detached-window label `<prefix>-<safe-id>`. Tauri labels only allow
+/// `a-zA-Z0-9-/:_`; ids may contain anything (e.g. `repo::module`,
+/// `repo::term::1`), so non-allowed bytes are folded to `-`. Shared by the
+/// log windows here and the terminal windows ([`super::terminal`]).
+pub(crate) fn window_label(prefix: &str, id: &str) -> String {
+    let safe: String = id
         .chars()
         .map(|c| {
             if c.is_ascii_alphanumeric() || matches!(c, '-' | '/' | ':' | '_') {
@@ -125,12 +131,12 @@ fn log_window_label(service_id: &str) -> String {
             }
         })
         .collect();
-    format!("log-{safe}")
+    format!("{prefix}-{safe}")
 }
 
-/// Minimal percent-encoding for a query-string value (only what service ids
-/// need; avoids pulling a url crate for one call site).
-fn urlencode_component(value: &str) -> String {
+/// Minimal percent-encoding for a query-string value (only what service/term
+/// ids need; avoids pulling a url crate for two call sites).
+pub(crate) fn urlencode_component(value: &str) -> String {
     let mut out = String::with_capacity(value.len());
     for byte in value.bytes() {
         match byte {

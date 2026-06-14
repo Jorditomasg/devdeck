@@ -5,7 +5,7 @@
 //! Kinds are extend-only, never renamed:
 //! `configuration | detection | io | yaml_parse | json_parse | migration |
 //! no_os_directory` (from [`DomainError::kind`]), `git`, `docker`,
-//! `process`, `profile`, `invalid_args`.
+//! `process`, `profile`, `terminal`, `invalid_args`.
 
 use serde::Serialize;
 
@@ -14,6 +14,7 @@ use crate::domain::DomainError;
 use crate::git::GitError;
 use crate::process::ProcessError;
 use crate::profiles::ProfileError;
+use crate::terminal::TerminalError;
 
 /// Result alias used by every command handler.
 pub type CmdResult<T> = Result<T, AppError>;
@@ -101,6 +102,21 @@ impl From<ProfileError> for AppError {
     fn from(err: ProfileError) -> Self {
         AppError {
             kind: "profile".into(),
+            message: err.to_string(),
+        }
+    }
+}
+
+impl From<TerminalError> for AppError {
+    fn from(err: TerminalError) -> Self {
+        // `Unknown` is a stale/invalid id from the caller; PTY failures are the
+        // terminal subsystem's own domain.
+        let kind = match err {
+            TerminalError::Unknown(_) => "invalid_args",
+            TerminalError::Pty(_) => "terminal",
+        };
+        AppError {
+            kind: kind.into(),
             message: err.to_string(),
         }
     }

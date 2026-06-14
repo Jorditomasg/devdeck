@@ -118,11 +118,13 @@ export class StashDialogComponent extends DialogBase {
 
   protected async add(): Promise<void> {
     const message = this.name().trim() || null;
-    await this.run(
+    const ok = await this.run(
       () => this.commands.git.stashPush(this.repoPath(), message, this.includeUntracked()),
       'dialog.stash.done_added',
     );
-    this.name.set('');
+    if (ok) {
+      this.name.set(''); // keep the typed name on failure so it can be retried
+    }
   }
 
   protected async apply(entry: StashEntry): Promise<void> {
@@ -153,10 +155,13 @@ export class StashDialogComponent extends DialogBase {
     );
   }
 
-  /** Run a mutation, log its outcome, refresh the badge, and re-list. */
-  private async run(op: () => Promise<OpOutput>, okKey: string): Promise<void> {
+  /**
+   * Run a mutation, log its outcome, refresh the badge, and re-list. Resolves
+   * `true` when the operation succeeded (`ok`), `false` otherwise.
+   */
+  private async run(op: () => Promise<OpOutput>, okKey: string): Promise<boolean> {
     if (this.busy()) {
-      return;
+      return false;
     }
     this.busy.set(true);
     try {
@@ -168,8 +173,10 @@ export class StashDialogComponent extends DialogBase {
       );
       void this.repos.refreshBadge(this.repoPath());
       await this.reload();
+      return result.ok;
     } catch (err: unknown) {
       this.appendLog(this.i18n.t('dialog.stash.failed', { msg: describe(err) }));
+      return false;
     } finally {
       this.busy.set(false);
     }

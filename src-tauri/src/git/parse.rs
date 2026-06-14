@@ -106,8 +106,11 @@ fn parse_stash_subject(subject: &str) -> (String, String) {
     let branch = head
         .trim_start_matches("WIP on ")
         .trim_start_matches("On ")
-        .trim()
-        .to_string();
+        .trim();
+    // A stash made off a detached HEAD reads `WIP on (no branch): …`; report
+    // an empty branch (the `StashEntry::branch` contract) rather than the
+    // literal `(no branch)` placeholder.
+    let branch = if branch == "(no branch)" { String::new() } else { branch.to_string() };
     (branch, message)
 }
 
@@ -487,6 +490,16 @@ stash@{2}\u{1f}On develop: nightly checkpoint
         assert_eq!(parse_stash_list(""), Vec::new());
         // A line without the unit separator is skipped.
         assert_eq!(parse_stash_list("garbage with no separator\n"), Vec::new());
+    }
+
+    #[test]
+    fn stash_list_detached_head_reports_empty_branch() {
+        // A stash made off a detached HEAD: `WIP on (no branch): <sha> <subj>`.
+        let output = "stash@{0}\u{1f}WIP on (no branch): 1a2b3c detached work\n";
+        assert_eq!(
+            parse_stash_list(output),
+            vec![StashEntry { index: 0, message: "1a2b3c detached work".into(), branch: String::new() }]
+        );
     }
 
     // ---- remote url --------------------------------------------------
