@@ -90,6 +90,7 @@ export function formatCardLine(entry: LogLine): string {
       (stop)="onStop()"
       (restart)="onRestart()"
       (openExplorer)="onOpenExplorer()"
+      (openTerminal)="onOpenTerminal()"
       (openRemote)="onOpenRemote()"
       (pullClicked)="onPull()"
       (changesClicked)="onShowChanges()"
@@ -109,6 +110,8 @@ export function formatCardLine(entry: LogLine): string {
             (pull)="onPull()"
             (merge)="onMerge()"
             (clean)="onClean()"
+            (stash)="onStash()"
+            (branches)="onBranches()"
             (openConfig)="onOpenConfig()"
             (install)="onInstall()"
             (seed)="onSeed()"
@@ -262,6 +265,7 @@ export class RepoCardComponent {
     stopTip: this.i18n.t('tooltip.stop_btn'),
     restartTip: this.i18n.t('tooltip.restart_btn'),
     openExplorerTip: this.i18n.t('tooltip.open_explorer'),
+    openTerminalTip: this.i18n.t('tooltip.open_terminal'),
     expandTip: this.i18n.t('tooltip.expand'),
     openRepoTip: this.i18n.t('tooltip.open_repo'),
     pullTip: this.i18n.t('tooltip.pending_pulls'),
@@ -283,6 +287,10 @@ export class RepoCardComponent {
     mergeTip: this.i18n.t('tooltip.merge_btn'),
     cleanText: this.i18n.t('btn.clean'),
     cleanTip: this.i18n.t('tooltip.clean_btn'),
+    stashText: this.i18n.t('btn.stash'),
+    stashTip: this.i18n.t('tooltip.stash_btn'),
+    branchesText: this.i18n.t('btn.branches'),
+    branchesTip: this.i18n.t('tooltip.branches_btn'),
     configText: this.i18n.t('btn.config'),
     configTip: this.i18n.t('tooltip.config_btn'),
     seedText: this.i18n.t('btn.seed'),
@@ -491,6 +499,17 @@ export class RepoCardComponent {
     void this.opener.openPath(this.repo().path);
   }
 
+  /** Open a detached interactive PTY terminal rooted at the repo path. */
+  protected onOpenTerminal(): void {
+    void this.commands.terminal
+      .openWindow(
+        this.repo().name,
+        this.repo().path,
+        `${this.repo().name} — ${this.i18n.t('label.terminal')}`,
+      )
+      .catch((err: unknown) => console.error('open terminal window failed', err));
+  }
+
   protected onOpenRemote(): void {
     const url = this.repo().gitRemoteUrl;
     if (url) {
@@ -558,6 +577,14 @@ export class RepoCardComponent {
 
   protected onClean(): void {
     void this.actions.clean(this.repo());
+  }
+
+  protected onStash(): void {
+    this.dialogs.openStash(this.repo().name);
+  }
+
+  protected onBranches(): void {
+    this.dialogs.openBranches(this.repo().name);
   }
 
   /** Raw config editor (§7 row 1 Config button — repos without env files). */

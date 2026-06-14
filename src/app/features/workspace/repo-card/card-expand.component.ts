@@ -96,6 +96,10 @@ export interface CardExpandText {
   readonly mergeTip: string;
   readonly cleanText: string;
   readonly cleanTip: string;
+  readonly stashText: string;
+  readonly stashTip: string;
+  readonly branchesText: string;
+  readonly branchesTip: string;
   readonly configText: string;
   readonly configTip: string;
   readonly seedText: string;
@@ -156,6 +160,12 @@ export interface CardExpandText {
       </ui-button>
       <ui-button variant="purple" [uiTooltip]="text().cleanTip" (clicked)="clean.emit()">
         {{ text().cleanText }}
+      </ui-button>
+      <ui-button variant="purple-alt" [uiTooltip]="text().stashTip" (clicked)="stash.emit()">
+        {{ text().stashText }}
+      </ui-button>
+      <ui-button variant="purple-alt" [uiTooltip]="text().branchesTip" (clicked)="branches.emit()">
+        {{ text().branchesText }}
       </ui-button>
       @if (vm().branch.showConfigBtn) {
         <ui-button variant="neutral" [uiTooltip]="text().configTip" (clicked)="openConfig.emit()">
@@ -287,6 +297,8 @@ export class CardExpandComponent {
   readonly pull = output<void>();
   readonly merge = output<void>();
   readonly clean = output<void>();
+  readonly stash = output<void>();
+  readonly branches = output<void>();
   readonly openConfig = output<void>();
   readonly install = output<void>();
   readonly seed = output<void>();
