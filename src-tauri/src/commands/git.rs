@@ -18,7 +18,7 @@ use super::{op_log_sink, path_basename};
 use crate::events::LogStream;
 use crate::git::{
     self, MergeOutcome, MergeRequest, OpOutput, OrderedBranches, RevertOutcome, RevertPoint,
-    StatusSummary, DEFAULT_BRANCH_RECENCY_LIMIT,
+    StashEntry, StatusSummary, DEFAULT_BRANCH_RECENCY_LIMIT,
 };
 use crate::state::AppState;
 
@@ -188,4 +188,131 @@ pub async fn git_refresh_badge(
     let _permit = acquire(&state.badge_semaphore).await?;
     git::refresh_badge(&app, &PathBuf::from(repo_path)).await;
     Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Stash management (ipc-contract.md §2.4 #62–#66) — append-only numbering.
+// ---------------------------------------------------------------------------
+
+/// #62 `git_stash_list { repoPath }` → `StashEntry[]`.
+#[tauri::command]
+pub async fn git_stash_list(repo_path: String) -> CmdResult<Vec<StashEntry>> {
+    Ok(git::stash_list(&PathBuf::from(repo_path)).await)
+}
+
+/// #63 `git_stash_push { repoPath, message?, includeUntracked }` → `OpOutput`.
+#[tauri::command]
+pub async fn git_stash_push(
+    app: tauri::AppHandle,
+    repo_path: String,
+    message: Option<String>,
+    include_untracked: bool,
+) -> CmdResult<OpOutput> {
+    let repo = PathBuf::from(repo_path);
+    let sink = op_log_sink(app, path_basename(&repo), LogStream::Git);
+    Ok(git::stash_push(&repo, message.as_deref(), include_untracked, Some(&sink)).await)
+}
+
+/// #64 `git_stash_apply { repoPath, index }` → `OpOutput` (keeps the entry).
+#[tauri::command]
+pub async fn git_stash_apply(
+    app: tauri::AppHandle,
+    repo_path: String,
+    index: usize,
+) -> CmdResult<OpOutput> {
+    let repo = PathBuf::from(repo_path);
+    let sink = op_log_sink(app, path_basename(&repo), LogStream::Git);
+    Ok(git::stash_apply(&repo, index, Some(&sink)).await)
+}
+
+/// #65 `git_stash_pop { repoPath, index }` → `OpOutput` (applies + drops).
+#[tauri::command]
+pub async fn git_stash_pop(
+    app: tauri::AppHandle,
+    repo_path: String,
+    index: usize,
+) -> CmdResult<OpOutput> {
+    let repo = PathBuf::from(repo_path);
+    let sink = op_log_sink(app, path_basename(&repo), LogStream::Git);
+    Ok(git::stash_pop(&repo, index, Some(&sink)).await)
+}
+
+/// #66 `git_stash_drop { repoPath, index }` → `OpOutput`.
+#[tauri::command]
+pub async fn git_stash_drop(
+    app: tauri::AppHandle,
+    repo_path: String,
+    index: usize,
+) -> CmdResult<OpOutput> {
+    let repo = PathBuf::from(repo_path);
+    let sink = op_log_sink(app, path_basename(&repo), LogStream::Git);
+    Ok(git::stash_drop(&repo, index, Some(&sink)).await)
+}
+
+// ---------------------------------------------------------------------------
+// Branch management (ipc-contract.md §2.4 #67–#71).
+// ---------------------------------------------------------------------------
+
+/// #67 `git_create_branch { repoPath, name, base?, checkout }` → `OpOutput`.
+#[tauri::command]
+pub async fn git_create_branch(
+    app: tauri::AppHandle,
+    repo_path: String,
+    name: String,
+    base: Option<String>,
+    checkout: bool,
+) -> CmdResult<OpOutput> {
+    let repo = PathBuf::from(repo_path);
+    let sink = op_log_sink(app, path_basename(&repo), LogStream::Git);
+    Ok(git::create_branch(&repo, &name, base.as_deref(), checkout, Some(&sink)).await)
+}
+
+/// #68 `git_delete_branch { repoPath, name, force }` → `OpOutput`.
+#[tauri::command]
+pub async fn git_delete_branch(
+    app: tauri::AppHandle,
+    repo_path: String,
+    name: String,
+    force: bool,
+) -> CmdResult<OpOutput> {
+    let repo = PathBuf::from(repo_path);
+    let sink = op_log_sink(app, path_basename(&repo), LogStream::Git);
+    Ok(git::delete_branch(&repo, &name, force, Some(&sink)).await)
+}
+
+/// #69 `git_delete_remote_branch { repoPath, name }` → `OpOutput`.
+#[tauri::command]
+pub async fn git_delete_remote_branch(
+    app: tauri::AppHandle,
+    repo_path: String,
+    name: String,
+) -> CmdResult<OpOutput> {
+    let repo = PathBuf::from(repo_path);
+    let sink = op_log_sink(app, path_basename(&repo), LogStream::Git);
+    Ok(git::delete_remote_branch(&repo, &name, Some(&sink)).await)
+}
+
+/// #70 `git_rename_branch { repoPath, from?, to }` → `OpOutput`.
+#[tauri::command]
+pub async fn git_rename_branch(
+    app: tauri::AppHandle,
+    repo_path: String,
+    from: Option<String>,
+    to: String,
+) -> CmdResult<OpOutput> {
+    let repo = PathBuf::from(repo_path);
+    let sink = op_log_sink(app, path_basename(&repo), LogStream::Git);
+    Ok(git::rename_branch(&repo, from.as_deref(), &to, Some(&sink)).await)
+}
+
+/// #71 `git_publish_branch { repoPath, name }` → `OpOutput` (push -u origin).
+#[tauri::command]
+pub async fn git_publish_branch(
+    app: tauri::AppHandle,
+    repo_path: String,
+    name: String,
+) -> CmdResult<OpOutput> {
+    let repo = PathBuf::from(repo_path);
+    let sink = op_log_sink(app, path_basename(&repo), LogStream::Git);
+    Ok(git::publish_branch(&repo, &name, Some(&sink)).await)
 }
