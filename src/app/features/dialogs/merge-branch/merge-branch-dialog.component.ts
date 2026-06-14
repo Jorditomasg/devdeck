@@ -215,6 +215,22 @@ interface RevertEntry {
                 }
               </ul>
             }
+            @if (view.tone === 'blocked') {
+              <div class="merge__stash-retry">
+                <input
+                  #stashNameInput
+                  class="merge__input"
+                  type="text"
+                  [placeholder]="'dialog.merge.stash_name_placeholder' | t"
+                  [value]="stashName()"
+                  [disabled]="merging()"
+                  (input)="stashName.set(stashNameInput.value)"
+                />
+                <ui-button variant="blue" [loading]="merging()" (clicked)="stashAndRetry()">
+                  {{ 'dialog.merge.stash_and_retry' | t }}
+                </ui-button>
+              </div>
+            }
           </div>
         }
 
@@ -299,6 +315,8 @@ export class MergeBranchDialogComponent extends DialogBase {
   private logBaseline = 0;
   /** Local status lines appended below the streamed git lines. */
   private readonly extraLog = signal<readonly string[]>([]);
+  /** Optional name for the stash created from the blocked-dirty retry path. */
+  protected readonly stashName = signal('');
 
   protected readonly sourceView = computed(() =>
     sourceOptions(this.branches(), this.recentCount(), this.mode(), this.destination()),
@@ -443,6 +461,36 @@ export class MergeBranchDialogComponent extends DialogBase {
       this.appendLog(this.i18n.t('dialog.merge.done_error', { msg: describe(err) }));
     } finally {
       this.merging.set(false);
+    }
+  }
+
+  /**
+   * Blocked-dirty escape hatch: stash the uncommitted changes (optional name,
+   * untracked included) and re-run the merge. The stash is LEFT for manual
+   * recovery from the Stash dialog (design decision — no auto-pop).
+   */
+  protected async stashAndRetry(): Promise<void> {
+    if (this.merging()) {
+      return;
+    }
+    const repoPath = this.repoPath();
+    this.appendLog(this.i18n.t('dialog.merge.stashing'));
+    try {
+      const result = await this.commands.git.stashPush(
+        repoPath,
+        this.stashName().trim() || null,
+        true,
+      );
+      if (!result.ok) {
+        this.appendLog(this.i18n.t('dialog.merge.stash_failed', { msg: result.message }));
+        return;
+      }
+      this.appendLog(this.i18n.t('dialog.merge.stashed'));
+      void this.repos.refreshBadge(repoPath);
+      this.stashName.set('');
+      await this.runMerge();
+    } catch (err: unknown) {
+      this.appendLog(this.i18n.t('dialog.merge.stash_failed', { msg: describe(err) }));
     }
   }
 
