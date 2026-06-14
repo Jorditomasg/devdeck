@@ -39,7 +39,9 @@
     "reset": "Reset",
     "seed": "🌱 Seed",
     "copy_log": "⧉ Copy",
-    "attach_log": "🗕 Attach"
+    "attach_log": "🗕 Attach",
+    "stash": "📦 Stash",
+    "branches": "⎇ Branches"
   },
   "install": {
     "label_missing": "Install",
@@ -133,7 +135,9 @@
     "copy_log": "Copy the whole log to the clipboard",
     "open_port": "Open in browser",
     "apply_cmd": "Use this command instead of the default one",
-    "reset_cmd": "Restore the default start command"
+    "reset_cmd": "Restore the default start command",
+    "stash_btn": "Manage the stash: add, apply, pop or drop changes",
+    "branches_btn": "Manage branches: create, rename, publish or delete"
   },
   "dialog": {
     "settings": {
