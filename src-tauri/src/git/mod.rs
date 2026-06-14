@@ -24,6 +24,7 @@ mod exec;
 pub mod ops;
 pub mod parse;
 pub mod poll;
+pub mod stash;
 pub mod types;
 
 pub use ops::{
@@ -34,7 +35,9 @@ pub use ops::{
     DEFAULT_BRANCH_RECENCY_LIMIT,
 };
 pub use poll::{refresh_badge, spawn_badge_poller, BadgePoller, BADGE_REFRESH};
+pub use stash::{stash_apply, stash_drop, stash_list, stash_pop, stash_push};
 pub use types::{
     GitError, LogSink, MergeOutcome, MergeRequest, MergeStatus, OpOutput, OrderedBranches,
-    ProgressSink, RevertMode, RevertOutcome, RevertPoint, RevertStatus, StatusSummary, TargetMode,
+    ProgressSink, RevertMode, RevertOutcome, RevertPoint, RevertStatus, StashEntry, StatusSummary,
+    TargetMode,
 };
