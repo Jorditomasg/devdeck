@@ -51,7 +51,7 @@
     "error": "¡Error!"
   },
   "label": {
-    "app_title": "DevOps Manager",
+    "app_title": "DevDeck",
     "no_profile": "— Sin perfil —",
     "branch": "Rama:",
     "select_all": "Seleccionar todos",
@@ -157,7 +157,7 @@
       "language_restart_title": "Reinicio requerido",
       "language_restart_msg": "Idioma cambiado a {name}. Reiniciá la aplicación para que los cambios surtan efecto.",
       "shortcut_success_title": "Acceso directo creado",
-      "shortcut_success_msg": "Se ha creado 'DevOps Manager' en:\n{path}",
+      "shortcut_success_msg": "Se ha creado 'DevDeck' en:\n{path}",
       "shortcut_unavailable": "No se encontró el Escritorio. Se creó la entrada en ~/.local/share/applications/.",
       "shortcut_error": "No se pudo determinar el directorio de la aplicación.",
       "shortcut_err_link": "Error al crear el objeto COM IShellLink: 0x{code}",
@@ -268,12 +268,12 @@
       "confirm": "¿Estás seguro de que deseas volver a instalar dependencias?"
     },
     "global_log": {
-      "title": "Log Global - DevOps Manager"
+      "title": "Log Global - DevDeck"
     },
     "instance_conflict": {
       "title": "Ya hay una instancia abierta",
-      "message_one": "Ya hay otra instancia de DevOps Manager abierta para este workspace.",
-      "message_many": "Ya hay {count} instancias de DevOps Manager abiertas para este workspace.",
+      "message_one": "Ya hay otra instancia de DevDeck abierta para este workspace.",
+      "message_many": "Ya hay {count} instancias de DevDeck abiertas para este workspace.",
       "detail": "¿Qué querés hacer?",
       "btn_close_others": "Cerrar las otras",
       "btn_open_anyway": "Abrir igual",
@@ -494,7 +494,7 @@
     "quit": "Salir",
     "start_selected": "▶  Iniciar seleccionados ({count})",
     "stop_running": "■  Parar todos corriendo ({count})",
-    "tooltip_running": "DevOps Manager — {running}/{total} corriendo"
+    "tooltip_running": "DevDeck — {running}/{total} corriendo"
   },
   "log": {
     "scanning": "Escaneando workspace...",

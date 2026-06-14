@@ -1,8 +1,8 @@
 {
   "name": "devops-manager",
-  "version": "2.0.0",
+  "version": "0.9.0",
   "private": true,
-  "description": "DevOps Manager v2 - Tauri 2 + Angular desktop app for managing local development services",
+  "description": "DevOps Manager - Tauri 2 + Angular desktop app for managing local development services",
   "scripts": {
     "start": "ng serve",
     "build": "ng build",

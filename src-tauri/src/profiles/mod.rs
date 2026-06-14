@@ -1,7 +1,7 @@
 //! Workspace profiles — JSON snapshots of the whole workspace state.
 //!
 //! Replaces `core/profile_manager.py` (inventory-backend.md §15). Storage
-//! moves to `dirs::data_dir()/devops-manager/profiles/` (architecture-v2.md
+//! moves to `dirs::data_dir()/devdeck/profiles/` (architecture-v2.md
 //! §6-7) keeping the v1 layout: root dir for the Default group, sanitized
 //! subdirectory per custom group, one `<name>.json` per profile, and the
 //! "custom group with no profiles lists the root" compatibility fallback.

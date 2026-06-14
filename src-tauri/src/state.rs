@@ -39,7 +39,7 @@ pub struct AppState {
     /// App config with write-through persistence (`config.json` in the OS
     /// config dir, inventory-backend.md §8).
     pub config: ConfigStore,
-    /// Profile CRUD rooted at `dirs::data_dir()/devops-manager/profiles/`.
+    /// Profile CRUD rooted at `dirs::data_dir()/devdeck/profiles/`.
     pub profiles: ProfileStore,
     /// Subprocess supervision registry — survives frontend restarts
     /// (architecture-v2.md §2).
@@ -269,7 +269,7 @@ impl TrayStatus {
             .unwrap_or(false)
     }
 
-    /// Current tooltip text (v1: `"DevOps Manager — {running}/{total}
+    /// Current tooltip text (v1: `"DevDeck — {running}/{total}
     /// corriendo"`, inventory-gui.md §25 — flagged hardcoded-Spanish there;
     /// v2 localizes from the config language).
     pub fn tooltip(&self) -> String {
@@ -284,7 +284,7 @@ impl TrayStatus {
 /// Pure tooltip formatter (unit-tested; see [`TrayStatus::tooltip`]).
 pub fn format_tray_tooltip(running: usize, total: usize, spanish: bool) -> String {
     let word = if spanish { "corriendo" } else { "running" };
-    format!("DevOps Manager — {running}/{total} {word}")
+    format!("DevDeck — {running}/{total} {word}")
 }
 
 /// Tray menu labels (show/hide toggle, quit) for the configured language.
@@ -333,11 +333,11 @@ mod tests {
     fn tooltip_formats_running_over_total() {
         assert_eq!(
             format_tray_tooltip(2, 5, false),
-            "DevOps Manager — 2/5 running"
+            "DevDeck — 2/5 running"
         );
         assert_eq!(
             format_tray_tooltip(0, 3, true),
-            "DevOps Manager — 0/3 corriendo"
+            "DevDeck — 0/3 corriendo"
         );
     }
 
@@ -350,7 +350,7 @@ mod tests {
         tray.record("c", ServiceStatus::Installing);
         assert_eq!(tray.running_count(), 2);
         assert!(tray.any_active()); // installing counts as active
-        assert_eq!(tray.tooltip(), "DevOps Manager — 2/4 running");
+        assert_eq!(tray.tooltip(), "DevDeck — 2/4 running");
     }
 
     #[test]

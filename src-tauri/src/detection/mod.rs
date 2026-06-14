@@ -5,7 +5,7 @@
 //! (§16, §22.3). Responsibilities:
 //! - Repo-type YAML definitions are loaded/merged by
 //!   `config::repo_types_loader` (bundled Tauri resources + user overrides in
-//!   `dirs::config_dir()/devops-manager/repo-types/`, architecture-v2.md §5)
+//!   `dirs::config_dir()/devdeck/repo-types/`, architecture-v2.md §5)
 //!   and passed in pre-sorted by priority.
 //! - Matching pipeline in exact v1 order (git gate, required/exclude files,
 //!   directory heuristics, pattern heuristics — inventory-config-ci.md §1.3),

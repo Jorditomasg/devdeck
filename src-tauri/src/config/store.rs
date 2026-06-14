@@ -2,7 +2,7 @@
 //!
 //! Replaces v1's install-dir `devops_manager_config.json` + module-level
 //! mtime cache (`core/config_manager.py` §8.1-8.2 backend). v2 differences:
-//! - the file lives in `dirs::config_dir()/devops-manager/config.json`
+//! - the file lives in `dirs::config_dir()/devdeck/config.json`
 //!   (architecture-v2.md §7 fix 5 — writable under Program Files installs);
 //! - writes are atomic (temp file + rename) instead of in-place `json.dump`;
 //! - the cache hands out clones, never shared mutable state (fixes the
@@ -17,7 +17,7 @@ use std::sync::{Mutex, RwLock};
 use std::time::SystemTime;
 
 /// Directory name under the OS config dir.
-pub const APP_CONFIG_DIR_NAME: &str = "devops-manager";
+pub const APP_CONFIG_DIR_NAME: &str = "devdeck";
 /// Config file name.
 pub const CONFIG_FILE_NAME: &str = "config.json";
 
@@ -37,7 +37,7 @@ pub struct ConfigStore {
 }
 
 impl ConfigStore {
-    /// `dirs::config_dir()/devops-manager/config.json`.
+    /// `dirs::config_dir()/devdeck/config.json`.
     pub fn default_path() -> DomainResult<PathBuf> {
         let base = dirs::config_dir().ok_or(DomainError::NoOsDirectory("config"))?;
         Ok(base.join(APP_CONFIG_DIR_NAME).join(CONFIG_FILE_NAME))

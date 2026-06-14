@@ -1,4 +1,4 @@
-//! DevOps Manager v2 — Rust core.
+//! DevDeck — Rust core.
 //!
 //! Composition root: registers plugins, managed state, the tray icon and
 //! every command handler (ipc-contract.md §2 — 59 commands: 55 core + the
@@ -217,7 +217,7 @@ pub fn run() {
             commands::docker::run_flyway_seeds,
         ])
         .build(tauri::generate_context!())
-        .expect("error while building DevOps Manager")
+        .expect("error while building DevDeck")
         .run(|app_handle, event| {
             // The v1 atexit contract (inventory-backend.md §21.4): stop every
             // supervised service and the poll loops on the way out. Also runs
@@ -531,7 +531,7 @@ mod tests {
         );
         assert!(recorded);
         assert_eq!(tray.running_count(), 1);
-        assert_eq!(tray.tooltip(), "DevOps Manager — 1/3 running");
+        assert_eq!(tray.tooltip(), "DevDeck — 1/3 running");
 
         // Terminal status clears the entry.
         let recorded = record_status_payload(

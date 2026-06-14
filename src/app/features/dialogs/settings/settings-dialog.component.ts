@@ -13,7 +13,7 @@
  *   `.desktop` writers were Python-side. Re-add once a `create_shortcut`
  *   command lands in the contract.
  * - **Config-dir opener is omitted** for the same reason: no contract
- *   command resolves/opens `dirs::config_dir()/devops-manager`, and the
+ *   command resolves/opens `dirs::config_dir()/devdeck`, and the
  *   opener plugin alone cannot discover that path client-side.
  */
 import {

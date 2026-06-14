@@ -1,4 +1,4 @@
-//! Profile storage — CRUD over `<data_dir>/devops-manager/profiles/`
+//! Profile storage — CRUD over `<data_dir>/devdeck/profiles/`
 //! (v1 `core/profile_manager.py` §15.1-15.2, relocated from the install-dir
 //! `.devops-profiles/` per architecture-v2.md §7.5; the migrator copies the
 //! v1 tree preserving this exact layout).
@@ -46,11 +46,11 @@ pub struct ProfileStore {
 }
 
 impl ProfileStore {
-    /// Default OS location: `dirs::data_dir()/devops-manager/profiles/`
+    /// Default OS location: `dirs::data_dir()/devdeck/profiles/`
     /// (architecture-v2.md §6-7).
     pub fn new() -> Result<Self, ProfileError> {
         let data = dirs::data_dir().ok_or(ProfileError::NoDataDir)?;
-        Ok(Self::with_root(data.join("devops-manager").join("profiles")))
+        Ok(Self::with_root(data.join("devdeck").join("profiles")))
     }
 
     /// Store rooted at an explicit directory.

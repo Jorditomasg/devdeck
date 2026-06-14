@@ -51,7 +51,7 @@
     "error": "Error!"
   },
   "label": {
-    "app_title": "DevOps Manager",
+    "app_title": "DevDeck",
     "no_profile": "— No profile —",
     "branch": "Branch:",
     "select_all": "Select all",
@@ -157,7 +157,7 @@
       "language_restart_title": "Restart required",
       "language_restart_msg": "Language changed to {name}. Restart the application for changes to take effect.",
       "shortcut_success_title": "Shortcut created",
-      "shortcut_success_msg": "Created 'DevOps Manager' at:\n{path}",
+      "shortcut_success_msg": "Created 'DevDeck' at:\n{path}",
       "shortcut_unavailable": "No Desktop directory found. Launcher entry was created in ~/.local/share/applications/.",
       "shortcut_error": "Could not determine application directory.",
       "shortcut_err_link": "Failed to create IShellLink COM object: 0x{code}",
@@ -268,12 +268,12 @@
       "confirm": "Are you sure you want to reinstall dependencies?"
     },
     "global_log": {
-      "title": "Global Log - DevOps Manager"
+      "title": "Global Log - DevDeck"
     },
     "instance_conflict": {
       "title": "An instance is already open",
-      "message_one": "Another DevOps Manager instance is already open for this workspace.",
-      "message_many": "{count} DevOps Manager instances are already open for this workspace.",
+      "message_one": "Another DevDeck instance is already open for this workspace.",
+      "message_many": "{count} DevDeck instances are already open for this workspace.",
       "detail": "What do you want to do?",
       "btn_close_others": "Close the others",
       "btn_open_anyway": "Open anyway",
@@ -494,7 +494,7 @@
     "quit": "Quit",
     "start_selected": "▶  Start selected ({count})",
     "stop_running": "■  Stop all running ({count})",
-    "tooltip_running": "DevOps Manager — {running}/{total} running"
+    "tooltip_running": "DevDeck — {running}/{total} running"
   },
   "log": {
     "scanning": "Scanning workspace...",

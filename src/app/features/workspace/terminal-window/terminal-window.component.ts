@@ -49,7 +49,7 @@ export class TerminalWindowComponent implements OnInit, OnDestroy {
   private unlistenClose: (() => void) | null = null;
 
   async ngOnInit(): Promise<void> {
-    document.title = `${this.id} — DevOps Manager`;
+    document.title = `${this.id} — DevDeck`;
 
     const term = new Terminal({
       cursorBlink: true,

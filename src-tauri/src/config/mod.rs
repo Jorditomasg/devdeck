@@ -1,7 +1,7 @@
 //! Application configuration persistence and v1 data migration.
 //!
 //! Replaces `core/config_manager.py` (inventory-backend.md §8). Owns:
-//! - `config.json` in `dirs::config_dir()/devops-manager/` — the full v1
+//! - `config.json` in `dirs::config_dir()/devdeck/` — the full v1
 //!   schema (workspace groups, repo_state, active_configs, repo_configs,
 //!   repo_config_danger, java_versions, language, minimize_to_tray, ...) with
 //!   typed serde models instead of free-form dicts ([`app_config`]).

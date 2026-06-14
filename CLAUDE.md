@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-DevDeck (product name: **DevOps Manager**) is a Tauri 2 desktop app for managing and launching multiple development services (Spring Boot, Angular, React, Nx, Maven, Docker Compose) from a single interface. It scans a workspace directory, detects repository types via config-driven YAML rules, and provides start/stop/configure controls per repo, with git badges, profiles, docker compose management and detached log windows.
+**DevDeck** is a Tauri 2 desktop app for managing and launching multiple development services (Spring Boot, Angular, React, Nx, Maven, Docker Compose) from a single interface. It scans a workspace directory, detects repository types via config-driven YAML rules, and provides start/stop/configure controls per repo, with git badges, profiles, docker compose management and detached log windows.
 
 It is the full rewrite of the Python/customtkinter app at [Jorditomasg/devops-manager](https://github.com/Jorditomasg/devops-manager) (now in maintenance). The migration contract — exhaustive v1 feature inventories, architecture decisions, and the IPC contract — lives in `docs/migration/` and is the authoritative spec.
 

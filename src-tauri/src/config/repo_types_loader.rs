@@ -4,7 +4,7 @@
 //! §6.1). v2 (architecture-v2.md §5):
 //! 1. Load the bundled definitions (shipped as Tauri resources from
 //!    `v2/config/repo-types/`).
-//! 2. Load the user-override dir `dirs::config_dir()/devops-manager/repo-types/`;
+//! 2. Load the user-override dir `dirs::config_dir()/devdeck/repo-types/`;
 //!    a user file with the same `type` REPLACES the bundled one, new types add.
 //! 3. Sort descending by `priority`, ties broken by `type` ascending so the
 //!    result never depends on filesystem enumeration order (the v1
@@ -19,7 +19,7 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-/// User-override directory: `dirs::config_dir()/devops-manager/repo-types`.
+/// User-override directory: `dirs::config_dir()/devdeck/repo-types`.
 pub fn user_repo_types_dir() -> Option<PathBuf> {
     dirs::config_dir().map(|d| d.join(super::store::APP_CONFIG_DIR_NAME).join("repo-types"))
 }
