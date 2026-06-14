@@ -20,6 +20,7 @@
 //! unit-tested parsers), [`types`] (results/requests/errors), [`ops`]
 //! (the v1 `git_manager.py` operation surface), [`poll`] (badge loop).
 
+pub mod branch;
 mod exec;
 pub mod ops;
 pub mod parse;
@@ -36,6 +37,9 @@ pub use ops::{
 };
 pub use poll::{refresh_badge, spawn_badge_poller, BadgePoller, BADGE_REFRESH};
 pub use stash::{stash_apply, stash_drop, stash_list, stash_pop, stash_push};
+pub use branch::{
+    create_branch, delete_branch, delete_remote_branch, publish_branch, rename_branch,
+};
 pub use types::{
     GitError, LogSink, MergeOutcome, MergeRequest, MergeStatus, OpOutput, OrderedBranches,
     ProgressSink, RevertMode, RevertOutcome, RevertPoint, RevertStatus, StashEntry, StatusSummary,
