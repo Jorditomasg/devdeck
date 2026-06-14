@@ -8,7 +8,7 @@ use std::sync::OnceLock;
 
 use regex::Regex;
 
-use super::types::StatusSummary;
+use super::types::{StashEntry, StatusSummary};
 
 /// Porcelain XY codes meaning "unmerged" (inventory-backend.md §10.2,
 /// git_manager.py:14).
@@ -66,6 +66,49 @@ pub fn parse_reflog_checkouts(output: &str) -> Vec<String> {
         }
     }
     recent
+}
+
+/// Parse `git stash list --format=%gd%x1f%gs` output into [`StashEntry`]s.
+/// `%gd` is the selector (`stash@{N}`); `%gs` is the reflog subject, one of:
+///   `WIP on <branch>: <sha> <subject>`  (auto / plain `git stash`)
+///   `On <branch>: <message>`            (`git stash push -m <message>`)
+/// The two fields are joined by the unit separator `\x1f` so the message can
+/// safely contain spaces and colons. Lines without the separator are skipped.
+pub fn parse_stash_list(output: &str) -> Vec<StashEntry> {
+    output
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .filter_map(|line| {
+            let (selector, subject) = line.split_once('\u{1f}')?;
+            let (branch, message) = parse_stash_subject(subject);
+            Some(StashEntry { index: parse_stash_index(selector), message, branch })
+        })
+        .collect()
+}
+
+/// Extract `N` from a `stash@{N}` selector; 0 on any malformed input.
+fn parse_stash_index(selector: &str) -> usize {
+    selector
+        .split_once('{')
+        .and_then(|(_, rest)| rest.split_once('}'))
+        .and_then(|(num, _)| num.trim().parse().ok())
+        .unwrap_or(0)
+}
+
+/// Split a stash reflog subject into `(branch, message)`. The branch is the
+/// token after the `WIP on `/`On ` prefix; the message is the text after the
+/// first `: `. A subject with no `: ` keeps the whole string as the message.
+fn parse_stash_subject(subject: &str) -> (String, String) {
+    let (head, message) = match subject.split_once(": ") {
+        Some((h, m)) => (h, m.to_string()),
+        None => (subject, subject.to_string()),
+    };
+    let branch = head
+        .trim_start_matches("WIP on ")
+        .trim_start_matches("On ")
+        .trim()
+        .to_string();
+    (branch, message)
 }
 
 /// `order_branches_by_recency` (§10.1), pure half: take up to `limit` recent
@@ -417,6 +460,33 @@ A  staged_only.txt
         );
         assert_eq!(parse_clone_progress("Cloning into 'repo'..."), None);
         assert_eq!(parse_clone_progress("warning: something %"), None);
+    }
+
+    // ---- stash list ----------------------------------------------------
+
+    #[test]
+    fn stash_list_parses_index_branch_and_message() {
+        // Format: "%gd\x1f%gs" → selector \x1f reflog-subject.
+        let output = "\
+stash@{0}\u{1f}On feature/login: tweak validation
+stash@{1}\u{1f}WIP on main: 1a2b3c add endpoint
+stash@{2}\u{1f}On develop: nightly checkpoint
+";
+        assert_eq!(
+            parse_stash_list(output),
+            vec![
+                StashEntry { index: 0, message: "tweak validation".into(), branch: "feature/login".into() },
+                StashEntry { index: 1, message: "1a2b3c add endpoint".into(), branch: "main".into() },
+                StashEntry { index: 2, message: "nightly checkpoint".into(), branch: "develop".into() },
+            ]
+        );
+    }
+
+    #[test]
+    fn stash_list_handles_empty_and_malformed_lines() {
+        assert_eq!(parse_stash_list(""), Vec::new());
+        // A line without the unit separator is skipped.
+        assert_eq!(parse_stash_list("garbage with no separator\n"), Vec::new());
     }
 
     // ---- remote url --------------------------------------------------
