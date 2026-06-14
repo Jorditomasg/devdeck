@@ -32,6 +32,7 @@ pub mod java;
 pub mod process;
 pub mod profiles;
 pub mod state;
+pub mod terminal;
 
 use std::sync::Arc;
 
@@ -92,13 +93,14 @@ pub fn run() {
             }
             match event {
                 // Close interception (inventory-gui.md §17): prevent the close
-                // while services run; the frontend shows the confirm dialog and
-                // answers with `app_exit { force }`. With nothing running the
-                // close proceeds and `RunEvent::Exit` does the cleanup.
+                // while services run OR any PTY terminal is open; the frontend
+                // shows the confirm dialog and answers with `app_exit { force }`.
+                // With nothing running the close proceeds and `RunEvent::Exit`
+                // does the cleanup.
                 WindowEvent::CloseRequested { api, .. } => {
                     let app = window.app_handle();
                     let state = app.state::<AppState>();
-                    if state.tray.any_active() {
+                    if state.tray.any_active() || state.terminals.any_open() {
                         api.prevent_close();
                         EventEmitter::emit(app, APP_CLOSE_REQUESTED, serde_json::json!({}));
                     }
@@ -132,6 +134,12 @@ pub fn run() {
             commands::app::app_hide_to_tray,
             commands::app::open_log_window,
             commands::app::get_log_backlog,
+            // interactive terminals (design doc 2026-06-14)
+            commands::terminal::open_terminal_window,
+            commands::terminal::attach_terminal,
+            commands::terminal::terminal_write,
+            commands::terminal::terminal_resize,
+            commands::terminal::close_terminal,
             // §2.2 detection
             commands::detection::scan_workspace,
             // §2.3 process supervision
@@ -157,6 +165,18 @@ pub fn run() {
             commands::git::git_merge,
             commands::git::git_revert_merge,
             commands::git::git_refresh_badge,
+            // §2.4 git — stash management
+            commands::git::git_stash_list,
+            commands::git::git_stash_push,
+            commands::git::git_stash_apply,
+            commands::git::git_stash_pop,
+            commands::git::git_stash_drop,
+            // §2.4 git — branch management
+            commands::git::git_create_branch,
+            commands::git::git_delete_branch,
+            commands::git::git_delete_remote_branch,
+            commands::git::git_rename_branch,
+            commands::git::git_publish_branch,
             // §2.5 config
             commands::config::get_app_config,
             commands::config::set_language,
@@ -207,6 +227,9 @@ pub fn run() {
                 state.badge_poller.stop();
                 state.docker_poller.stop();
                 tauri::async_runtime::block_on(state.process.shutdown_all());
+                // Kill any open PTY terminals too (they are not supervised
+                // services, so `shutdown_all` does not cover them).
+                tauri::async_runtime::block_on(state.terminals.close_all());
             }
         });
 }
@@ -250,6 +273,9 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 
     // Log backlog cache for detached log windows (state.rs `LogCache`).
     let log_cache = Arc::new(state::LogCache::new());
+
+    // Interactive PTY terminal registry (terminal::TerminalManager).
+    let terminals = Arc::new(terminal::TerminalManager::new());
 
     // THE event emitter: forwards to the Tauri event system and mirrors
     // every `service://status-changed` into `TrayStatus` so the tray
@@ -306,6 +332,7 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         pending_migration,
         tray_status.clone(),
         log_cache,
+        terminals,
     ));
 
     build_tray(&handle, &tray_status)?;
@@ -382,7 +409,7 @@ fn toggle_main_window(app: &tauri::AppHandle) {
 /// answers via `app_exit { force }`); otherwise exit directly.
 fn request_quit(app: &tauri::AppHandle) {
     let state = app.state::<AppState>();
-    if state.tray.any_active() {
+    if state.tray.any_active() || state.terminals.any_open() {
         if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
             show_window(&window);
         }
