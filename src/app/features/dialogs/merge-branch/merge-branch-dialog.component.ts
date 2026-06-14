@@ -223,10 +223,14 @@ interface RevertEntry {
                   type="text"
                   [placeholder]="'dialog.merge.stash_name_placeholder' | t"
                   [value]="stashName()"
-                  [disabled]="merging()"
+                  [disabled]="merging() || stashing()"
                   (input)="stashName.set(stashNameInput.value)"
                 />
-                <ui-button variant="blue" [loading]="merging()" (clicked)="stashAndRetry()">
+                <ui-button
+                  variant="blue"
+                  [loading]="merging() || stashing()"
+                  (clicked)="stashAndRetry()"
+                >
                   {{ 'dialog.merge.stash_and_retry' | t }}
                 </ui-button>
               </div>
@@ -317,6 +321,10 @@ export class MergeBranchDialogComponent extends DialogBase {
   private readonly extraLog = signal<readonly string[]>([]);
   /** Optional name for the stash created from the blocked-dirty retry path. */
   protected readonly stashName = signal('');
+  /** Guards the stash-and-retry window (the `merging` flag is only set once
+   * `runMerge` starts, so a separate guard prevents a double-click from firing
+   * two `stashPush` calls). */
+  protected readonly stashing = signal(false);
 
   protected readonly sourceView = computed(() =>
     sourceOptions(this.branches(), this.recentCount(), this.mode(), this.destination()),
@@ -470,11 +478,13 @@ export class MergeBranchDialogComponent extends DialogBase {
    * recovery from the Stash dialog (design decision — no auto-pop).
    */
   protected async stashAndRetry(): Promise<void> {
-    if (this.merging()) {
+    if (this.merging() || this.stashing()) {
       return;
     }
+    this.stashing.set(true);
     const repoPath = this.repoPath();
     this.appendLog(this.i18n.t('dialog.merge.stashing'));
+    let stashed = false;
     try {
       const result = await this.commands.git.stashPush(
         repoPath,
@@ -488,9 +498,16 @@ export class MergeBranchDialogComponent extends DialogBase {
       this.appendLog(this.i18n.t('dialog.merge.stashed'));
       void this.repos.refreshBadge(repoPath);
       this.stashName.set('');
-      await this.runMerge();
+      stashed = true;
     } catch (err: unknown) {
       this.appendLog(this.i18n.t('dialog.merge.stash_failed', { msg: describe(err) }));
+    } finally {
+      // Release BEFORE re-running the merge: runMerge guards on `merging`, not
+      // `stashing`, and would early-return if this were still set.
+      this.stashing.set(false);
+    }
+    if (stashed) {
+      await this.runMerge();
     }
   }
 

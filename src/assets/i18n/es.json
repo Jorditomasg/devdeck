@@ -419,6 +419,7 @@
       "error_empty": "Escribí el nombre de la rama.",
       "error_invalid": "Nombre de rama inválido.",
       "done_created": "✓ Rama creada.",
+      "done_checked_out": "✓ Cambiado de rama.",
       "done_renamed": "✓ Rama renombrada.",
       "done_published": "✓ Rama publicada.",
       "done_deleted": "✓ Rama borrada.",

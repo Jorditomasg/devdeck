@@ -5,6 +5,8 @@
  *
  * NOT shipped: only .spec.ts files may import this module.
  */
+import type { Channel } from '@tauri-apps/api/core';
+
 import type { InvokeArgs, TauriBridge, UnlistenFn } from './tauri-bridge';
 
 interface RecordedInvoke {
@@ -72,6 +74,29 @@ export class FakeTauriBridge implements TauriBridge {
       const idx = current.indexOf(wrapped);
       if (idx >= 0) {
         current.splice(idx, 1);
+      }
+    });
+  }
+
+  /** IPC channels created for terminal output — specs push bytes through these. */
+  readonly channels: Array<(message: unknown) => void> = [];
+
+  channel<T>(onMessage: (message: T) => void): Channel<T> {
+    this.channels.push(onMessage as (message: unknown) => void);
+    return { onmessage: onMessage } as unknown as Channel<T>;
+  }
+
+  /** Captured current-window close handlers — specs invoke to simulate close. */
+  readonly windowCloseHandlers: Array<() => Promise<void> | void> = [];
+
+  onCurrentWindowCloseRequested(
+    handler: () => Promise<void> | void,
+  ): Promise<UnlistenFn> {
+    this.windowCloseHandlers.push(handler);
+    return Promise.resolve(() => {
+      const idx = this.windowCloseHandlers.indexOf(handler);
+      if (idx >= 0) {
+        this.windowCloseHandlers.splice(idx, 1);
       }
     });
   }

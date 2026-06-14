@@ -10,8 +10,9 @@
  * expected, which is what makes the fake drop-in.
  */
 import { Injectable } from '@angular/core';
-import { invoke } from '@tauri-apps/api/core';
+import { Channel, invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 
 export type { UnlistenFn };
 
@@ -35,5 +36,30 @@ export class TauriBridge {
    */
   listen<T>(event: string, handler: (payload: T) => void): Promise<UnlistenFn> {
     return listen<T>(event, (e) => handler(e.payload));
+  }
+
+  /**
+   * Create a Tauri IPC `Channel` wired to `onMessage`, to be passed as a
+   * command argument for point-to-point streaming (e.g. raw PTY output for
+   * `attach_terminal`). Confining the `Channel` import here keeps the
+   * "@tauri-apps/api only in the bridge" rule intact.
+   */
+  channel<T>(onMessage: (message: T) => void): Channel<T> {
+    const channel = new Channel<T>();
+    channel.onmessage = onMessage;
+    return channel;
+  }
+
+  /**
+   * Run `handler` when THIS window is asked to close, before it actually
+   * closes (the close waits for the async handler). Used by terminal windows
+   * to kill their PTY (`close_terminal`) on close. Resolves to the unlisten.
+   */
+  onCurrentWindowCloseRequested(
+    handler: () => Promise<void> | void,
+  ): Promise<UnlistenFn> {
+    return getCurrentWindow().onCloseRequested(async () => {
+      await handler();
+    });
   }
 }

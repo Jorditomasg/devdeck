@@ -157,8 +157,7 @@ export class BranchDialogComponent extends DialogBase {
   protected async checkout(branch: string): Promise<void> {
     await this.run(
       () => this.commands.git.checkout(this.repoPath(), branch),
-      'dialog.branch.done_created', // checkout reuses OpOutput; generic ✓ below
-      true,
+      'dialog.branch.done_checked_out',
     );
   }
 
@@ -214,18 +213,28 @@ export class BranchDialogComponent extends DialogBase {
     const result = await this.runRaw(() =>
       this.commands.git.deleteBranch(this.repoPath(), branch, false),
     );
-    if (result?.ok) {
+    if (result === null) {
+      return;
+    }
+    if (result.ok) {
       this.appendLog(this.i18n.t('dialog.branch.done_deleted'));
       await this.afterMutation();
       return;
     }
-    // Not fully merged → offer the forced -D path.
+    // Only a "not fully merged" failure warrants the forced -D path. Any other
+    // failure (e.g. the name is a remote-only branch with no local ref) is just
+    // logged — force-deleting would not fix it and the prompt would mislead.
+    if (!/not fully merged/i.test(result.message)) {
+      this.appendLog(this.i18n.t('dialog.branch.failed', { msg: result.message }));
+      await this.afterMutation();
+      return;
+    }
     const force = await this.dialogs.confirm(
       this.i18n.t('dialog.branch.delete_force_title'),
       this.i18n.t('dialog.branch.delete_force_msg', { name: branch }),
     );
     if (!force) {
-      this.appendLog(this.i18n.t('dialog.branch.failed', { msg: result?.message ?? '' }));
+      this.appendLog(this.i18n.t('dialog.branch.failed', { msg: result.message }));
       return;
     }
     await this.run(
@@ -235,11 +244,7 @@ export class BranchDialogComponent extends DialogBase {
   }
 
   /** Run a mutation, log its outcome, refresh the badge, and re-list. */
-  private async run(
-    op: () => Promise<OpOutput>,
-    okKey: string,
-    _checkout = false,
-  ): Promise<void> {
+  private async run(op: () => Promise<OpOutput>, okKey: string): Promise<void> {
     const result = await this.runRaw(op);
     if (result === null) {
       return;
@@ -276,7 +281,10 @@ export class BranchDialogComponent extends DialogBase {
   private async reload(): Promise<void> {
     const repoPath = this.repoPath();
     const [ordered, current] = await Promise.all([
-      this.commands.git.branches(repoPath).catch(() => ({ branches: [], recentCount: 0 })),
+      // Local-only list: branch management never operates on remote-only names.
+      this.commands.git
+        .branches(repoPath, undefined, false)
+        .catch(() => ({ branches: [], recentCount: 0 })),
       this.commands.git.currentBranch(repoPath).catch(() => ''),
     ]);
     this.branches.set(ordered.branches);

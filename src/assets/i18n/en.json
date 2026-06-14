@@ -419,6 +419,7 @@
       "error_empty": "Enter a branch name.",
       "error_invalid": "Invalid branch name.",
       "done_created": "✓ Branch created.",
+      "done_checked_out": "✓ Switched branch.",
       "done_renamed": "✓ Branch renamed.",
       "done_published": "✓ Branch published.",
       "done_deleted": "✓ Branch deleted.",

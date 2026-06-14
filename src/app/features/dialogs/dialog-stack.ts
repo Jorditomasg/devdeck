@@ -39,6 +39,8 @@ export interface DialogsApi {
   openClone(): void;
   openSettings(): void;
   openMergeBranch(repoName: string): void;
+  openStash(repoName: string): void;
+  openBranches(repoName: string): void;
   openDockerCompose(repoName: string): void;
   openRepoConfigManager(repoName: string): void;
   openConfigEditor(repoName: string, filePath: string): void;
@@ -49,6 +51,11 @@ export interface DialogsApi {
   warning(title: string, message: string): Promise<void>;
   error(title: string, message: string): Promise<void>;
   confirm(title: string, message: string): Promise<boolean>;
+  prompt(
+    title: string,
+    message: string,
+    opts?: { initialValue?: string; placeholder?: string },
+  ): Promise<string | null>;
 }
 
 /** One open dialog: component class + its inputs. */

@@ -24,6 +24,7 @@ export interface CardHeaderText {
   readonly stopTip: string;
   readonly restartTip: string;
   readonly openExplorerTip: string;
+  readonly openTerminalTip: string;
   readonly expandTip: string;
   readonly openRepoTip: string;
   readonly pullTip: string;
@@ -149,6 +150,11 @@ export interface CardHeaderText {
             (clicked)="openExplorer.emit()"
           >📁</ui-icon-button>
           <ui-icon-button
+            variant="neutral"
+            [uiTooltip]="text().openTerminalTip"
+            (clicked)="openTerminal.emit()"
+          >&gt;_</ui-icon-button>
+          <ui-icon-button
             variant="toggle-expand"
             [uiTooltip]="text().expandTip"
             (clicked)="toggleExpand.emit()"
@@ -195,6 +201,8 @@ export class CardHeaderComponent {
   readonly stop = output<void>();
   readonly restart = output<void>();
   readonly openExplorer = output<void>();
+  /** Open an interactive PTY terminal window rooted at the repo. */
+  readonly openTerminal = output<void>();
   /** Right-click on the name (v1 Button-3 → open remote URL). */
   readonly openRemote = output<void>();
   readonly pullClicked = output<void>();

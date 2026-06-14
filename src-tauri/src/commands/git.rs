@@ -47,15 +47,19 @@ pub async fn git_status_summary(
     Ok(git::get_status_summary(&PathBuf::from(repo_path)).await)
 }
 
-/// #10 `git_branches { repoPath, limit? }` → `OrderedBranches`
-/// (default limit 7 = `DEFAULT_BRANCH_RECENCY_LIMIT`).
+/// #10 `git_branches { repoPath, limit?, includeRemote? }` → `OrderedBranches`
+/// (default limit 7 = `DEFAULT_BRANCH_RECENCY_LIMIT`; `includeRemote` defaults
+/// to `true` — v1 parity. The branch-management dialog passes `false` to keep
+/// its local-only operations off remote-only names).
 #[tauri::command]
 pub async fn git_branches(
     repo_path: String,
     limit: Option<usize>,
+    include_remote: Option<bool>,
 ) -> CmdResult<OrderedBranches> {
     let limit = limit.unwrap_or(DEFAULT_BRANCH_RECENCY_LIMIT);
-    Ok(git::get_ordered_branches(&PathBuf::from(repo_path), limit).await)
+    let include_remote = include_remote.unwrap_or(true);
+    Ok(git::get_ordered_branches(&PathBuf::from(repo_path), limit, include_remote).await)
 }
 
 /// #11 `git_current_branch { repoPath }` → `string`
