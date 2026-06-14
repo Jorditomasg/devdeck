@@ -56,6 +56,7 @@
     "global_panel_title": "🌐 Global Panel",
     "global_branch": "Branch:",
     "log_section": "📋 Repository Log",
+    "terminal": "Terminal",
     "status": {
       "stopped": "Stopped",
       "running": "Running",
@@ -100,6 +101,7 @@
     "conflict_files": "Merge-conflict files. Click to list them in the log. Resolve manually and commit.",
     "expand": "Expand / Collapse options",
     "open_explorer": "Open in explorer",
+    "open_terminal": "Open a terminal in this repo",
     "open_repo": "🔗 Right-click: open repository",
     "reload_repo": "Reload branch, branch list and git status (no network)",
     "branch_in_profile": "Include branch when saving / applying profiles.\nUnchecked: profiles will not modify this repo's branch.",
@@ -364,6 +366,31 @@
       "checkout_error_msg": "Could not switch to '{branch}'.\nCheck for conflicting modified files.\n\nDetails:\n{msg}",
       "checkout_dirty_title": "Uncommitted changes",
       "checkout_dirty_msg": "There are {count} modified file(s) in '{name}'. Switching branches may carry or discard local changes. Continue?"
+    },
+    "stash": {
+      "title": "Stash — {name}",
+      "add_section": "Add to stash",
+      "name_placeholder": "optional name",
+      "include_untracked": "Include untracked files",
+      "btn_add": "Add to stash",
+      "btn_adding": "Stashing...",
+      "entries_section": "Stashes",
+      "empty": "No stashes.",
+      "btn_apply": "Apply",
+      "btn_pop": "Pop",
+      "btn_drop": "Drop",
+      "drop_confirm_title": "Drop stash",
+      "drop_confirm_msg": "This permanently discards {ref}. Continue?",
+      "done_added": "✓ Changes stashed.",
+      "done_applied": "✓ Stash applied.",
+      "done_popped": "✓ Stash popped.",
+      "done_dropped": "✓ Stash dropped.",
+      "failed": "✗ {msg}",
+      "log_label": "📋 Progress"
+    },
+    "prompt": {
+      "rename_title": "Rename branch",
+      "rename_msg": "New name for \"{name}\":"
     },
     "merge": {
       "title": "Merge branches",
