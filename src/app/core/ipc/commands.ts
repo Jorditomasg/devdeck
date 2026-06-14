@@ -29,6 +29,7 @@ import type {
   RevertOutcome,
   ServiceId,
   ServiceSnapshot,
+  StashEntry,
   WorkspaceGroup,
 } from './tauri.types';
 
@@ -44,6 +45,12 @@ export const CMD = {
   appHideToTray: 'app_hide_to_tray',
   openLogWindow: 'open_log_window',
   getLogBacklog: 'get_log_backlog',
+  // interactive terminals (design doc 2026-06-14)
+  openTerminalWindow: 'open_terminal_window',
+  attachTerminal: 'attach_terminal',
+  terminalWrite: 'terminal_write',
+  terminalResize: 'terminal_resize',
+  closeTerminal: 'close_terminal',
   // detection
   scanWorkspace: 'scan_workspace',
   // process
@@ -69,6 +76,18 @@ export const CMD = {
   gitMerge: 'git_merge',
   gitRevertMerge: 'git_revert_merge',
   gitRefreshBadge: 'git_refresh_badge',
+  // git stash
+  gitStashList: 'git_stash_list',
+  gitStashPush: 'git_stash_push',
+  gitStashApply: 'git_stash_apply',
+  gitStashPop: 'git_stash_pop',
+  gitStashDrop: 'git_stash_drop',
+  // git branch management
+  gitCreateBranch: 'git_create_branch',
+  gitDeleteBranch: 'git_delete_branch',
+  gitDeleteRemoteBranch: 'git_delete_remote_branch',
+  gitRenameBranch: 'git_rename_branch',
+  gitPublishBranch: 'git_publish_branch',
   // config
   getAppConfig: 'get_app_config',
   setLanguage: 'set_language',
@@ -282,6 +301,70 @@ export class IpcCommands {
     /** Force one badge poll; result arrives as `git://badge`. */
     refreshBadge: (repoPath: string): Promise<void> =>
       this.bridge.invoke<void>(CMD.gitRefreshBadge, { repoPath }),
+
+    // -- stash management --
+    stashList: (repoPath: string): Promise<StashEntry[]> =>
+      this.bridge.invoke<StashEntry[]>(CMD.gitStashList, { repoPath }),
+
+    /** `message: null` omits `-m`; untracked files are included when asked. */
+    stashPush: (
+      repoPath: string,
+      message: string | null,
+      includeUntracked: boolean,
+    ): Promise<OpOutput> =>
+      this.bridge.invoke<OpOutput>(CMD.gitStashPush, {
+        repoPath,
+        message,
+        includeUntracked,
+      }),
+
+    /** Applies and KEEPS the entry. */
+    stashApply: (repoPath: string, index: number): Promise<OpOutput> =>
+      this.bridge.invoke<OpOutput>(CMD.gitStashApply, { repoPath, index }),
+
+    /** Applies and DROPS the entry. */
+    stashPop: (repoPath: string, index: number): Promise<OpOutput> =>
+      this.bridge.invoke<OpOutput>(CMD.gitStashPop, { repoPath, index }),
+
+    stashDrop: (repoPath: string, index: number): Promise<OpOutput> =>
+      this.bridge.invoke<OpOutput>(CMD.gitStashDrop, { repoPath, index }),
+
+    // -- branch management --
+    /** `base: null` branches off HEAD; `checkout` switches to the new branch. */
+    createBranch: (
+      repoPath: string,
+      name: string,
+      base: string | null,
+      checkout: boolean,
+    ): Promise<OpOutput> =>
+      this.bridge.invoke<OpOutput>(CMD.gitCreateBranch, {
+        repoPath,
+        name,
+        base,
+        checkout,
+      }),
+
+    /** `force` uses `-D` (skips the merged check). */
+    deleteBranch: (
+      repoPath: string,
+      name: string,
+      force: boolean,
+    ): Promise<OpOutput> =>
+      this.bridge.invoke<OpOutput>(CMD.gitDeleteBranch, { repoPath, name, force }),
+
+    deleteRemoteBranch: (repoPath: string, name: string): Promise<OpOutput> =>
+      this.bridge.invoke<OpOutput>(CMD.gitDeleteRemoteBranch, { repoPath, name }),
+
+    /** `from: null` renames the current branch. */
+    renameBranch: (
+      repoPath: string,
+      from: string | null,
+      to: string,
+    ): Promise<OpOutput> =>
+      this.bridge.invoke<OpOutput>(CMD.gitRenameBranch, { repoPath, from, to }),
+
+    publishBranch: (repoPath: string, name: string): Promise<OpOutput> =>
+      this.bridge.invoke<OpOutput>(CMD.gitPublishBranch, { repoPath, name }),
   };
 
   // -- config (§2.5) ----------------------------------------------------------
@@ -496,5 +579,41 @@ export class IpcCommands {
 
     runFlywaySeeds: (infraPath: string): Promise<OpOutput> =>
       this.bridge.invoke<OpOutput>(CMD.runFlywaySeeds, { infraPath }),
+  };
+
+  // -- interactive terminals (design doc 2026-06-14) ------------------------
+
+  readonly terminal = {
+    /**
+     * Open a detached PTY terminal window for a repo (`cwd` = repo path).
+     * Returns the new terminal id (`<repoId>::term::<n>`); the window's webview
+     * then calls `attach` with that id.
+     */
+    openWindow: (repoId: string, cwd: string, title: string): Promise<string> =>
+      this.bridge.invoke<string>(CMD.openTerminalWindow, { repoId, cwd, title }),
+
+    /**
+     * Bind this window's output channel: `onData` receives raw PTY bytes
+     * (`ArrayBuffer`, ANSI intact) — feed straight to `xterm.write`. The
+     * pre-attach backlog arrives as the first message.
+     */
+    attach: (id: string, onData: (bytes: Uint8Array) => void): Promise<void> => {
+      const channel = this.bridge.channel<ArrayBuffer>((buffer) =>
+        onData(new Uint8Array(buffer)),
+      );
+      return this.bridge.invoke<void>(CMD.attachTerminal, { id, channel });
+    },
+
+    /** Forward keystrokes (the string from `xterm.onData`) to the PTY. */
+    write: (id: string, data: string): Promise<void> =>
+      this.bridge.invoke<void>(CMD.terminalWrite, { id, data }),
+
+    /** Resize the PTY viewport (from the xterm fit addon). */
+    resize: (id: string, cols: number, rows: number): Promise<void> =>
+      this.bridge.invoke<void>(CMD.terminalResize, { id, cols, rows }),
+
+    /** Kill the PTY process tree and drop the session (on window close). */
+    close: (id: string): Promise<void> =>
+      this.bridge.invoke<void>(CMD.closeTerminal, { id }),
   };
 }
