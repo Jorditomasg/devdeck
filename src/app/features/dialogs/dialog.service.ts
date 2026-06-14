@@ -34,6 +34,7 @@ import {
   MessageboxComponent,
   type MessageboxKind,
 } from './messagebox/messagebox.component';
+import { PromptDialogComponent } from './prompt/prompt-dialog.component';
 // NOTE: ProfileManagerDialogComponent is intentionally NOT imported here —
 // see openProfileManager() for the cycle-breaking lazy import.
 import { RepoConfigManagerDialogComponent } from './repo-config-manager/repo-config-manager-dialog.component';
@@ -184,6 +185,27 @@ export class DialogService implements DialogsApi {
   /** Themed `ask_yes_no` replacement — `true` on Yes. */
   confirm(title: string, message: string): Promise<boolean> {
     return this.messagebox('confirm', title, message);
+  }
+
+  /**
+   * Single-line text prompt. Resolves the entered (trimmed) text, or `null`
+   * when cancelled (ESC / ✕ / Cancel — the fallback).
+   */
+  prompt(
+    title: string,
+    message: string,
+    opts: { initialValue?: string; placeholder?: string } = {},
+  ): Promise<string | null> {
+    return this.openForResult<string | null>(
+      PromptDialogComponent,
+      {
+        title,
+        message,
+        initialValue: opts.initialValue ?? '',
+        placeholder: opts.placeholder ?? '',
+      },
+      null,
+    );
   }
 
   private messagebox(
