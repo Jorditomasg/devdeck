@@ -46,6 +46,18 @@ pub struct StatusSummary {
     pub conflicts: u32,
 }
 
+/// One entry of `git stash list` (the stash-management dialog — no v1
+/// equivalent). `index` is the 0-based position addressing `stash@{index}`;
+/// `message` is the human description; `branch` is the branch the stash was
+/// created on (best-effort — empty for a stash made off a detached HEAD).
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct StashEntry {
+    pub index: usize,
+    pub message: String,
+    pub branch: String,
+}
+
 /// Branch list ordered by reflog recency (inventory-backend.md §10.1,
 /// `order_branches_by_recency`). `recent_count` is the index where the
 /// alphabetical section starts — the UI draws a separator there.
