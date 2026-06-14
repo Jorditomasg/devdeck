@@ -471,7 +471,12 @@
       "btn_revert": "↩ Revertir",
       "revert_done": "✓ Merge revertido correctamente.",
       "revert_error": "✗ No se pudo revertir el merge: {msg}",
-      "revert_points": "Puntos de reversión"
+      "revert_points": "Puntos de reversión",
+      "stash_name_placeholder": "nombre del stash (opcional)",
+      "stash_and_retry": "Stashear cambios y reintentar",
+      "stashing": "📦 Guardando cambios locales en el stash...",
+      "stashed": "✓ Cambios guardados — reintentando el merge.",
+      "stash_failed": "✗ No se pudo stashear: {msg}"
     },
     "config": {
       "write_error": "No se pudo escribir en '{path}'"
