@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "DevOps Manager",
-  "version": "2.0.0",
-  "identifier": "es.orizon.devops-manager",
+  "productName": "DevDeck",
+  "version": "0.9.0",
+  "identifier": "es.orizon.devdeck",
   "build": {
     "beforeDevCommand": "npm run start",
     "devUrl": "http://localhost:4200",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "DevOps Manager",
+        "title": "DevDeck",
         "width": 1300,
         "height": 900,
         "minWidth": 1000,

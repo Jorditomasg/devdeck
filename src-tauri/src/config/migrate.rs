@@ -10,7 +10,7 @@
 //!    accepting the raw sentinels forever), legacy `last_profile` folded into
 //!    `last_profile_by_group["Default"]`, `workspace_dir` materialized into a
 //!    `Default` workspace group when no groups exist.
-//! 3. Copy `.devops-profiles/` → `dirs::data_dir()/devops-manager/profiles/`
+//! 3. Copy `.devops-profiles/` → `dirs::data_dir()/devdeck/profiles/`
 //!    preserving the per-group subdirectory layout (§15.1 backend).
 //! 4. Stamp `migratedFrom` / `migratedAt` markers for support.
 //!
@@ -32,7 +32,7 @@ pub const V1_CONFIG_FILE_NAME: &str = "devops_manager_config.json";
 /// (inventory-backend.md §15.1).
 pub const V1_PROFILES_DIR_NAME: &str = ".devops-profiles";
 
-/// v2 profiles directory name under `dirs::data_dir()/devops-manager/`.
+/// v2 profiles directory name under `dirs::data_dir()/devdeck/`.
 pub const PROFILES_DIR_NAME: &str = "profiles";
 
 /// The workspace group legacy single-group data is folded into.
@@ -58,7 +58,7 @@ pub struct MigrationReport {
     pub migrated_at: String,
 }
 
-/// v2 profiles directory: `dirs::data_dir()/devops-manager/profiles`.
+/// v2 profiles directory: `dirs::data_dir()/devdeck/profiles`.
 pub fn default_profiles_dir() -> DomainResult<PathBuf> {
     let base = dirs::data_dir().ok_or(DomainError::NoOsDirectory("data"))?;
     Ok(base.join(APP_CONFIG_DIR_NAME).join(PROFILES_DIR_NAME))

@@ -9,8 +9,8 @@
 
 [package]
 name = "devops-manager"
-version = "2.0.0"
-description = "DevOps Manager v2 — desktop app for managing local development services"
+version = "0.9.0"
+description = "DevDeck — desktop app for managing local development services"
 authors = ["Jorditomasg"]
 edition = "2021"
 

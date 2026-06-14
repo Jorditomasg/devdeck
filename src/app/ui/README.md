@@ -1,6 +1,6 @@
 # UI Kit — atomic presentational components
 
-Pure presentational layer of DevOps Manager v2. Every component is standalone,
+Pure presentational layer of DevDeck. Every component is standalone,
 `OnPush`, signal-based (`input()` / `model()` / `output()`), and consumes the
 design tokens from `src/styles/_tokens.scss` exclusively — **zero hardcoded
 colors or sizes**. Shared structural mixins live in `src/styles/_mixins.scss`.

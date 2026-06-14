@@ -77,7 +77,7 @@ export class LogWindowComponent implements OnInit, OnDestroy {
   async ngOnInit(): Promise<void> {
     const id = new URLSearchParams(window.location.search).get('log') ?? '';
     this.serviceId.set(id);
-    document.title = `${this.title()} — DevOps Manager`;
+    document.title = `${this.title()} — DevDeck`;
 
     // Subscribe BEFORE seeding so no line can fall between backlog and live.
     // (A line in both would be a rare dup — v1 accepted the same.)
