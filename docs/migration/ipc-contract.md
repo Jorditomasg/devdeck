@@ -104,6 +104,24 @@ in §2.3).
 | 60 | `open_log_window` | `{ serviceId: string, title: string }` | `void` | opens (or focuses, when already open) the detached log window for a service — the v1 detached log Toplevel (inventory-gui.md §5/§8) as a real OS window. Loads the SPA with `?log=<serviceId>`; `serviceId` may be the `__global__` aggregate. Window label: `log-<sanitized id>` (capability `windows: ["main", "log-*"]`) |
 | 61 | `get_log_backlog` | `{ serviceId: string }` | `string[]` | recent lines from the Rust-side `LogCache` (500/service, 1000 for `__global__` with `[name] ` prefixes) — seeds detached log windows, which then follow live `service://log-line` events |
 
+#### Interactive terminals (design doc `docs/superpowers/specs/2026-06-14-terminales-pty-design.md`)
+
+PTY-backed shells, one detached OS window each (`term-<sanitized id>`,
+capability `windows: […, "term-*"]`), isolated from the supervised-service
+process layer (`terminal/` subsystem — no status machine, only the `kill.rs`
+ladder is reused). Output is streamed RAW (ANSI intact) over a per-window Tauri
+`Channel` carrying `InvokeResponseBody::Raw`, **not** the line-batched
+`service://log-line` bus — hence no new event. Terminal id is allocated
+Rust-side: `<repoId>::term::<n>`, monotonic per repo.
+
+| # | Command | Args | Returns | Backing |
+|---|---|---|---|---|
+| 62 | `open_terminal_window` | `{ repoId: string, cwd: string, title: string }` | `string` (the new terminal id) | allocates the id, spawns a PTY shell (`$SHELL`/`pwsh`→`powershell` default) rooted at `cwd`, opens the `term-<id>` window loading `?terminal=<id>` |
+| 63 | `attach_terminal` | `{ id: string, channel: Channel<ArrayBuffer> }` | `void` | binds the window's output channel: flushes the pre-attach ring buffer, then streams live raw PTY bytes |
+| 64 | `terminal_write` | `{ id: string, data: string }` | `void` | forwards keystrokes (the `xterm.onData` string) to the PTY input |
+| 65 | `terminal_resize` | `{ id: string, cols: number, rows: number }` | `void` | resizes the PTY viewport (SIGWINCH) |
+| 66 | `close_terminal` | `{ id: string }` | `void` | force-kills the PTY process tree (`kill.rs`) and drops the session — invoked by the window on close (no confirmation: closing a terminal window kills its shell) |
+
 **Minimize-to-tray** (config key `minimize_to_tray`, v1 default `true`):
 Rust-side only — `lib.rs` watches the main window's `Resized` events, probes
 `is_minimized()` and hides the window (removing its taskbar entry). Detached
@@ -112,10 +130,12 @@ from a `log-*` window (they bootstrap the same SPA; showing/focusing the main
 window from there would steal focus on every detach).
 
 **Close protocol** (inventory-gui.md §17): when the user closes the window (or
-picks Quit in the tray menu) while services are running, Rust prevents the
-close and emits `app://close-requested`; the frontend shows the
-confirm-running dialog and answers with `app_exit { force }`. With nothing
-running the close proceeds directly (`RunEvent::Exit` does the cleanup).
+picks Quit in the tray menu) while services are running **or any PTY terminal
+window is open**, Rust prevents the close and emits `app://close-requested`;
+the frontend shows the confirm dialog and answers with `app_exit { force }`.
+With nothing running the close proceeds directly (`RunEvent::Exit` does the
+cleanup — `ProcessManager::shutdown_all` + `TerminalManager::close_all`).
+Closing a single terminal window does NOT confirm — it kills that PTY only.
 
 **Tray** (inventory-gui.md §25, Rust-side only): show/hide toggle + quit menu
 (labels localized from the config `language`), tooltip
@@ -187,6 +207,18 @@ Operation logs flow through `service://log-line` with `stream: "git"` and `name`
 | 20 | `git_merge` | `{ repoPath: string, request: MergeRequest }` | `MergeOutcome` | `git::merge_branch` — full §10.4 pipeline; conflicts leave the tree conflicted |
 | 21 | `git_revert_merge` | `{ repoPath: string, revertPoint: RevertPoint }` | `RevertOutcome` | `git::revert_merge` |
 | 22 | `git_refresh_badge` | `{ repoPath: string }` | `void` | `git::refresh_badge` — forces one poll cycle; result arrives as `git://badge` |
+| 62 | `git_stash_list` | `{ repoPath: string }` | `StashEntry[]` | `git::stash_list` — `git stash list` parsed (newest = index 0) |
+| 63 | `git_stash_push` | `{ repoPath: string, message?: string, includeUntracked: boolean }` | `OpOutput` | `git::stash_push` — `git stash push [-u] [-m]` |
+| 64 | `git_stash_apply` | `{ repoPath: string, index: number }` | `OpOutput` | `git::stash_apply` — applies, keeps the entry |
+| 65 | `git_stash_pop` | `{ repoPath: string, index: number }` | `OpOutput` | `git::stash_pop` — applies + drops |
+| 66 | `git_stash_drop` | `{ repoPath: string, index: number }` | `OpOutput` | `git::stash_drop` |
+| 67 | `git_create_branch` | `{ repoPath: string, name: string, base?: string, checkout: boolean }` | `OpOutput` | `git::create_branch` — `checkout -b` / `branch` |
+| 68 | `git_delete_branch` | `{ repoPath: string, name: string, force: boolean }` | `OpOutput` | `git::delete_branch` — `branch -d`/`-D` |
+| 69 | `git_delete_remote_branch` | `{ repoPath: string, name: string }` | `OpOutput` | `git::delete_remote_branch` — `push origin --delete` |
+| 70 | `git_rename_branch` | `{ repoPath: string, from?: string, to: string }` | `OpOutput` | `git::rename_branch` — `branch -m` |
+| 71 | `git_publish_branch` | `{ repoPath: string, name: string }` | `OpOutput` | `git::publish_branch` — `push -u origin` |
+
+> `StashEntry` type (§1.2): `{ index: number, message: string, branch: string }` (camelCase wire).
 
 ### 2.5 Config (`config/`)
 

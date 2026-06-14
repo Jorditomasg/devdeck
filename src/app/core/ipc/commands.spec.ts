@@ -5,12 +5,12 @@ import { CMD, IpcCommands } from './commands';
 import { FakeTauriBridge } from './tauri-bridge.fake';
 
 describe('CMD registry', () => {
-  it('contains the 61 contract commands, all snake_case and unique', () => {
-    // 55 original + judge-fix additions (set_last_profile, is_installed,
-    // app_exit, app_hide_to_tray) + detached log windows (open_log_window,
-    // get_log_backlog) — ipc-contract.md §2.1/§2.5.
+  it('contains the 76 contract commands, all snake_case and unique', () => {
+    // 66 prior (incl. PTY terminals) + 10 git stash/branch management commands
+    // (ipc-contract.md §2.4 #62–#71): stash list/push/apply/pop/drop +
+    // create/delete/delete-remote/rename/publish branch.
     const names = Object.values(CMD);
-    expect(names.length).toBe(61);
+    expect(names.length).toBe(76);
     expect(new Set(names).size).toBe(names.length);
     for (const name of names) {
       expect(name).toMatch(/^[a-z][a-z0-9_]*$/);
@@ -66,6 +66,69 @@ describe('IpcCommands wrappers', () => {
     expect(bridge.invokesOf(CMD.gitRevertMerge)[0]?.args).toEqual({
       repoPath: '/ws/api',
       revertPoint,
+    });
+  });
+
+  it('stash wrappers carry the payloads verbatim', async () => {
+    const bridge = new FakeTauriBridge();
+    const api = new IpcCommands(bridge);
+
+    await api.git.stashList('/ws/api');
+    await api.git.stashPush('/ws/api', 'pre-merge', true);
+    await api.git.stashPush('/ws/api', null, false);
+    await api.git.stashApply('/ws/api', 0);
+    await api.git.stashPop('/ws/api', 1);
+    await api.git.stashDrop('/ws/api', 2);
+
+    expect(bridge.invokesOf(CMD.gitStashList)[0]?.args).toEqual({ repoPath: '/ws/api' });
+    expect(bridge.invokesOf(CMD.gitStashPush)[0]?.args).toEqual({
+      repoPath: '/ws/api',
+      message: 'pre-merge',
+      includeUntracked: true,
+    });
+    expect(bridge.invokesOf(CMD.gitStashPush)[1]?.args).toEqual({
+      repoPath: '/ws/api',
+      message: null,
+      includeUntracked: false,
+    });
+    expect(bridge.invokesOf(CMD.gitStashApply)[0]?.args).toEqual({ repoPath: '/ws/api', index: 0 });
+    expect(bridge.invokesOf(CMD.gitStashPop)[0]?.args).toEqual({ repoPath: '/ws/api', index: 1 });
+    expect(bridge.invokesOf(CMD.gitStashDrop)[0]?.args).toEqual({ repoPath: '/ws/api', index: 2 });
+  });
+
+  it('branch-management wrappers carry the payloads verbatim', async () => {
+    const bridge = new FakeTauriBridge();
+    const api = new IpcCommands(bridge);
+
+    await api.git.createBranch('/ws/api', 'feature/x', 'main', true);
+    await api.git.deleteBranch('/ws/api', 'old', false);
+    await api.git.deleteRemoteBranch('/ws/api', 'old');
+    await api.git.renameBranch('/ws/api', null, 'renamed');
+    await api.git.publishBranch('/ws/api', 'feature/x');
+
+    expect(bridge.invokesOf(CMD.gitCreateBranch)[0]?.args).toEqual({
+      repoPath: '/ws/api',
+      name: 'feature/x',
+      base: 'main',
+      checkout: true,
+    });
+    expect(bridge.invokesOf(CMD.gitDeleteBranch)[0]?.args).toEqual({
+      repoPath: '/ws/api',
+      name: 'old',
+      force: false,
+    });
+    expect(bridge.invokesOf(CMD.gitDeleteRemoteBranch)[0]?.args).toEqual({
+      repoPath: '/ws/api',
+      name: 'old',
+    });
+    expect(bridge.invokesOf(CMD.gitRenameBranch)[0]?.args).toEqual({
+      repoPath: '/ws/api',
+      from: null,
+      to: 'renamed',
+    });
+    expect(bridge.invokesOf(CMD.gitPublishBranch)[0]?.args).toEqual({
+      repoPath: '/ws/api',
+      name: 'feature/x',
     });
   });
 

@@ -183,6 +183,13 @@ export interface OrderedBranches {
   readonly recentCount: number;
 }
 
+/** One `git stash list` entry (stash dialog). `index` addresses `stash@{index}`. */
+export interface StashEntry {
+  readonly index: number;
+  readonly message: string;
+  readonly branch: string;
+}
+
 /** Where a merge lands (git/types.rs `TargetMode`). */
 export type MergeTargetMode = 'current' | 'existing' | 'new';
 
