@@ -76,6 +76,38 @@ pub(crate) async fn run_git(
     })
 }
 
+/// Run a MUTATING git command and fold the result into [`OpOutput`], logging
+/// the combined output (the v1 `(ok, message)` idiom). Shared by the
+/// stash/branch operation surfaces so they never duplicate the fold logic.
+pub(crate) async fn run_logged_op(
+    repo: &Path,
+    args: &[&str],
+    timeout_secs: u64,
+    log: Option<&super::types::LogSink>,
+) -> super::types::OpOutput {
+    use super::types::{emit, OpOutput};
+    let name = repo_name(repo);
+    match run_git(repo, args, timeout_secs).await {
+        Ok(out) if out.success => {
+            let msg = out.combined();
+            if !msg.is_empty() {
+                emit(log, &format!("[git] {name}: {msg}"));
+            }
+            OpOutput::ok(msg)
+        }
+        Ok(out) => {
+            let msg = out.error_message();
+            emit(log, &format!("[git] {name}: {msg}"));
+            OpOutput::fail(msg)
+        }
+        Err(err) => {
+            let msg = err.to_string();
+            emit(log, &format!("[git] {name}: {msg}"));
+            OpOutput::fail(msg)
+        }
+    }
+}
+
 /// Repo display name = directory basename (v1 `os.path.basename(repo_path)`).
 pub(crate) fn repo_name(repo: &Path) -> String {
     repo.file_name()
