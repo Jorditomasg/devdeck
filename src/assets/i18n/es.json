@@ -56,6 +56,7 @@
     "global_panel_title": "🌐 Panel Global",
     "global_branch": "Rama:",
     "log_section": "📋 Logs del Repositorio",
+    "terminal": "Terminal",
     "status": {
       "stopped": "Detenido",
       "running": "Corriendo",
@@ -100,6 +101,7 @@
     "conflict_files": "Ficheros en conflicto de merge. Clic para ver la lista en el log. Resolvé manualmente y commiteá.",
     "expand": "Expandir / Colapsar opciones",
     "open_explorer": "Abrir en el explorador",
+    "open_terminal": "Abrir una terminal en este repo",
     "open_repo": "🔗 Clic derecho: abrir repositorio",
     "reload_repo": "Recargar rama, lista de ramas y estado git (sin red)",
     "branch_in_profile": "Incluir rama al guardar / aplicar perfiles.\nDesmarcado: los perfiles no modificarán la rama de este repo.",
@@ -364,6 +366,31 @@
       "checkout_error_msg": "No se pudo cambiar a '{branch}'.\nComprobá si hay ficheros modificados en conflicto.\n\nDetalles:\n{msg}",
       "checkout_dirty_title": "Cambios sin confirmar",
       "checkout_dirty_msg": "Hay {count} archivo(s) modificado(s) en '{name}'. Cambiar de rama puede arrastrar o descartar cambios locales. ¿Continuar?"
+    },
+    "stash": {
+      "title": "Stash — {name}",
+      "add_section": "Añadir al stash",
+      "name_placeholder": "nombre opcional",
+      "include_untracked": "Incluir ficheros sin seguimiento",
+      "btn_add": "Añadir al stash",
+      "btn_adding": "Guardando...",
+      "entries_section": "Stashes",
+      "empty": "No hay stashes.",
+      "btn_apply": "Aplicar",
+      "btn_pop": "Pop",
+      "btn_drop": "Eliminar",
+      "drop_confirm_title": "Eliminar stash",
+      "drop_confirm_msg": "Esto descarta {ref} de forma permanente. ¿Continuar?",
+      "done_added": "✓ Cambios guardados en el stash.",
+      "done_applied": "✓ Stash aplicado.",
+      "done_popped": "✓ Stash recuperado (pop).",
+      "done_dropped": "✓ Stash eliminado.",
+      "failed": "✗ {msg}",
+      "log_label": "📋 Progreso"
+    },
+    "prompt": {
+      "rename_title": "Renombrar rama",
+      "rename_msg": "Nuevo nombre para \"{name}\":"
     },
     "merge": {
       "title": "Mergear ramas",

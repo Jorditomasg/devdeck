@@ -39,6 +39,7 @@ import { PromptDialogComponent } from './prompt/prompt-dialog.component';
 // see openProfileManager() for the cycle-breaking lazy import.
 import { RepoConfigManagerDialogComponent } from './repo-config-manager/repo-config-manager-dialog.component';
 import { SettingsDialogComponent } from './settings/settings-dialog.component';
+import { StashDialogComponent } from './stash/stash-dialog.component';
 import { WorkspaceGroupsDialogComponent } from './workspace-groups/workspace-groups-dialog.component';
 
 @Injectable({ providedIn: 'root' })
@@ -114,6 +115,11 @@ export class DialogService implements DialogsApi {
   /** Merge-branch dialog with revert support (§20). */
   openMergeBranch(repoName: string): void {
     this.open(MergeBranchDialogComponent, { repoName });
+  }
+
+  /** Stash-management dialog (add/list/apply/pop/drop). */
+  openStash(repoName: string): void {
+    this.open(StashDialogComponent, { repoName });
   }
 
   /** Docker Compose manager for a repo's compose files (§19). */
