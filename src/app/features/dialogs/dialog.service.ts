@@ -37,6 +37,7 @@ import {
 import { PromptDialogComponent } from './prompt/prompt-dialog.component';
 // NOTE: ProfileManagerDialogComponent is intentionally NOT imported here —
 // see openProfileManager() for the cycle-breaking lazy import.
+import { BranchDialogComponent } from './branch/branch-dialog.component';
 import { RepoConfigManagerDialogComponent } from './repo-config-manager/repo-config-manager-dialog.component';
 import { SettingsDialogComponent } from './settings/settings-dialog.component';
 import { StashDialogComponent } from './stash/stash-dialog.component';
@@ -120,6 +121,11 @@ export class DialogService implements DialogsApi {
   /** Stash-management dialog (add/list/apply/pop/drop). */
   openStash(repoName: string): void {
     this.open(StashDialogComponent, { repoName });
+  }
+
+  /** Branch-management dialog (create/checkout/rename/publish/delete). */
+  openBranches(repoName: string): void {
+    this.open(BranchDialogComponent, { repoName });
   }
 
   /** Docker Compose manager for a repo's compose files (§19). */
