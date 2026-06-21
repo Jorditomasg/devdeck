@@ -12,6 +12,9 @@ out-tsc/
 src-tauri/target/
 src-tauri/gen/schemas/
 
+# Agent worktrees (never commit)
+.claude/worktrees/
+
 # Editor / OS noise
 .DS_Store
 Thumbs.db

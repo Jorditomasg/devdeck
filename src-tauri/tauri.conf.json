@@ -1,13 +1,13 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "DevDeck",
-  "version": "0.9.0",
+  "version": "1.0.0",
   "identifier": "es.orizon.devdeck",
   "build": {
     "beforeDevCommand": "npm run start",
     "devUrl": "http://localhost:4200",
     "beforeBuildCommand": "npm run build",
-    "frontendDist": "../dist/devops-manager/browser"
+    "frontendDist": "../dist/devdeck/browser"
   },
   "app": {
     "windows": [
@@ -27,16 +27,26 @@
   },
   "bundle": {
     "active": true,
+    "createUpdaterArtifacts": true,
     "targets": ["nsis"],
     "icon": ["icons/icon.ico"],
     "publisher": "Jorditomasg",
     "resources": {
-      "../config/repo-types/": "config/repo-types/"
+      "../config/repo-types/": "config/repo-types/",
+      "../CHANGELOG.md": "CHANGELOG.md"
     },
     "windows": {
       "nsis": {
         "installMode": "perMachine"
       }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEE5RDJDMURFOThFQTU5RUUKUldUdVdlcVkzc0hTcVJQc21pbWwxT2ZzSjFWbExxK29MS0dkNDNzM01WdTVYV2hLdlpkYWVwQjMK",
+      "endpoints": [
+        "https://github.com/Jorditomasg/devdeck/releases/latest/download/latest.json"
+      ]
     }
   }
 }
