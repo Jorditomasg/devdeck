@@ -15,6 +15,8 @@
 //!   `.git/config` directly instead of spawning git (subprocesses belong to
 //!   the `git/` layer; detection stays filesystem-only).
 
+use crate::detection::glob::fnmatch;
+use crate::domain::RepoInfo;
 use regex::Regex;
 use std::fs;
 use std::path::Path;
@@ -56,6 +58,82 @@ pub fn java_version_for_repo(repo_root: &Path) -> Option<String> {
     fs::read_to_string(&pom)
         .ok()
         .and_then(|text| extract_java_version_from_pom(&text))
+}
+
+/// Absolute paths of `docker-compose*.yml` / `docker-compose*.yaml` plain
+/// files in the repo root, sorted (project_analyzer.py:209-220; the
+/// `.yaml`-aware variant of the two v1 paths — the legacy detector's
+/// `.yml`-only check was the divergence, inventory-config-ci.md §1.6).
+pub fn find_docker_compose_files(repo_root: &Path) -> Vec<String> {
+    let mut files: Vec<String> = match fs::read_dir(repo_root) {
+        Ok(rd) => rd
+            .flatten()
+            .map(|e| e.path())
+            .filter(|p| p.is_file())
+            .filter(|p| {
+                p.file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .is_some_and(|n| {
+                        fnmatch(&n, "docker-compose*.yml") || fnmatch(&n, "docker-compose*.yaml")
+                    })
+            })
+            .map(|p| p.display().to_string())
+            .collect(),
+        Err(_) => return Vec::new(),
+    };
+    files.sort();
+    files
+}
+
+/// A named enrichment applied to a [`RepoInfo`] after detection. Each name
+/// listed in a repo type's `enrich:` block selects one of these by
+/// [`Enricher::name`]; the builder runs them in declared order. Impls WRAP the
+/// existing extraction functions in this module — they hold no state.
+pub trait Enricher: Sync {
+    fn name(&self) -> &'static str;
+    fn run(&self, repo: &mut RepoInfo, path: &Path);
+}
+
+/// `java_version` — recommended Java version from `pom.xml`
+/// ([`java_version_for_repo`]).
+struct JavaVersionEnricher;
+impl Enricher for JavaVersionEnricher {
+    fn name(&self) -> &'static str {
+        "java_version"
+    }
+    fn run(&self, repo: &mut RepoInfo, path: &Path) {
+        repo.java_version = java_version_for_repo(path);
+    }
+}
+
+/// `docker_checkboxes` — root `docker-compose*.yml`/`.yaml` files
+/// ([`find_docker_compose_files`]).
+struct DockerCheckboxesEnricher;
+impl Enricher for DockerCheckboxesEnricher {
+    fn name(&self) -> &'static str {
+        "docker_checkboxes"
+    }
+    fn run(&self, repo: &mut RepoInfo, path: &Path) {
+        repo.docker_compose_files = find_docker_compose_files(path);
+    }
+}
+
+/// THE single place enrichers are registered. Add new enrichers here.
+/// NOTE: impls must stay zero-sized / const-constructible — this relies on
+/// static promotion of `&Impl`. One holding runtime state (Regex, String)
+/// won't promote; switch to a `OnceLock<Vec<Box<dyn Enricher>>>` if that day comes.
+fn enrichers() -> &'static [&'static dyn Enricher] {
+    &[&JavaVersionEnricher, &DockerCheckboxesEnricher]
+}
+
+/// Look up an enricher by name (used by the builder); unknown names → `None`.
+pub fn enricher(name: &str) -> Option<&'static dyn Enricher> {
+    enrichers().iter().copied().find(|e| e.name() == name)
+}
+
+/// True when `name` is a registered enricher (used by validation).
+pub fn enricher_exists(name: &str) -> bool {
+    enrichers().iter().any(|e| e.name() == name)
 }
 
 /// Static Spring server info extracted from the main application config.
@@ -212,6 +290,33 @@ pub fn normalize_remote_url(url: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn known_enrichers_registered() {
+        assert!(enricher_exists("java_version"));
+        assert!(enricher_exists("docker_checkboxes"));
+        assert!(!enricher_exists("bogus"));
+    }
+
+    #[test]
+    fn docker_compose_files_yml_and_yaml_sorted_root_only() {
+        let root = std::env::temp_dir().join(format!(
+            "dm2-enrich-{}-compose",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("nested")).unwrap();
+        std::fs::write(root.join("docker-compose.yml"), "services: {}").unwrap();
+        std::fs::write(root.join("docker-compose.override.yaml"), "services: {}").unwrap();
+        std::fs::write(root.join("compose.yml"), "services: {}").unwrap(); // no match
+        std::fs::write(root.join("nested/docker-compose.yml"), "services: {}").unwrap(); // non-recursive
+
+        let files = find_docker_compose_files(&root);
+        assert_eq!(files.len(), 2);
+        assert!(files[0].ends_with("docker-compose.override.yaml"));
+        assert!(files[1].ends_with("docker-compose.yml"));
+        let _ = std::fs::remove_dir_all(root);
+    }
 
     const POM_JAVA_VERSION: &str = r#"<?xml version="1.0"?>
 <project>

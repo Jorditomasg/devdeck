@@ -24,8 +24,9 @@ pub mod enrich;
 pub mod env_files;
 pub mod glob;
 pub mod pipeline;
+pub mod validate;
 
-pub use builder::{build_repo_info, find_docker_compose_files, resolve_main_app, resolve_run_command};
+pub use builder::{build_repo_info, resolve_run_command};
 pub use enrich::{
     extract_java_version_from_pom, git_remote_url, java_version_for_repo, normalize_remote_url,
     spring_server_info, SpringServerInfo,

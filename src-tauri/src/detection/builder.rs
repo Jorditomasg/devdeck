@@ -8,45 +8,47 @@
 
 use crate::detection::enrich;
 use crate::detection::env_files::resolve_env_files;
-use crate::detection::glob::fnmatch;
-use crate::domain::{CommandsDef, RepoInfo, RepoTypeDef};
+use crate::domain::{AppResolution, RepoInfo, RepoTypeDef, Run};
 use std::fs;
 use std::path::Path;
 
 /// Build the full [`RepoInfo`] for a directory that matched `def`.
 pub fn build_repo_info(name: &str, path: &Path, def: &RepoTypeDef) -> RepoInfo {
-    let scan = resolve_env_files(path, &def.env_files);
+    let scan = resolve_env_files(path, &def.config);
 
     let mut repo = RepoInfo {
         name: name.to_string(),
         path: path.display().to_string(),
         repo_type: def.type_id.clone(),
-        run_install_cmd: def.commands.install_cmd.clone(),
-        run_reinstall_cmd: def.commands.resolved_reinstall_cmd(),
-        run_command: resolve_run_command(path, &def.commands),
-        stop_command: def.commands.stop_cmd.clone(),
-        ready_pattern: def.commands.ready_pattern.clone(),
-        error_pattern: def.commands.error_pattern.clone(),
-        port_patterns: def.commands.port_patterns.clone(),
+        run_install_cmd: def.run.install.resolved(),
+        run_reinstall_cmd: def.run.reinstall.resolved(),
+        run_command: resolve_run_command(path, &def.run),
+        stop_command: def.run.stop.resolved(),
+        restart_delay_ms: def.run.restart_delay_ms,
+        config_editable: def.config.editable,
+        ready_pattern: def.logs.ready.clone(),
+        error_pattern: def.logs.error.clone(),
+        port_patterns: def.logs.ports.clone(),
         ui_config: def.ui.clone(),
-        features: def.features.clone(),
+        features: def.enrich.clone(),
         environment_files: scan.files,
         profiles: scan.profiles,
         modules: scan.modules,
-        env_default_dir: def.env_files.default_dir.clone(),
-        env_config_writer_type: def.env_files.config_writer_type.clone(),
-        env_pull_ignore_patterns: def.env_files.pull_ignore_patterns.clone(),
-        env_main_config_filename: def.env_files.main_config_filename.clone(),
-        env_patterns: def.env_files.patterns.clone(),
+        env_default_dir: def.config.dir.clone(),
+        env_config_writer_type: def.config.writer.clone(),
+        env_pull_ignore_patterns: def.config.pull_ignore.clone(),
+        env_main_config_filename: def.config.main_file.clone(),
+        env_patterns: def.config.patterns.clone(),
         ..Default::default()
     };
 
-    // Feature-gated extras (inventory-config-ci.md §1.6).
-    if repo.has_feature("docker_checkboxes") {
-        repo.docker_compose_files = find_docker_compose_files(path);
-    }
-    if repo.has_feature("java_version") {
-        repo.java_version = enrich::java_version_for_repo(path);
+    // Enrichers selected by name from `def.enrich`, dispatched through the
+    // named-strategy registry (`enrich::enricher`); unknown names are ignored
+    // (the loader already validated them away — see `detection::validate`).
+    for name in &def.enrich {
+        if let Some(enricher) = enrich::enricher(name) {
+            enricher.run(&mut repo, path);
+        }
     }
 
     // Legacy enrichments applied unconditionally (§22.4): Spring info fires
@@ -60,26 +62,31 @@ pub fn build_repo_info(name: &str, path: &Path, def: &RepoTypeDef) -> RepoInfo {
     repo
 }
 
-/// OS-resolved start command with `{main_app}` substitution
-/// (project_analyzer.py:222-237): the placeholder is replaced with the first
-/// non-hidden subdirectory of `<repo>/apps/` (fallback literal `app`),
-/// wrapped in double quotes. v1 used raw `os.listdir` order (§22.15 — could
-/// change across filesystems); v2 sorts alphabetically for determinism, as
-/// documented in inventory-config-ci.md §1.4.
-pub fn resolve_run_command(repo_root: &Path, commands: &CommandsDef) -> Option<String> {
-    let cmd = commands.resolved_start_cmd()?;
-    if !cmd.contains("{main_app}") {
+/// OS-resolved start command with app-resolution substitution
+/// (generalizes the v1 Nx-only `{main_app}`, project_analyzer.py:222-237):
+/// when `run.app_resolution` is declared and the start command contains the
+/// placeholder token, it is replaced with the resolved app name (wrapped in
+/// double quotes). v1 used raw `os.listdir` order (§22.15 — could change
+/// across filesystems); v2 sorts alphabetically for determinism
+/// (inventory-config-ci.md §1.4).
+pub fn resolve_run_command(repo_root: &Path, run: &Run) -> Option<String> {
+    let cmd = run.start.resolved()?;
+    let Some(ar) = &run.app_resolution else {
+        return Some(cmd);
+    };
+    let token = format!("{{{}}}", ar.placeholder); // e.g. "{main_app}"
+    if !cmd.contains(&token) {
         return Some(cmd);
     }
-    let main_app = resolve_main_app(repo_root);
-    Some(cmd.replace("{main_app}", &format!("\"{main_app}\"")))
+    let app = resolve_app(repo_root, ar);
+    Some(cmd.replace(&token, &format!("\"{app}\"")))
 }
 
-/// First (alphabetical) non-hidden subdirectory of `<repo>/apps/`, or the
-/// literal `app` when `apps/` is missing or empty.
-pub fn resolve_main_app(repo_root: &Path) -> String {
-    let apps_dir = repo_root.join("apps");
-    let mut apps: Vec<String> = match fs::read_dir(&apps_dir) {
+/// Resolve the app name for a monorepo, by the declared strategy. Falls back
+/// to the literal `app` when the scan dir is missing or empty.
+fn resolve_app(repo_root: &Path, ar: &AppResolution) -> String {
+    let scan = repo_root.join(&ar.scan_dir);
+    let mut dirs: Vec<String> = match fs::read_dir(&scan) {
         Ok(rd) => rd
             .flatten()
             .filter(|e| e.path().is_dir())
@@ -88,38 +95,21 @@ pub fn resolve_main_app(repo_root: &Path) -> String {
             .collect(),
         Err(_) => return "app".to_string(),
     };
-    apps.sort();
-    apps.into_iter().next().unwrap_or_else(|| "app".to_string())
-}
-
-/// Absolute paths of `docker-compose*.yml` / `docker-compose*.yaml` plain
-/// files in the repo root, sorted (project_analyzer.py:209-220; the
-/// `.yaml`-aware variant of the two v1 paths — the legacy detector's
-/// `.yml`-only check was the divergence, inventory-config-ci.md §1.6).
-pub fn find_docker_compose_files(repo_root: &Path) -> Vec<String> {
-    let mut files: Vec<String> = match fs::read_dir(repo_root) {
-        Ok(rd) => rd
-            .flatten()
-            .map(|e| e.path())
-            .filter(|p| p.is_file())
-            .filter(|p| {
-                p.file_name()
-                    .map(|n| n.to_string_lossy().into_owned())
-                    .is_some_and(|n| {
-                        fnmatch(&n, "docker-compose*.yml") || fnmatch(&n, "docker-compose*.yaml")
-                    })
-            })
-            .map(|p| p.display().to_string())
-            .collect(),
-        Err(_) => return Vec::new(),
-    };
-    files.sort();
-    files
+    match ar.strategy.as_str() {
+        "single_dir" => dirs.into_iter().next().unwrap_or_else(|| "app".to_string()),
+        // first_alphabetical (the only other validated strategy). The catch-all
+        // also covers any name that slipped past validation — defensive only.
+        _ => {
+            dirs.sort();
+            dirs.into_iter().next().unwrap_or_else(|| "app".to_string())
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::domain::OsCommand;
     use std::path::PathBuf;
 
     fn temp_repo(test: &str) -> PathBuf {
@@ -139,55 +129,79 @@ mod tests {
         fs::write(path, content).unwrap();
     }
 
+    fn nx_run() -> Run {
+        Run {
+            start: OsCommand {
+                default: Some("npx nx serve {main_app}".into()),
+                ..Default::default()
+            },
+            app_resolution: Some(AppResolution {
+                placeholder: "main_app".into(),
+                scan_dir: "apps".into(),
+                strategy: "first_alphabetical".into(),
+            }),
+            ..Default::default()
+        }
+    }
+
     #[test]
     fn main_app_substitution_quotes_first_apps_subdir() {
         let root = temp_repo("mainapp");
         fs::create_dir_all(root.join("apps/cart")).unwrap();
         fs::create_dir_all(root.join("apps/zeta")).unwrap();
         fs::create_dir_all(root.join("apps/.hidden")).unwrap();
-        let commands = CommandsDef {
-            start_cmd: Some("npx nx serve {main_app}".into()),
-            ..Default::default()
-        };
         assert_eq!(
-            resolve_run_command(&root, &commands).as_deref(),
+            resolve_run_command(&root, &nx_run()).as_deref(),
             Some(r#"npx nx serve "cart""#)
         );
         let _ = fs::remove_dir_all(root);
     }
 
     #[test]
-    fn main_app_falls_back_to_literal_app() {
-        let root = temp_repo("mainapp-fallback");
-        let commands = CommandsDef {
-            start_cmd: Some("npx nx serve {main_app}".into()),
+    fn app_resolution_first_alphabetical_matches_v1() {
+        // Parity proof: `first_alphabetical` reproduces the v1 Nx `{main_app}`
+        // behavior — the alphabetically-first non-hidden subdir of `apps` is
+        // chosen and quoted. (Uses the module's temp-dir helper to match the
+        // established test pattern; no new dev-dependency.)
+        let root = temp_repo("app-resolution-parity");
+        fs::create_dir_all(root.join("apps/zeta")).unwrap();
+        fs::create_dir_all(root.join("apps/alpha")).unwrap();
+        fs::create_dir_all(root.join("apps/.hidden")).unwrap();
+
+        let run = Run {
+            start: OsCommand {
+                default: Some("npx nx serve {main_app}".into()),
+                ..Default::default()
+            },
+            app_resolution: Some(AppResolution {
+                placeholder: "main_app".into(),
+                scan_dir: "apps".into(),
+                strategy: "first_alphabetical".into(),
+            }),
             ..Default::default()
         };
-        assert_eq!(
-            resolve_run_command(&root, &commands).as_deref(),
-            Some(r#"npx nx serve "app""#)
-        );
-        // No placeholder → untouched. No start_cmd → None.
-        let plain = CommandsDef {
-            start_cmd: Some("npm start".into()),
-            ..Default::default()
-        };
-        assert_eq!(resolve_run_command(&root, &plain).as_deref(), Some("npm start"));
-        assert_eq!(resolve_run_command(&root, &CommandsDef::default()), None);
+        let cmd = resolve_run_command(&root, &run).unwrap();
+        assert_eq!(cmd, "npx nx serve \"alpha\"");
         let _ = fs::remove_dir_all(root);
     }
 
     #[test]
-    fn docker_compose_files_yml_and_yaml_sorted_root_only() {
-        let root = temp_repo("compose");
-        write(&root, "docker-compose.yml", "services: {}");
-        write(&root, "docker-compose.override.yaml", "services: {}");
-        write(&root, "compose.yml", "services: {}"); // no match
-        write(&root, "nested/docker-compose.yml", "services: {}"); // non-recursive
-        let files = find_docker_compose_files(&root);
-        assert_eq!(files.len(), 2);
-        assert!(files[0].ends_with("docker-compose.override.yaml"));
-        assert!(files[1].ends_with("docker-compose.yml"));
+    fn main_app_falls_back_to_literal_app() {
+        let root = temp_repo("mainapp-fallback");
+        assert_eq!(
+            resolve_run_command(&root, &nx_run()).as_deref(),
+            Some(r#"npx nx serve "app""#)
+        );
+        // No app_resolution → untouched. No start command → None.
+        let plain = Run {
+            start: OsCommand {
+                default: Some("npm start".into()),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        assert_eq!(resolve_run_command(&root, &plain).as_deref(), Some("npm start"));
+        assert_eq!(resolve_run_command(&root, &Run::default()), None);
         let _ = fs::remove_dir_all(root);
     }
 
@@ -232,9 +246,39 @@ mod tests {
         assert_eq!(repo.env_config_writer_type, "spring");
         assert_eq!(repo.env_main_config_filename, "application.yml");
         assert!(repo.run_command.as_deref().is_some_and(|c| c.contains("spring-boot:run")));
+        // v2 data-driven fields: spring is editable, no per-type restart delay.
+        assert!(repo.config_editable);
+        assert_eq!(repo.restart_delay_ms, None);
         // current_branch / danger_flags are NOT detection's job.
         assert_eq!(repo.current_branch, None);
         assert!(repo.danger_flags.is_empty());
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn build_repo_info_runs_java_version_enricher() {
+        // A bare def whose only enrichment is java_version proves the registry
+        // loop actually dispatches the enricher (not just the spring fixture).
+        let root = temp_repo("java-enricher");
+        write(
+            &root,
+            "pom.xml",
+            "<project><properties><java.version>17</java.version></properties></project>",
+        );
+        let def = RepoTypeDef {
+            type_id: "maven-lib".to_string(),
+            enrich: vec!["java_version".to_string()],
+            ..Default::default()
+        };
+        let repo = build_repo_info("lib", &root, &def);
+        assert_eq!(repo.java_version.as_deref(), Some("17"));
+
+        // Without the enricher declared, the field stays empty even with a pom.
+        let bare = RepoTypeDef {
+            type_id: "maven-lib".to_string(),
+            ..Default::default()
+        };
+        assert_eq!(build_repo_info("lib", &root, &bare).java_version, None);
         let _ = fs::remove_dir_all(root);
     }
 
@@ -252,6 +296,10 @@ mod tests {
         assert_eq!(repo.stop_command.as_deref(), Some("docker-compose down"));
         assert_eq!(repo.environment_files.len(), 1);
         assert!(repo.profiles.is_empty(), ".env patterns extract no profiles");
+        // v2 data-driven fields: docker-infra carries its restart delay and is
+        // not editable.
+        assert_eq!(repo.restart_delay_ms, Some(2000));
+        assert!(!repo.config_editable);
         let _ = fs::remove_dir_all(root);
     }
 }

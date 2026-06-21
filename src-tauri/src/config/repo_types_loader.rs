@@ -43,6 +43,15 @@ pub fn load_repo_type_defs(bundled_dir: &Path, user_dir: Option<&Path>) -> Vec<R
     }
     let mut defs: Vec<RepoTypeDef> = by_type.into_values().collect();
     sort_by_priority(&mut defs);
+
+    let errors = crate::detection::validate::validate_all(&defs);
+    for e in &errors {
+        log::error!("repo-type '{}' invalid: {}", e.type_id, e.message);
+    }
+    // Drop invalid defs so detection never matches a broken type.
+    let invalid: std::collections::HashSet<String> =
+        errors.iter().map(|e| e.type_id.clone()).collect();
+    defs.retain(|d| !invalid.contains(&d.type_id));
     defs
 }
 
@@ -85,13 +94,19 @@ fn load_defs_from_dir(dir: &Path) -> Vec<RepoTypeDef> {
             }
         };
         match serde_yaml_ng::from_str::<RepoTypeDef>(&raw) {
-            Ok(def) if !def.type_id.is_empty() => defs.push(def),
-            Ok(_) => {
-                // Document without a `type` key — silently ignored (v1
-                // behavior, project_analyzer.py:28-29).
+            Ok(def) if def.type_id.is_empty() => {
+                log::warn!("repo-type file {} has no `type` — skipped", path.display());
             }
+            Ok(def) if def.schema_version != 2 => {
+                log::error!(
+                    "repo-type file {} has unsupported schema_version {} (expected 2) — skipped",
+                    path.display(),
+                    def.schema_version
+                );
+            }
+            Ok(def) => defs.push(def),
             Err(e) => {
-                log::warn!("skipping invalid repo-type file {}: {e}", path.display());
+                log::error!("invalid repo-type file {}: {e}", path.display());
             }
         }
     }
@@ -120,9 +135,9 @@ mod tests {
     #[test]
     fn loads_and_sorts_by_priority_desc() {
         let dir = temp_dir("sort");
-        write_def(&dir, "low.yml", "type: low\npriority: 1");
-        write_def(&dir, "high.yaml", "type: high\npriority: 99");
-        write_def(&dir, "mid.yml", "type: mid\npriority: 50");
+        write_def(&dir, "low.yml", "schema_version: 2\ntype: low\npriority: 1");
+        write_def(&dir, "high.yaml", "schema_version: 2\ntype: high\npriority: 99");
+        write_def(&dir, "mid.yml", "schema_version: 2\ntype: mid\npriority: 50");
         let defs = load_repo_type_defs(&dir, None);
         let order: Vec<&str> = defs.iter().map(|d| d.type_id.as_str()).collect();
         assert_eq!(order, vec!["high", "mid", "low"]);
@@ -133,8 +148,8 @@ mod tests {
     fn equal_priority_ties_break_by_type_id_not_fs_order() {
         let dir = temp_dir("tie");
         // Filenames deliberately ordered against type ids.
-        write_def(&dir, "a-file.yml", "type: zeta\npriority: 0");
-        write_def(&dir, "z-file.yml", "type: alpha\npriority: 0");
+        write_def(&dir, "a-file.yml", "schema_version: 2\ntype: zeta\npriority: 0");
+        write_def(&dir, "z-file.yml", "schema_version: 2\ntype: alpha\npriority: 0");
         let defs = load_repo_type_defs(&dir, None);
         let order: Vec<&str> = defs.iter().map(|d| d.type_id.as_str()).collect();
         assert_eq!(order, vec!["alpha", "zeta"]);
@@ -145,19 +160,19 @@ mod tests {
     fn user_override_replaces_bundled_by_type() {
         let bundled = temp_dir("ovr-bundled");
         let user = temp_dir("ovr-user");
-        write_def(&bundled, "react.yml", "type: react\npriority: 10");
-        write_def(&bundled, "angular.yml", "type: angular\npriority: 40");
+        write_def(&bundled, "react.yml", "schema_version: 2\ntype: react\npriority: 10");
+        write_def(&bundled, "angular.yml", "schema_version: 2\ntype: angular\npriority: 40");
         write_def(
             &user,
             "my-react.yml",
-            "type: react\npriority: 70\ncommands:\n  start_cmd: vite",
+            "schema_version: 2\ntype: react\npriority: 70\nrun:\n  start:\n    default: vite",
         );
-        write_def(&user, "custom.yml", "type: custom\npriority: 5");
+        write_def(&user, "custom.yml", "schema_version: 2\ntype: custom\npriority: 5");
         let defs = load_repo_type_defs(&bundled, Some(&user));
         assert_eq!(defs.len(), 3);
         let react = defs.iter().find(|d| d.type_id == "react").unwrap();
         assert_eq!(react.priority, 70, "user file must replace bundled");
-        assert_eq!(react.commands.start_cmd.as_deref(), Some("vite"));
+        assert_eq!(react.run.start.default.as_deref(), Some("vite"));
         assert!(defs.iter().any(|d| d.type_id == "custom"));
         let _ = fs::remove_dir_all(bundled);
         let _ = fs::remove_dir_all(user);
@@ -167,9 +182,9 @@ mod tests {
     fn skips_invalid_and_typeless_documents_and_missing_dirs() {
         let dir = temp_dir("skip");
         write_def(&dir, "broken.yml", "::: not yaml {{{");
-        write_def(&dir, "no-type.yml", "priority: 7");
-        write_def(&dir, "ok.yml", "type: ok");
-        write_def(&dir, "ignored.txt", "type: nope");
+        write_def(&dir, "no-type.yml", "schema_version: 2\npriority: 7");
+        write_def(&dir, "ok.yml", "schema_version: 2\ntype: ok");
+        write_def(&dir, "ignored.txt", "schema_version: 2\ntype: nope");
         let defs = load_repo_type_defs(&dir, Some(Path::new("/nonexistent/dir")));
         assert_eq!(defs.len(), 1);
         assert_eq!(defs[0].type_id, "ok");

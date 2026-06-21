@@ -1,47 +1,27 @@
-# Nx Monorepo Repository Definition (ported from v1 config/repo_types/nx-workspace.yml)
+schema_version: 2
 type: "nx-workspace"
 priority: 50
-
-detection:
-  required_files:
-    - "package.json"
-    - "nx.json"
-
-commands:
-  install_cmd: "npm i"
-  reinstall_cmd: "rmdir /s /q node_modules & npm i"
-  # v2: POSIX reinstall variant (v1 shipped Windows-only syntax, §22.7 backend).
-  unix_reinstall_cmd: "rm -rf node_modules && npm i"
-  # `{main_app}` is resolved by the detection engine: first non-hidden
-  # subdirectory of <repo>/apps (alphabetical), substituted double-quoted.
-  start_cmd: "npx nx serve {main_app}"
-  ready_pattern: "localhost:\\d+|Local:.*http|compiled|Listening on"
-  error_pattern: "Error:"
-  port_patterns:
+detect:
+  files:
+    required: ["package.json", "nx.json"]
+run:
+  install: { default: "npm i" }
+  reinstall: { unix: "rm -rf node_modules && npm i" }
+  start: { default: "npx nx serve {main_app}" }
+  app_resolution:
+    placeholder: "main_app"
+    scan_dir: "apps"
+    strategy: "first_alphabetical"
+logs:
+  ready: "localhost:\\d+|Local:.*http|compiled|Listening on"
+  ports:
     - "Local:\\s*http://localhost:(\\d+)"
     - "http://localhost:(\\d+)"
     - "Listening on.*?(\\d+)"
-
-env_files:
-  default_dir: "apps/default/src/environments"
-  config_writer_type: "angular"
-  pull_ignore_patterns:
-    - "environment*.ts"
-    - ".env*"
-  main_config_filename: "environment.ts"
-  patterns:
-    - "environment*.ts"
-    - ".env"
-    - ".env.*"
-  exclude_dirs:
-    - "node_modules"
-    - ".git"
-    - "dist"
-
+config:
+  writer: "angular"
+  dir: "apps/default/src/environments"
+  patterns: ["environment*.ts", ".env", ".env.*"]
 ui:
   icon: "🅰"
   color: "#ef4444"
-  selectors:
-    - label: "Env:"
-  install:
-    check_dirs: ["node_modules"]
