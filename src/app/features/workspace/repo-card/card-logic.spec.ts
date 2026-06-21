@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   composeCountsLabel,
+  configAffordances,
   dangerEnvActive,
   dockerButtonState,
   dockerCardStatus,
@@ -70,6 +71,32 @@ describe('dangerEnvActive (§10 danger badge)', () => {
 
   it('is false without danger flags', () => {
     expect(dangerEnvActive({ root: 'prod' }, [])).toBe(false);
+  });
+});
+
+describe('configAffordances (§7 config-row gating)', () => {
+  it('gates everything off for non-editable repos (e.g. docker-infra)', () => {
+    expect(configAffordances(false, 2)).toEqual({
+      hasEnvRows: false,
+      showConfigBtn: false,
+      showCmdRow: false,
+    });
+  });
+
+  it('shows env rows (not the config button) when editable with env files', () => {
+    expect(configAffordances(true, 2)).toEqual({
+      hasEnvRows: true,
+      showConfigBtn: false,
+      showCmdRow: true,
+    });
+  });
+
+  it('shows the config button (not env rows) when editable without env files', () => {
+    expect(configAffordances(true, 0)).toEqual({
+      hasEnvRows: false,
+      showConfigBtn: true,
+      showCmdRow: true,
+    });
   });
 });
 

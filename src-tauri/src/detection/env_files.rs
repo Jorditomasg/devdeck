@@ -22,7 +22,7 @@
 //! convention (inventory-config-ci.md §4.1).
 
 use crate::detection::glob::fnmatch;
-use crate::domain::{EnvFilesDef, RepoModule};
+use crate::domain::{ConfigSpec, RepoModule};
 use regex::Regex;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
@@ -94,18 +94,18 @@ fn is_base_spring_config(filename: &str) -> bool {
         || filename.ends_with("application.properties")
 }
 
-/// Resolve env files for one repository per the repo-type `env_files` block.
-pub fn resolve_env_files(repo_root: &Path, def: &EnvFilesDef) -> EnvScan {
+/// Resolve env files for one repository per the repo-type `config` block.
+pub fn resolve_env_files(repo_root: &Path, def: &ConfigSpec) -> EnvScan {
     if def.patterns.is_empty() {
         return EnvScan::default();
     }
 
-    // Fast path: scan ONLY default_dir when set and existing.
-    if !def.default_dir.is_empty() {
-        let target = if def.default_dir == "." {
+    // Fast path: scan ONLY `config.dir` when set and existing.
+    if !def.dir.is_empty() {
+        let target = if def.dir == "." {
             repo_root.to_path_buf()
         } else {
-            repo_root.join(&def.default_dir)
+            repo_root.join(&def.dir)
         };
         if target.is_dir() {
             let matched = scan_default_dir(&target, &def.patterns);
@@ -266,7 +266,7 @@ fn file_name(path: &Path) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::EnvFilesDef;
+    use crate::domain::ConfigSpec;
 
     fn temp_repo(test: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!(
@@ -285,9 +285,9 @@ mod tests {
         fs::write(path, "x=1").unwrap();
     }
 
-    fn spring_def() -> EnvFilesDef {
-        EnvFilesDef {
-            default_dir: "src/main/resources".into(),
+    fn spring_def() -> ConfigSpec {
+        ConfigSpec {
+            dir: "src/main/resources".into(),
             patterns: vec![
                 "application*.yml".into(),
                 "application*.yaml".into(),
@@ -331,7 +331,7 @@ mod tests {
     fn empty_patterns_disable_env_handling() {
         let root = temp_repo("nopatterns");
         touch(&root, "application.yml");
-        let scan = resolve_env_files(&root, &EnvFilesDef::default());
+        let scan = resolve_env_files(&root, &ConfigSpec::default());
         assert_eq!(scan, EnvScan::default());
         let _ = fs::remove_dir_all(root);
     }
@@ -374,7 +374,7 @@ mod tests {
     fn walk_appends_per_pattern_match_v1_parity() {
         let root = temp_repo("dup");
         touch(&root, "conf/.env.local");
-        let def = EnvFilesDef {
+        let def = ConfigSpec {
             // nx-workspace ships ".env" and ".env.*"; a `.env.local` file
             // matches ".env.*" only — but a custom def with overlapping
             // patterns duplicates entries on the walk path (v1 behavior).
@@ -393,8 +393,8 @@ mod tests {
     fn fast_path_first_pattern_wins_no_duplicates() {
         let root = temp_repo("fastdup");
         touch(&root, ".env.local");
-        let def = EnvFilesDef {
-            default_dir: ".".into(),
+        let def = ConfigSpec {
+            dir: ".".into(),
             patterns: vec![".env*".into(), ".env.*".into()],
             ..Default::default()
         };
@@ -407,8 +407,8 @@ mod tests {
     fn root_module_key_is_root() {
         let root = temp_repo("rootkey");
         touch(&root, ".env");
-        let def = EnvFilesDef {
-            default_dir: ".".into(),
+        let def = ConfigSpec {
+            dir: ".".into(),
             patterns: vec![".env".into()],
             ..Default::default()
         };
@@ -423,8 +423,8 @@ mod tests {
     fn no_implicit_default_without_flag() {
         let root = temp_repo("noimplicit");
         touch(&root, "application.yml");
-        let def = EnvFilesDef {
-            default_dir: ".".into(),
+        let def = ConfigSpec {
+            dir: ".".into(),
             patterns: vec!["application*.yml".into()],
             implicit_default_profile: false,
             ..Default::default()
@@ -438,7 +438,7 @@ mod tests {
     fn empty_exclude_list_prunes_nothing() {
         let root = temp_repo("noprune");
         touch(&root, "node_modules/.env");
-        let def = EnvFilesDef {
+        let def = ConfigSpec {
             patterns: vec![".env".into()],
             exclude_dirs: Some(vec![]), // explicit empty list — v1 distinction
             ..Default::default()

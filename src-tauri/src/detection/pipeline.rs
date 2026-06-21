@@ -16,7 +16,7 @@
 
 use crate::detection::builder::build_repo_info;
 use crate::detection::glob::fnmatch;
-use crate::domain::{Heuristics, RepoInfo, RepoTypeDef};
+use crate::domain::{RepoInfo, RepoTypeDef};
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -41,52 +41,56 @@ pub fn matches_definition(
     files_in_root: &HashSet<String>,
     def: &RepoTypeDef,
 ) -> bool {
-    // 1. Git gate — `.git` DIRECTORY required unless the definition opts out
+    // 1. Git gate — `.git` DIRECTORY required unless `detect.git_required: false`
     //    (v1 hardcoded the docker-infra exemption, §1.3 step 1).
-    if !def.detection.allow_no_git && !repo_root.join(".git").is_dir() {
+    if def.detect.git_required && !repo_root.join(".git").is_dir() {
         return false;
     }
-    // 2. required_files: every name exists as a plain file in the root.
+    // 2. required files: every name exists as a plain file in the root.
     if !def
-        .detection
-        .required_files
+        .detect
+        .files
+        .required
         .iter()
         .all(|f| files_in_root.contains(f))
     {
         return false;
     }
-    // 3. exclude_files: none may exist.
+    // 3. excluded files: none may exist.
     if def
-        .detection
-        .exclude_files
+        .detect
+        .files
+        .excluded
         .iter()
         .any(|f| files_in_root.contains(f))
     {
         return false;
     }
-    // 4. Directory heuristics (nested paths allowed).
+    // 4. Directory rules (nested paths allowed).
     if !def
-        .heuristics
-        .must_have_directories
+        .detect
+        .dirs
+        .required
         .iter()
         .all(|d| repo_root.join(d).is_dir())
     {
         return false;
     }
     if def
-        .heuristics
-        .must_not_have_directories
+        .detect
+        .dirs
+        .excluded
         .iter()
         .any(|d| repo_root.join(d).is_dir())
     {
         return false;
     }
-    // 5. Pattern heuristics.
-    if !check_pattern_heuristics(repo_root, files_in_root, &def.heuristics) {
+    // 5. Pattern heuristics (with search_dirs fallback).
+    if !check_pattern_heuristics(repo_root, files_in_root, &def.detect.patterns) {
         return false;
     }
-    // 6. package.json heuristics (v2 — formerly dead key, §22.5 backend).
-    if !check_package_json(repo_root, &def.heuristics.must_match_package_json) {
+    // 6. package.json gate (v2 — formerly dead key, §22.5 backend).
+    if !check_package_json(repo_root, &def.detect.package_json) {
         return false;
     }
     true
@@ -99,24 +103,24 @@ pub fn matches_definition(
 fn check_pattern_heuristics(
     repo_root: &Path,
     files_in_root: &HashSet<String>,
-    heuristics: &Heuristics,
+    patterns: &crate::domain::repo_type::PatternRules,
 ) -> bool {
-    let patterns = &heuristics.must_match_patterns;
-    if patterns.is_empty() {
+    let globs = &patterns.match_globs;
+    if globs.is_empty() {
         return true;
     }
-    fn any_match(mut names: impl Iterator<Item = String>, patterns: &[String]) -> bool {
-        names.any(|f| patterns.iter().any(|p| fnmatch(&f, p)))
-    }
-    if any_match(files_in_root.iter().cloned(), patterns) {
+    if files_in_root.iter().any(|f| globs.iter().any(|p| fnmatch(f, p))) {
         return true;
     }
-    for dir in &heuristics.pattern_search_dirs {
+    for dir in &patterns.search_dirs {
         let target = repo_root.join(dir);
         if !target.is_dir() {
             continue;
         }
-        if any_match(plain_file_names(&target).into_iter(), patterns) {
+        if plain_file_names(&target)
+            .iter()
+            .any(|f| globs.iter().any(|p| fnmatch(f, p)))
+        {
             return true;
         }
     }

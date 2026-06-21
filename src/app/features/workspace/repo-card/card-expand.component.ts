@@ -18,6 +18,18 @@ import {
 } from '../../../ui';
 import type { DockerBtnState } from './card-logic';
 
+/**
+ * One resolved action button (§7 row 1) — declared per type via YAML
+ * `ui.actions` and mapped through the repo-card action registry. `command`
+ * is the IPC command name the container invokes via {@link runAction}.
+ */
+export interface ActionBtnVm {
+  readonly key: string;
+  readonly icon: string;
+  readonly label: string;
+  readonly command: string;
+}
+
 /** Row 1 — branch + tools (§7 row 1). */
 export interface BranchRowVm {
   readonly options: readonly string[];
@@ -33,7 +45,8 @@ export interface BranchRowVm {
   readonly installText: string;
   readonly installEnabled: boolean;
   readonly installTip: string;
-  readonly showSeedBtn: boolean;
+  /** Declared action buttons (e.g. the docker-infra "Seed" button). */
+  readonly actions: readonly ActionBtnVm[];
 }
 
 /** One env/app selector row (§7 row 2). */
@@ -102,8 +115,6 @@ export interface CardExpandText {
   readonly branchesTip: string;
   readonly configText: string;
   readonly configTip: string;
-  readonly seedText: string;
-  readonly seedTip: string;
   readonly javaLabel: string;
   readonly cmdLabel: string;
   readonly applyText: string;
@@ -172,9 +183,13 @@ export interface CardExpandText {
           {{ text().configText }}
         </ui-button>
       }
-      @if (vm().branch.showSeedBtn) {
-        <ui-button variant="purple-global" [uiTooltip]="text().seedTip" (clicked)="seed.emit()">
-          {{ text().seedText }}
+      @for (action of vm().branch.actions; track action.key) {
+        <ui-button
+          variant="purple-global"
+          [uiTooltip]="action.label"
+          (clicked)="runAction.emit(action.command)"
+        >
+          {{ action.icon }} {{ action.label }}
         </ui-button>
       }
       <span class="row__spacer"></span>
@@ -301,7 +316,8 @@ export class CardExpandComponent {
   readonly branches = output<void>();
   readonly openConfig = output<void>();
   readonly install = output<void>();
-  readonly seed = output<void>();
+  /** Run a declared per-type action; payload is the IPC command name. */
+  readonly runAction = output<string>();
   readonly configSelected = output<{ moduleKey: string; value: string }>();
   readonly openConfigManager = output<string>();
   readonly moduleTrackedChange = output<{ moduleKey: string; tracked: boolean }>();

@@ -70,6 +70,34 @@ export function dangerEnvActive(
   );
 }
 
+/** Expand-panel config affordances gated by `RepoInfo.configEditable` (§7). */
+export interface ConfigAffordances {
+  /** Per-module environment selector rows (only with editable config + files). */
+  readonly hasEnvRows: boolean;
+  /** Standalone "Config" button — shown when editable but there are no env rows. */
+  readonly showConfigBtn: boolean;
+  /** Custom run-command entry row (shown whenever config is editable). */
+  readonly showCmdRow: boolean;
+}
+
+/**
+ * §7 config-row gating, keyed on `RepoInfo.configEditable`: non-editable repos
+ * (e.g. docker-infra) get no env rows, no config button, no command row.
+ * Env rows need both editable config AND at least one environment file;
+ * the standalone config button only appears when editable WITHOUT env rows.
+ */
+export function configAffordances(
+  configEditable: boolean,
+  envFileCount: number,
+): ConfigAffordances {
+  const hasEnvRows = envFileCount > 0 && configEditable;
+  return {
+    hasEnvRows,
+    showConfigBtn: !hasEnvRows && configEditable,
+    showCmdRow: configEditable,
+  };
+}
+
 /** Docker compose button visual state (§7 row 3.5 colors). */
 export type DockerBtnState = 'running' | 'active' | 'stopped';
 

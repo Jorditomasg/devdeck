@@ -1,6 +1,6 @@
 //! Detected repository metadata.
 
-use crate::domain::repo_type::UiConfig;
+use crate::domain::repo_type::Ui;
 use serde::{Deserialize, Serialize};
 
 /// All detected metadata for one repository.
@@ -57,10 +57,15 @@ pub struct RepoInfo {
     pub env_main_config_filename: String,
     /// YAML `env_files.patterns` (fnmatch globs).
     pub env_patterns: Vec<String>,
-    /// Whole YAML `ui` block (icon, color, selectors, install.check_dirs).
-    pub ui_config: UiConfig,
-    /// YAML `features` list (`java_version`, `docker_checkboxes`).
+    /// Whole YAML `ui` block (icon, color, selectors, install_check_dirs, actions).
+    pub ui_config: Ui,
+    /// YAML `enrich` list (`java_version`, `docker_checkboxes`) — kept on the
+    /// `features` wire name for the frontend.
     pub features: Vec<String>,
+    /// Card restart delay in ms; `None` ⇒ default 300 (was hardcoded per-type).
+    pub restart_delay_ms: Option<u64>,
+    /// Whether this repo exposes editable env/config (docker-infra: false).
+    pub config_editable: bool,
     /// Recommended Java version extracted from `pom.xml`
     /// (`<java.version>` / `<maven.compiler.source>`) when the
     /// `java_version` feature is declared.

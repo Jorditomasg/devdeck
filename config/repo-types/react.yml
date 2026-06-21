@@ -1,58 +1,24 @@
-# React Repository Definition (ported from v1 config/repo_types/react.yml)
+schema_version: 2
 type: "react"
-# v2 FIX BY DESIGN: v1 shipped no priority here, tying react with docker-infra
-# at 0 — evaluation order then depended on filesystem listing order
-# (inventory-config-ci.md §1.8.3, inventory-backend.md §6.1). 10 slots react
-# into the existing ladder: above the docker-infra fallback (0), below
-# maven-lib (20), so the ladder stays spring-boot 60 > nx-workspace 50 >
-# angular 40 > maven-lib 20 > react 10 > docker-infra 0.
 priority: 10
-
-detection:
-  required_files:
-    - "package.json"
-  exclude_files:
-    - "angular.json"
-    - "nx.json"
-
-# Heuristics to identify React vs generic Node.
-# v2: must_match_package_json is now ENFORCED (dead key in v1, §22.5 backend):
-# every listed package must appear in dependencies or devDependencies of the
-# repo root package.json (architecture-v2.md §7 fix 3).
-heuristics:
-  must_match_package_json:
-    - "react"
-    - "react-dom"
-
-commands:
-  install_cmd: "npm ci"
-  reinstall_cmd: "rmdir /s /q node_modules & npm i"
-  # v2: POSIX reinstall variant (v1 shipped Windows-only syntax, §22.7 backend).
-  unix_reinstall_cmd: "rm -rf node_modules && npm i"
-  start_cmd: "npm start"
-  ready_pattern: "compiled successfully|Compiled|localhost:\\d+"
-  error_pattern: "Failed to compile"
-  port_patterns:
+detect:
+  files:
+    required: ["package.json"]
+    excluded: ["angular.json", "nx.json"]
+  package_json: ["react", "react-dom"]
+run:
+  install: { default: "npm ci" }
+  start: { default: "npm start" }
+logs:
+  ready: "compiled successfully|Compiled|localhost:\\d+"
+  ports:
     - "Local:\\s*http://localhost:(\\d+)"
     - "http://(?:localhost|127\\.0\\.0\\.1):(\\d+)"
     - "(?:listening on|bound to).*?port\\s+(\\d+)"
-
-env_files:
-  default_dir: "."
-  config_writer_type: "raw"
-  pull_ignore_patterns:
-    - ".env*"
-  main_config_filename: ".env"
-  patterns:
-    - ".env*"
-  exclude_dirs:
-    - "node_modules"
-    - ".git"
-
+config:
+  writer: "raw"
+  dir: "."
+  patterns: [".env*"]
 ui:
   icon: "⚛️"
   color: "#61dafb"
-  selectors:
-    - label: "Env:"
-  install:
-    check_dirs: ["node_modules"]

@@ -25,9 +25,8 @@ use crate::state::AppState;
 /// Card restart delay for ordinary processes (inventory-gui.md §28).
 pub(crate) const RESTART_DELAY: Duration = Duration::from_millis(300);
 
-/// Card restart delay for docker-infra repos — compose teardown needs the
-/// extra slack before `up` (inventory-gui.md §28).
-pub(crate) const RESTART_DELAY_DOCKER: Duration = Duration::from_millis(2000);
+// RESTART_DELAY_DOCKER deleted — the value now lives in docker-infra.yml
+// as run.restart_delay_ms.
 
 /// #3 `start_service { serviceId, customCommand?, javaLabel? }`.
 #[tauri::command]
@@ -304,14 +303,12 @@ pub(crate) fn untracked_stop_command(repo: &RepoInfo) -> Option<StopCommand> {
         })
 }
 
-/// 300 ms for plain processes, 2000 ms for docker-infra
-/// (inventory-gui.md §28 card restart delays).
+/// Restart delay for a repo: the type's declared `restart_delay_ms`, else
+/// 300 ms (inventory-gui.md §28 card restart delays).
 pub(crate) fn restart_delay(repo: &RepoInfo) -> Duration {
-    if repo.repo_type == "docker-infra" {
-        RESTART_DELAY_DOCKER
-    } else {
-        RESTART_DELAY
-    }
+    repo.restart_delay_ms
+        .map(Duration::from_millis)
+        .unwrap_or(RESTART_DELAY)
 }
 
 // Keep the manager type referenced for doc links even if unused directly.
@@ -359,11 +356,14 @@ mod tests {
     }
 
     #[test]
-    fn restart_delay_is_2s_for_docker_infra() {
-        let mut r = repo("infra");
-        r.repo_type = "docker-infra".into();
-        assert_eq!(restart_delay(&r), RESTART_DELAY_DOCKER);
-        assert_eq!(restart_delay(&repo("api")), RESTART_DELAY);
+    fn restart_delay_uses_declared_value_then_default() {
+        let mut r = RepoInfo {
+            restart_delay_ms: Some(2000),
+            ..Default::default()
+        };
+        assert_eq!(restart_delay(&r), Duration::from_millis(2000));
+        r.restart_delay_ms = None;
+        assert_eq!(restart_delay(&r), Duration::from_millis(300));
     }
 
     #[test]

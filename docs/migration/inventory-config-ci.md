@@ -18,232 +18,313 @@ Sources inventoried (all paths relative to repo root `devops-manager/`):
 
 ---
 
-## 1. Repo-Type YAML Schema (`config/repo_types/*.yml`)
+## 1. Repo-Type YAML Schema (`config/repo-types/*.yml`)
 
-This is the heart of config-driven extensibility: **dropping a new YAML file into
-`config/repo_types/` adds support for a new framework with zero code changes** (with the
-caveats in §1.6 — three behaviors are hardcoded by `type` name). The Rust rewrite must
-preserve this: model below is serde-ready.
+> **v2 schema (`schema_version: 2`).** This section documents the schema that
+> shipped with the Tauri rewrite. It is NOT the v1 Python schema (which used
+> `detection` / `heuristics` / `commands` / `env_files` / `features` /
+> `ui.install.check_dirs`). The v1→v2 field mapping is in §1.2. Authoritative
+> source of truth: the design doc
+> `docs/superpowers/specs/2026-06-21-repo-types-v2-design.md` and the Rust
+> structs in `src-tauri/src/domain/repo_type.rs`.
 
-### 1.1 Loading rules
+This is the heart of config-driven extensibility. The v2 redesign draws a hard
+boundary between **data** and **behavior**:
 
-Implemented in `application/services/project_analyzer.py`:
+- **Data** (marker files, commands, log patterns, ports, restart delay, icons,
+  UI hints) lives in YAML.
+- **Behavior** (how to write a config file, how to enrich a repo, how to resolve
+  which app to run in a monorepo, which action buttons exist) is pluggable code
+  **selected by name from YAML** through single-location registries.
 
-- Every `*.yml` / `*.yaml` in `config/repo_types/` is loaded (`project_analyzer.py:18-30`).
-- A file **without a top-level `type` key is silently ignored** (`project_analyzer.py:28-29`).
-- Definitions are sorted by `priority` **descending**; missing `priority` defaults to `0`
-  (`project_analyzer.py:31-34`). First matching definition wins (`project_analyzer.py:96-99`).
-- Equal priorities: order is the stable sort of `os.listdir` order (alphabetical on most
-  filesystems). Today `docker-infra` (0) and `react` (no priority → 0) tie; `docker-infra`
-  is evaluated first only by filename order. **Risk** — see §1.7.
+**Extensibility model:**
 
-### 1.2 Full schema (serde model)
+- **Adding a framework that reuses existing strategies = pure YAML, zero code.**
+  Drop a new `config/repo-types/<type>.yml` declaring marker files, commands,
+  log patterns and a known `config.writer` — detection, loading, env handling
+  and card rendering are all generic over the def. (See §1.5 for a Go example.)
+- **Adding genuinely new behavior = one entry in a single registry.** Each new
+  config writer / enricher / app-resolution strategy / UI action requires
+  exactly one impl + one line in its registry; everything else stays declarative.
+
+The single extension points (the only places code is touched to add behavior):
+
+| Behavior | Single extension point | Registry symbol |
+|---|---|---|
+| Config writers (`config.writer`) | `src-tauri/src/config/writers.rs` | `writers()` (+ `ConfigWriter` trait, `writer_exists`) |
+| Repo enrichers (`enrich`) | `src-tauri/src/detection/enrich.rs` | `enrichers()` (+ `Enricher` trait, `enricher_exists`) |
+| App-resolution strategies (`run.app_resolution.strategy`) & UI actions (`ui.actions`) | `src-tauri/src/detection/validate.rs` | `KNOWN_STRATEGIES` / `KNOWN_ACTIONS` (validation gate); strategy dispatch in `detection/builder.rs::resolve_app` |
+| UI action buttons | `src/app/features/workspace/repo-card/repo-card.actions.ts` | `REPO_CARD_ACTIONS` (+ `resolveActions`) |
+
+### 1.1 Loading & validation rules
+
+Implemented in `src-tauri/src/config/repo_types_loader.rs` +
+`src-tauri/src/detection/validate.rs`:
+
+- Every `*.yml` / `*.yaml` under the bundled `config/repo-types/` resource and the
+  user override dir is loaded; bundled and user defs are merged.
+- `schema_version: 2` is **mandatory.** A file with a missing/other version is
+  logged as an error and **dropped** (not silently kept).
+- A file **without a top-level `type` key** is logged and skipped.
+- After parsing, the merged set is **validated** (`validate::validate_all`).
+  Unlike v1 (which silently dropped broken YAML), v2 surfaces precise errors and
+  **drops any def that fails validation** so detection never matches a broken
+  type. Each of these is a logged error + drop:
+  - unknown `config.writer` (not in the writers registry),
+  - unknown `enrich` strategy (not in the enrichers registry),
+  - unknown `run.app_resolution.strategy` (not in `KNOWN_STRATEGIES`),
+  - unknown `ui.actions` entry (not in `KNOWN_ACTIONS`),
+  - any invalid regex in `logs.ready` / `logs.error` / `logs.ports`,
+  - wrong `schema_version` / empty `type`.
+- Definitions are sorted by `priority` **descending**; first matching definition
+  wins. Every shipped def has an explicit, unique priority (no ties): spring-boot
+  60 > nx-workspace 50 > angular 40 > maven-lib 20 > react 10 > docker-infra 0.
+
+### 1.2 Field mapping v1 → v2
+
+The v2 schema reorganizes the flat v1 blocks into six intent-based blocks
+(`detect / run / logs / config / enrich / ui`). OS command overrides are now
+**nested** (`{ default, windows, unix }`) instead of flat `windows_*`/`unix_*`
+keys. Three formerly hardcoded `if repo_type == "..."` behaviors became data
+(`run.restart_delay_ms`, `config.editable`, `ui.actions`) and one became a named
+strategy (`run.app_resolution`).
+
+| v1 | v2 |
+|---|---|
+| `detection.required_files` / `exclude_files` | `detect.files.required` / `.excluded` |
+| `detection.allow_no_git: true` | `detect.git_required: false` (inverted; default `true`) |
+| `heuristics.must_have_directories` / `must_not_have_directories` | `detect.dirs.required` / `.excluded` |
+| `heuristics.must_match_patterns` | `detect.patterns.match` |
+| `heuristics.pattern_search_dirs` | `detect.patterns.search_dirs` |
+| `heuristics.must_match_package_json` (was a DEAD key in v1) | `detect.package_json` (now actually enforced — react uses it) |
+| `commands.install_cmd` / `reinstall_cmd` (+ `windows_/unix_` variants) | `run.install` / `run.reinstall` — nested `{ default, windows, unix }` |
+| `commands.start_cmd` (+ `windows_/unix_start_cmd`) | `run.start.{ default, windows, unix }` |
+| `commands.stop_cmd` (was a DEAD key in v1) | `run.stop.default` (now enforced by the process layer) |
+| `commands.ready_pattern` / `error_pattern` / `port_patterns` | `logs.ready` / `logs.error` / `logs.ports` |
+| `env_files.config_writer_type` | `config.writer` |
+| `env_files.default_dir` / `main_config_filename` | `config.dir` / `config.main_file` |
+| `env_files.patterns` / `pull_ignore_patterns` / `exclude_dirs` | `config.patterns` / `config.pull_ignore` / `config.exclude_dirs` |
+| `env_files.implicit_default_profile` | `config.implicit_default_profile` |
+| `features` | `enrich` |
+| `ui.install.check_dirs` (nested) | `ui.install_check_dirs` (flattened) |
+| *(hardcoded docker restart delay in `process.rs`)* | `run.restart_delay_ms` (data) |
+| *(hardcoded docker config/env hiding in `repo-card`)* | `config.editable` (data) |
+| *(hardcoded docker seed button in `repo-card`)* | `ui.actions` (data) + action registry |
+| *(hardcoded Nx `apps/` + alphabetical in `resolve_main_app`)* | `run.app_resolution` (named strategy) |
+
+### 1.3 Full schema (serde model)
+
+Mirrors the `RepoTypeDef` sub-structs in `src-tauri/src/domain/repo_type.rs`.
+`RepoTypeDef` keeps snake_case YAML keys (it is parsed from YAML and never
+serialized to the frontend — only `RepoInfo` is camelCased on the wire). Every
+block/field has a sensible default, so a minimal YAML still parses.
 
 ```
-RepoTypeDefinition {
+RepoTypeDef {
+  schema_version: u32                   // REQUIRED == 2 (loader rejects anything else)
   type: String                          // REQUIRED. Unique id ("spring-boot", "angular", ...)
   priority: i32 = 0                     // higher = evaluated first
 
-  detection: {
-    required_files:  Vec<String> = []   // exact filenames that MUST exist in repo root
-    exclude_files:   Vec<String> = []   // exact filenames that must NOT exist in repo root
+  detect: {                             // everything about matching a dir to this type
+    git_required: bool = true           // `.git/` dir required unless false (docker-infra)
+    files:    { required: [String]=[], excluded: [String]=[] }   // exact root filenames
+    dirs:     { required: [String]=[], excluded: [String]=[] }   // relative dirs (isdir)
+    patterns: { match: [String]=[],    search_dirs: [String]=[] }// fnmatch globs + fallback dirs
+    package_json: [String] = []         // dependency gate: deps that must be in package.json
   }
 
-  heuristics: {                         // optional block
-    must_have_directories:     Vec<String> = []  // relative dirs that must exist (e.g. "src/main/resources")
-    must_not_have_directories: Vec<String> = []
-    must_match_patterns:       Vec<String> = []  // fnmatch globs; >=1 root file must match >=1 glob
-    must_match_package_json:   Vec<String> = []  // ⚠ DEAD KEY — declared in react.yml:11-14 but
-                                                 //   NEVER read by any code (no occurrence in *.py).
+  run: {                                // lifecycle commands & process behavior
+    install:   OsCommand                // { default?, windows?, unix? }; resolved() picks per-OS
+    reinstall: OsCommand
+    start:     OsCommand
+    stop:      OsCommand
+    restart_delay_ms: Option<u64>       // None ⇒ caller default (300 ms); docker ships 2000
+    app_resolution: Option<{            // generalizes the v1 Nx-only {main_app}
+      placeholder: String               //   token in run.start to replace, e.g. "main_app"
+      scan_dir:    String               //   dir scanned for candidate apps, e.g. "apps"
+      strategy:    String               //   "first_alphabetical" | "single_dir" (validated)
+    }>
   }
 
-  commands: {
-    install_cmd:        Option<String>  // dependency install ("npm i", "mvn clean install ...")
-    reinstall_cmd:      Option<String>  // used instead of install_cmd when already installed
-    start_cmd:          Option<String>  // default start command
-    windows_start_cmd:  Option<String>  // overrides start_cmd when os == windows
-    unix_start_cmd:     Option<String>  // overrides start_cmd when os != windows
-    stop_cmd:           Option<String>  // ⚠ DEAD KEY — declared in docker-infra.yml:16 but never
-                                        //   read; services are stopped by killing the process tree.
-    ready_pattern:      Option<String>  // regex; a log line matching it => status "running"
-    error_pattern:      Option<String>  // regex; a log line matching it => status "error"
-    port_patterns:      Vec<String> = []// regexes with ONE capture group = detected port number
+  logs: {                               // output parsing
+    ready: Option<String>               // regex; matching log line ⇒ status "running"
+    error: Option<String>               // regex; matching log line ⇒ status "error"
+    ports: [String] = []                // regexes with ONE capture group = detected port
   }
 
-  env_files: {
-    default_dir:          String = ""     // preferred dir for env/config files ("." = repo root)
-    config_writer_type:   String = "raw"  // enum: "spring" | "angular" | "raw"
-    pull_ignore_patterns: Vec<String> = []// globs of env files to ignore in git-dirty checks before pull
-    main_config_filename: String = ""     // file the ACTIVE environment content is written into
-    patterns:             Vec<String> = []// globs identifying env/config files; [] disables env handling
-    exclude_dirs:         Vec<String> = []// dirs skipped during recursive env scan
-                                          // (default {".git","node_modules"} when key absent,
-                                          //  project_analyzer.py:257)
+  config: {                             // env/config file discovery + write strategy
+    writer: String = "raw"              // NAMED writer strategy: raw | spring | angular | …
+    dir:    String = ""                 // preferred env/config dir ("." = repo root)
+    main_file: String = ""              // file the ACTIVE environment content is written into
+    patterns:    [String] = []          // globs identifying env/config files; [] disables handling
+    pull_ignore: [String] = []          // globs of env files ignored in git-dirty checks before pull
+    exclude_dirs: Option<[String]>      // null ⇒ default {".git","node_modules"}; [] ⇒ prune nothing
+    implicit_default_profile: bool=false// spring: add `default` when a base application.* exists
+    editable: bool = true               // false ⇒ repo exposes no editable env/config (docker-infra)
   }
 
-  ui: {
-    icon:  String                        // emoji shown on the card header (gui/repo_card/_header.py:94)
-    color: String                        // hex accent for the type label   (gui/repo_card/_header.py:65)
-    selectors: Vec<{ label: String }>    // selectors[0].label = caption of the env/profile combo
-                                         // (gui/repo_card/_expand_panel.py:245-248); default "App"
-    install: {
-      check_dirs: Vec<String>            // dirs whose existence == "dependencies installed"
-                                         // (gui/repo_card/_actions.py:36-46, _expand_panel.py:181-190)
-    }
-  }
+  enrich: [String] = []                 // NAMED enrichers (registry): "java_version" | "docker_checkboxes"
 
-  features: Vec<String> = []             // known values: "java_version", "docker_checkboxes"
+  ui: {                                 // presentation hints (passthrough to RepoInfo.uiConfig)
+    icon:  Option<String>               // emoji on the card header
+    color: Option<String>               // hex accent for the type label
+    selectors: [{ label: String }] = [] // selectors[0].label = caption of the env/profile combo
+    install_check_dirs: [String] = []   // dirs whose existence == "dependencies installed"
+    actions: [String] = []              // NAMED action buttons (registry): e.g. ["seed"]
+    // unknown YAML keys round-trip through a flattened `extra` map
+  }
 }
 ```
 
-### 1.3 Detection algorithm (exact order)
+### 1.4 Detection, command resolution, env & enrichment semantics
 
-`ProjectAnalyzerService._matches_definition` (`project_analyzer.py:101-167`):
+**Detection order** (`src-tauri/src/detection/pipeline.rs::matches_definition`,
+behavior-preserving port of v1):
 
-1. **Git gate** (`project_analyzer.py:123-125`): the candidate directory must contain a
-   `.git/` directory **unless** `type == "docker-infra"` (hardcoded exemption — docker
-   infra folders are often not git repos).
-2. **`detection.required_files`**: every name must exist as a *file* in the repo root.
-3. **`detection.exclude_files`**: none may exist in the repo root.
-4. **`heuristics.must_have_directories` / `must_not_have_directories`**: checked with
-   `os.path.isdir` relative to the repo root (`project_analyzer.py:131-141`).
-5. **`heuristics.must_match_patterns`**: at least one root file matches at least one glob
-   (`fnmatch`). Hardcoded special case: if `type == "spring-boot"` and no root file matched,
-   files inside `src/main/resources/` are also tried (`project_analyzer.py:146-153`).
-   Hardcoded special case: `type == "docker-infra"` *requires* a root file matching
-   `docker-compose*.yml|yaml` even if `must_match_patterns` were absent
-   (`project_analyzer.py:156-164`).
-6. First definition (in priority-desc order) passing all gates wins; the directory is
-   skipped entirely if nothing matches.
+1. **Git gate**: the candidate dir must contain `.git/` unless `detect.git_required:
+   false` (data — no longer a `type == "docker-infra"` hardcode).
+2. `detect.files.required` — every name must exist as a file in the repo root.
+3. `detect.files.excluded` — none may exist in the repo root.
+4. `detect.dirs.required` / `detect.dirs.excluded` — checked with `is_dir` relative
+   to the repo root.
+5. `detect.patterns.match` — ≥1 root file matches ≥1 glob (`fnmatch`); if none match,
+   the `detect.patterns.search_dirs` fallback dirs are scanned (this generalizes v1's
+   hardcoded spring-boot `src/main/resources/` fallback). docker-infra now expresses
+   its compose-file requirement purely as `detect.patterns.match` with
+   `git_required: false` — no hardcoded special case remains.
+6. `detect.package_json` — when non-empty, the listed deps must appear in the repo's
+   `package.json` (react gate; v1 declared this but never enforced it).
 
-Workspace scan pre-filter (`project_analyzer.py:36-63`): only direct subdirectories of the
-workspace; names starting with `.` and `node_modules` excluded; the tool's own directory
-excluded; classification runs in a `ThreadPoolExecutor(max_workers=min(8, n))`, order
-preserved (alphabetical). A second, older scan path exists in `core/repo_detector.py:17-49`
-(used elsewhere) with one extra behavior: a non-git directory containing
-`docker-compose*.yml` is force-classified as docker-infra (`repo_detector.py:38-43`).
+First def in priority-desc order passing all gates wins.
 
-### 1.4 Command resolution semantics
+**Command resolution** (`detection/builder.rs`): `OsCommand::resolved()` picks the
+`windows`/`unix` override when present, else `default`. When `run.app_resolution` is
+set and `run.start` contains the `{placeholder}` token, the token is replaced by the
+app resolved from `scan_dir` via the named `strategy`:
+- `first_alphabetical` — first non-hidden subdir of `scan_dir`, alphabetically (the
+  v1 Nx behavior; default fallback for any strategy).
+- `single_dir` — the sole subdir.
 
-`_resolve_run_command` (`project_analyzer.py:212-227`):
+`from_workspace_file` is intentionally NOT yet implemented and is therefore NOT in
+`KNOWN_STRATEGIES` — a YAML declaring it fails validation rather than silently
+falling through. (Re-add the name the day its dispatch arm lands in `resolve_app`.)
 
-- Base = `start_cmd`; replaced by `windows_start_cmd` on Windows (`os.name == 'nt'`) or by
-  `unix_start_cmd` elsewhere, when present.
-- Placeholder **`{main_app}`** (only used by `nx-workspace.yml:13`): replaced with the first
-  (alphabetical) non-hidden directory under `<repo>/apps/`, double-quoted; falls back to
-  literal `app` if `apps/` is empty/missing.
-- The user can override the resolved command per-repo (`custom_command` in user config, §4).
+The user can still override the resolved command per-repo (`custom_command`, §4).
 
-Install flow (`gui/repo_card/_actions.py:117-150`): if all `ui.install.check_dirs` exist the
-repo is "already installed" and `reinstall_cmd` is preferred over `install_cmd`
-(`_actions.py:131`); after the command finishes, success == all `check_dirs` exist again.
-Install has a 10-minute timeout (translation key `log.install_timeout`).
-⚠ Portability: `reinstall_cmd` values use Windows-only syntax
-(`rmdir /s /q node_modules & npm i`, `angular.yml:13`, `nx-workspace.yml:12`, `react.yml:19`)
-— there is no `windows_reinstall_cmd`/`unix_reinstall_cmd` split today.
+**Install / restart**: `is_installed` probes `ui.install_check_dirs` (all must exist;
+empty list ⇒ always installed); installed repos prefer `run.reinstall` over
+`run.install`. The card restart delay is `run.restart_delay_ms` (default 300 ms;
+docker-infra ships 2000), read in `commands/process.rs::restart_delay` — no
+`type == "docker-infra"` branch.
 
-Status detection from the live log (`gui/repo_card/_git.py:291-310`):
-- `ready_pattern` / `error_pattern` are matched per log line → drives `starting → running`
-  / `error` transitions.
-- `port_patterns` are tried in order, capture group 1 = port. If the list is empty the
-  fallback regexes from `gui/constants.py:31-34` apply:
-  `http://(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]):(\d+)` and
-  `(?:listening on|bound to).*?port\s+(\d+)`.
+**`config` (env files) semantics** are unchanged from v1 in behavior, now read from the
+`config` block: `config.patterns ==
+[]` ⇒ no env files/profiles; a present `config.dir` is scanned non-recursively first,
+else a full walk pruning `config.effective_exclude_dirs()` (the `exclude_dirs`
+absent-vs-empty distinction: `null` ⇒ `{.git, node_modules}`, `[]` ⇒ prune nothing).
+Writers dispatch through the registry (`config/writers.rs`): `spring` validates YAML
+and targets `application.yml`/`application-{profile}.yml`; `angular`/`raw` (and any
+unknown name) write verbatim to the target file.
 
-### 1.5 `env_files` semantics
+**Enrichers** (`enrich`, `detection/enrich.rs`): each name is looked up in the
+`enrichers()` registry and run against the `RepoInfo` (replacing v1's
+`if has_feature(...)` chain). Shipped: `java_version` (extracts `<java.version>` /
+`<maven.compiler.source>` from `pom.xml`) and `docker_checkboxes` (collects
+`docker-compose*.yml|yaml`). The enricher names still travel to the frontend on the
+`RepoInfo.features` wire field. (Spring `server.port`/`context-path` extraction and
+git-remote resolution remain unconditional, applied to every repo.)
 
-Resolution (`project_analyzer.py:252-301` `_resolve_env_files`):
+### 1.5 New-framework example (Go) — pure YAML, zero code
 
-1. `patterns == []` → repo has no env files and no profiles (e.g. maven-lib).
-2. If `default_dir` is set and exists: scan **only that directory** (non-recursive,
-   first matching glob per file wins). If anything matched there, stop.
-3. Otherwise: full `os.walk` of the repo, pruning `exclude_dirs`.
-4. Profile names extracted from matched filenames (`project_analyzer.py:303-313`):
-   - patterns containing `environment` → regex `environment\.?(.*)\.ts`; empty group → `default`.
-   - patterns containing `application` → regex `application-(.+)\.(yml|yaml|properties)$`.
-   - For `type == "spring-boot"`, profile `default` is added whenever a base
-     `application.yml|yaml|properties` is present (`project_analyzer.py:246-249`).
+```yaml
+schema_version: 2
+type: go-service
+priority: 35
+detect:
+  files: { required: [go.mod] }
+run:
+  install: { default: "go build ./..." }
+  start:   { default: "go run ." }
+logs:
+  ready: "listening on|Server started"
+  ports: ["(?:listening on|:)(\\d+)"]
+config:
+  writer: raw
+  dir: "."
+  patterns: [".env*"]
+ui: { icon: "🐹", color: "#00ADD8" }
+```
 
-Writer types (`core/config_manager.py`):
-- `"spring"` — active profile content is parsed/written as YAML into
-  `application.yml` / `application-{profile}.yml` (`config_manager.py:73-101`).
-- `"angular"` and `"raw"` — content written verbatim (`config_manager.py:106-131`);
-  `"angular"` targets `main_config_filename` (`environment.ts`), `"raw"` targets `.env`.
-- `main_config_filename` is the file the selected saved-environment content is written into
-  by the card (`gui/repo_card/_config.py`).
-- `pull_ignore_patterns`: globs of env files whose local modifications are tolerated/ignored
-  when checking for dirty state before `git pull` (these files are app-managed).
+This needs no Rust or Angular change: `raw` writer, no enrichers, no new strategy or
+action. The acceptance proof for "scalable" is dropping such a YAML in and rescanning.
 
-Generic profile-name derivation for auto-import (`config_manager.py:296-326`
-`_profile_name_from_file`): glob → regex with the `*` captured, leading `-._` stripped,
-empty → `default` (e.g. `application-dev.yml`→`dev`, `environment.production.ts`→`production`,
-`.env.local`→`local`).
+### 1.6 Current values per definition
 
-### 1.6 `features` and type-specific enrichment
-
-- `"java_version"` (spring-boot, maven-lib): extracts `<java.version>` or
-  `<maven.compiler.source>` from `pom.xml` (`core/repo_detector.py:181-198`) → shows the
-  Java-version selector and "Recommended: Java {version}" hint; selected JAVA_HOME is
-  injected into the process env at launch.
-- `"docker_checkboxes"` (docker-infra): collects `docker-compose*.yml|yaml` in the repo root
-  (`project_analyzer.py:181-184`, `project_analyzer.py:201-211`) → enables the
-  docker-compose service-profile UI. Note `core/repo_detector.py:160-167` only matches
-  `.yml` (not `.yaml`) — minor divergence between the two scan paths.
-- **Hardcoded regardless of YAML** for any repo whose env files include
-  `application.yml|yaml|properties`: server port and `server.servlet.context-path` are
-  extracted (`repo_detector.py:52-70`, `131-158`) and Spring profiles enumerated from
-  `application-{profile}.*` filenames (`repo_detector.py:112-128`).
-
-### 1.7 Current values per definition
+Values as shipped in `config/repo-types/*.yml` (v2). `OsCommand` values show the
+`default` form; `unix:`/`windows:` overrides are called out inline.
 
 | Key | `spring-boot.yml` | `nx-workspace.yml` | `angular.yml` | `maven-lib.yml` | `react.yml` | `docker-infra.yml` |
 |---|---|---|---|---|---|---|
-| `priority` | 60 (`:3`) | 50 (`:3`) | 40 (`:3`) | 20 (`:3`) | **absent → 0** ⚠ | 0 (`:3`) |
-| `detection.required_files` | `pom.xml` | `package.json`, `nx.json` | `package.json`, `angular.json` | `pom.xml` | `package.json` | `[]` |
-| `detection.exclude_files` | `[]` | — | — | `[]` | `angular.json`, `nx.json` | — |
-| `heuristics.must_have_directories` | `src/main/resources` | — | — | `src` | — | — |
-| `heuristics.must_not_have_directories` | — | — | — | `src/main/resources` | — | — |
-| `heuristics.must_match_patterns` | `application*.yml`, `application*.yaml`, `application*.properties` | — | — | — | — | `docker-compose*.yml`, `docker-compose*.yaml` |
-| `heuristics.must_match_package_json` | — | — | — | — | `react`, `react-dom` (**dead**) | — |
-| `commands.install_cmd` | `mvn clean install -DskipTests -B` | `npm i` | `npm i` | `mvn clean install -DskipTests -B` | `npm ci` | `""` |
-| `commands.reinstall_cmd` | — | `rmdir /s /q node_modules & npm i` | `rmdir /s /q node_modules & npm i` | — | `rmdir /s /q node_modules & npm i` | — |
-| `commands.start_cmd` | `mvn spring-boot:run` | `npx nx serve {main_app}` | `npx ng serve` | `mvn clean install -DskipTests -B` | `npm start` | `docker-compose up -d` |
-| `commands.windows_start_cmd` | `mvn spring-boot:run` | — | — | `mvnw.cmd clean install -DskipTests -B` | — | — |
-| `commands.unix_start_cmd` | `./mvnw spring-boot:run` | — | — | `./mvnw clean install -DskipTests -B` | — | — |
-| `commands.stop_cmd` | — | — | — | — | — | `docker-compose down` (**dead**) |
-| `commands.ready_pattern` | `Started \w+ in` | `localhost:\d+\|Local:.*http\|compiled\|Listening on` | `compiled successfully\|build at` | `BUILD SUCCESS` | `compiled successfully\|Compiled\|localhost:\d+` | — |
-| `commands.error_pattern` | `Application run failed` | `Error:` | `Error:` | `BUILD FAILURE` | `Failed to compile` | — |
-| `commands.port_patterns` | `Tomcat (?:started on\|initialized with) port.*?(\d+)`; `http://(?:localhost\|127\.0\.0\.1\|0\.0\.0\.0\|\[::1\])[:\s]+(\d+)` | `Local:\s*http://localhost:(\d+)`; `http://localhost:(\d+)`; `Listening on.*?(\d+)` | `Local:\s*http://localhost:(\d+)`; `http://localhost:(\d+)` | — | `Local:\s*http://localhost:(\d+)`; `http://(?:localhost\|127\.0\.0\.1):(\d+)`; `(?:listening on\|bound to).*?port\s+(\d+)` | — |
-| `env_files.default_dir` | `src/main/resources` | `apps/default/src/environments` | `src/environments` | `src/main/resources` | `.` | `.` |
-| `env_files.config_writer_type` | `spring` | `angular` | `angular` | `spring` | `raw` | `raw` |
-| `env_files.pull_ignore_patterns` | `application*.yml`, `application*.yaml`, `application*.properties` | `environment*.ts`, `.env*` | `environment*.ts` | `[]` | `.env*` | `.env*` |
-| `env_files.main_config_filename` | `application.yml` | `environment.ts` | `environment.ts` | `""` | `.env` | `.env` |
-| `env_files.patterns` | `application*.yml`, `application*.yaml`, `application*.properties` | `environment*.ts`, `.env`, `.env.*` | `environment*.ts` | `[]` | `.env*` | `.env` |
-| `env_files.exclude_dirs` | `node_modules`, `.git`, `target` | `node_modules`, `.git`, `dist` | `node_modules`, `.git` | `[]` | `node_modules`, `.git` | `[]` |
+| `priority` | 60 | 50 | 40 | 20 | 10 | 0 |
+| `detect.git_required` | — (default `true`) | — | — | — | — | `false` |
+| `detect.files.required` | `pom.xml` | `package.json`, `nx.json` | `package.json`, `angular.json` | `pom.xml` | `package.json` | — |
+| `detect.files.excluded` | — | — | — | — | `angular.json`, `nx.json` | — |
+| `detect.dirs.required` | `src/main/resources` | — | — | `src` | — | — |
+| `detect.dirs.excluded` | — | — | — | `src/main/resources` | — | — |
+| `detect.patterns.match` | `application*.yml`, `application*.yaml`, `application*.properties` | — | — | — | — | `docker-compose*.yml`, `docker-compose*.yaml` |
+| `detect.patterns.search_dirs` | `src/main/resources` | — | — | — | — | — |
+| `detect.package_json` | — | — | — | — | `react`, `react-dom` | — |
+| `run.install` | `mvn clean install -DskipTests -B` | `npm i` | `npm i` | `mvn clean install -DskipTests -B` | `npm ci` | `""` |
+| `run.reinstall` | — | unix: `rm -rf node_modules && npm i` | — | — | — | — |
+| `run.start` | `mvn spring-boot:run` (unix: `./mvnw spring-boot:run`) | `npx nx serve {main_app}` | `npx ng serve` | `mvn clean install -DskipTests -B` | `npm start` | `docker-compose up -d` |
+| `run.stop` | — | — | — | — | — | `docker-compose down` |
+| `run.restart_delay_ms` | — | — | — | — | — | `2000` |
+| `run.app_resolution` | — | placeholder `main_app`, scan_dir `apps`, strategy `first_alphabetical` | — | — | — | — |
+| `logs.ready` | `Started \w+ in` | `localhost:\d+\|Local:.*http\|compiled\|Listening on` | `compiled successfully\|build at` | `BUILD SUCCESS` | `compiled successfully\|Compiled\|localhost:\d+` | — |
+| `logs.error` | `Application run failed` | — | — | `BUILD FAILURE` | — | — |
+| `logs.ports` | `Tomcat (?:started on\|initialized with) port.*?(\d+)`; `http://(?:localhost\|127\.0\.0\.1\|0\.0\.0\.0\|\[::1\])[:\s]+(\d+)` | `Local:\s*http://localhost:(\d+)`; `http://localhost:(\d+)`; `Listening on.*?(\d+)` | `Local:\s*http://localhost:(\d+)`; `http://localhost:(\d+)` | — | `Local:\s*http://localhost:(\d+)`; `http://(?:localhost\|127\.0\.0\.1):(\d+)`; `(?:listening on\|bound to).*?port\s+(\d+)` | — |
+| `config.writer` | `spring` | `angular` | `angular` | — (default `raw`) | `raw` | `raw` |
+| `config.dir` | `src/main/resources` | `apps/default/src/environments` | `src/environments` | — | `.` | `.` |
+| `config.main_file` | `application.yml` | — | — | — | — | — |
+| `config.patterns` | `application*.yml`, `application*.yaml`, `application*.properties` | `environment*.ts`, `.env`, `.env.*` | `environment*.ts` | — | `.env*` | `.env` |
+| `config.exclude_dirs` | — (null ⇒ `.git`,`node_modules`) | — | — | `[]` (prune nothing) | — | — |
+| `config.implicit_default_profile` | `true` | — | — | — | — | — |
+| `config.editable` | — (default `true`) | — | — | — | — | `false` |
+| `enrich` | `java_version` | — | — | `java_version` | — | `docker_checkboxes` |
 | `ui.icon` | 🍃 | 🅰 | 🅰 | 📦 | ⚛️ | 🐳 |
 | `ui.color` | `#22c55e` | `#ef4444` | `#ef4444` | `#f97316` | `#61dafb` | `#3b82f6` |
-| `ui.selectors[0].label` | `App:` | `Env:` | `Env:` | — | `Env:` | — |
-| `ui.install.check_dirs` | `target` | `node_modules` | `node_modules` | `target` | `node_modules` | — |
-| `features` | `java_version` | — | — | `java_version` | — | `docker_checkboxes` |
+| `ui.selectors[0].label` | `App:` | — | — | — | — | — |
+| `ui.install_check_dirs` | `target` | — | — | `target` | — | — |
+| `ui.actions` | — | — | — | — | — | `seed` |
 
-### 1.8 Gotchas / dead keys to decide on during migration
+> Note: several v1 keys did not survive to the shipped v2 YAMLs because the v2
+> structs default them. `pull_ignore` is empty/omitted on every shipped def
+> (v1's `pull_ignore_patterns` are not currently re-declared); `run.start` for
+> maven-lib has no OS overrides (v1's `mvnw.cmd`/`./mvnw` build commands were
+> dropped in favor of the single `mvn` default). `nx-workspace`'s reinstall is
+> now a portable unix override (`rm -rf …`) rather than the v1 Windows-only
+> `rmdir /s /q`.
 
-1. **`heuristics.must_match_package_json` is never implemented** (`react.yml:11-14`; zero
-   references in Python). Consequence: *any* git repo with a `package.json` and no
-   `angular.json`/`nx.json` is classified `react` — including plain Node servers. Decide:
-   implement it in Rust (check `dependencies`/`devDependencies` in `package.json`) or drop it.
-2. **`commands.stop_cmd` is never implemented** (`docker-infra.yml:16`). Stop = kill the
-   spawned process tree (`infrastructure/process/process_manager.py`). For docker-compose,
-   killing `docker-compose up -d` does not stop containers — decide whether Tauri implements
-   `stop_cmd` properly.
-3. **`react.yml` has no `priority`** → ties with docker-infra at 0; ordering depends on file
-   enumeration. Give every definition an explicit priority in the rewrite.
-4. Hardcoded type-name special cases (`docker-infra` git exemption + compose requirement;
-   `spring-boot` resources-subdir pattern fallback and `default` profile injection) break the
-   pure "no code changes" promise — consider expressing them as schema flags
-   (e.g. `detection.allow_no_git: bool`, `heuristics.pattern_search_dirs: [...]`).
-5. There is no `seed_cmd` in the schema — the "seed" actions in the GUI are docker-compose
-   service operations on docker-infra repos, not a YAML-driven command.
+### 1.7 Migration gotchas — resolved in v2
+
+The v1 dead keys and hardcodes that this doc previously flagged are now resolved:
+
+1. **`must_match_package_json` is now enforced** (`detect.package_json`,
+   `detection/pipeline.rs::check_package_json`) — react no longer matches every
+   bare `package.json`.
+2. **`stop_cmd` is now enforced** (`run.stop`) — the process layer runs it before
+   tree-kill (docker-infra stops containers via `docker-compose down`).
+3. **Every def has an explicit, unique priority** — no ties (react is 10).
+4. **The hardcoded type-name special cases became schema data**: docker's git
+   exemption is `detect.git_required: false`; the spring-boot resources-subdir
+   pattern fallback is `detect.patterns.search_dirs`; docker's compose requirement
+   is plain `detect.patterns.match`; the spring `default`-profile injection is
+   `config.implicit_default_profile`.
+5. **The "seed" action is now declared, not hardcoded**: `ui.actions: ["seed"]` +
+   the action registry (`repo-card.actions.ts`) resolves it to the
+   `run_flyway_seeds` command. The remaining `if repo_type == "docker-infra"` /
+   `repoType === 'docker-infra'` literals were all eliminated (the v2 acceptance
+   criterion).
 
 ---
 
@@ -1152,8 +1233,8 @@ the Angular catalog generation makes these obsolete.
 ## Appendix A — Cross-cutting risks for the rewrite
 
 1. **Release artifact** likely non-functional as shipped (bare standalone exe, §5.4).
-2. **Dead YAML keys** (`must_match_package_json`, `stop_cmd`) and missing `react` priority
-   must be deliberately resolved in the Rust serde model (§1.8).
+2. **Dead YAML keys** (`must_match_package_json`, `stop_cmd`) and missing `react` priority —
+   all resolved in the v2 schema (§1.7).
 3. **Hardcoded Spanish sentinels in persisted data**: `"- Sin Seleccionar -"`
    (`active_configs` default, `config_manager.py:406`) and `"Sistema (Por Defecto)"`
    (java default in `repo_state`/profiles) — they live in user files, so the rewrite needs

@@ -1,39 +1,22 @@
-# Maven Library Repository Definition (ported from v1 config/repo_types/maven-lib.yml)
+schema_version: 2
 type: "maven-lib"
 priority: 20
-
-detection:
-  required_files:
-    - "pom.xml"
-  exclude_files: []
-
-heuristics:
-  must_have_directories:
-    - "src"
-  must_not_have_directories:
-    - "src/main/resources"
-
-commands:
-  install_cmd: "mvn clean install -DskipTests -B"
-  start_cmd: "mvn clean install -DskipTests -B"
-  windows_start_cmd: "mvnw.cmd clean install -DskipTests -B"
-  unix_start_cmd: "./mvnw clean install -DskipTests -B"
-  ready_pattern: "BUILD SUCCESS"
-  error_pattern: "BUILD FAILURE"
-
-env_files:
-  default_dir: "src/main/resources"
-  config_writer_type: "spring"
-  pull_ignore_patterns: []
-  main_config_filename: ""
-  patterns: []
+detect:
+  files:
+    required: ["pom.xml"]
+  dirs:
+    required: ["src"]
+    excluded: ["src/main/resources"]
+run:
+  install: { default: "mvn clean install -DskipTests -B" }
+  start: { default: "mvn clean install -DskipTests -B" }
+logs:
+  ready: "BUILD SUCCESS"
+  error: "BUILD FAILURE"
+config:
   exclude_dirs: []
-
+enrich: ["java_version"]
 ui:
   icon: "📦"
   color: "#f97316"
-  install:
-    check_dirs: ["target"]
-
-features:
-  - "java_version"
+  install_check_dirs: ["target"]

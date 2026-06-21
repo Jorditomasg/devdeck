@@ -74,32 +74,90 @@ pub fn write_config_file_raw(path: &Path, content: &str) -> DomainResult<()> {
     fs::write(path, content).map_err(|e| DomainError::io(path.display().to_string(), e))
 }
 
+/// A named strategy for writing the ACTIVE environment/config file. Each repo
+/// type's `config.writer` selects one of these by [`ConfigWriter::name`].
+pub trait ConfigWriter: Sync {
+    fn name(&self) -> &'static str;
+    fn write_active(&self, target_file: &Path, profile: &str, content: &str) -> DomainResult<()>;
+}
+
+/// `raw` — writes the saved-environment content verbatim to `target_file`
+/// (e.g. `.env`); v1 default behavior.
+struct RawWriter;
+impl ConfigWriter for RawWriter {
+    fn name(&self) -> &'static str {
+        "raw"
+    }
+    fn write_active(&self, target_file: &Path, _profile: &str, content: &str) -> DomainResult<()> {
+        write_config_file_raw(target_file, content)
+    }
+}
+
+/// `angular` — writes verbatim to `target_file` (`environment.ts`); identical
+/// IO to `raw`, kept distinct so the YAML can name intent.
+struct AngularWriter;
+impl ConfigWriter for AngularWriter {
+    fn name(&self) -> &'static str {
+        "angular"
+    }
+    fn write_active(&self, target_file: &Path, _profile: &str, content: &str) -> DomainResult<()> {
+        write_config_file_raw(target_file, content)
+    }
+}
+
+/// `spring` — validates the content as YAML, then writes it to the profile
+/// file inside the resources dir (the parent of `target_file`).
+struct SpringWriter;
+impl ConfigWriter for SpringWriter {
+    fn name(&self) -> &'static str {
+        "spring"
+    }
+    fn write_active(&self, target_file: &Path, profile: &str, content: &str) -> DomainResult<()> {
+        let resources_dir = target_file.parent().ok_or_else(|| {
+            DomainError::Configuration(format!(
+                "spring target '{}' has no parent dir",
+                target_file.display()
+            ))
+        })?;
+        write_spring_config(resources_dir, profile, content)
+    }
+}
+
+/// THE single place writers are registered. Add new writers here.
+/// NOTE: impls must stay zero-sized / const-constructible — this relies on
+/// static promotion of `&Impl`. One holding runtime state (Regex, String)
+/// won't promote; switch to a `OnceLock<Vec<Box<dyn ConfigWriter>>>` if that day comes.
+fn writers() -> &'static [&'static dyn ConfigWriter] {
+    &[&RawWriter, &AngularWriter, &SpringWriter]
+}
+
+/// Look up a writer by name; unknown names fall back to `raw` (v1 parity —
+/// any unknown future type writes verbatim).
+fn writer_for(name: &str) -> &'static dyn ConfigWriter {
+    writers()
+        .iter()
+        .copied()
+        .find(|w| w.name() == name)
+        .unwrap_or(&RawWriter)
+}
+
+/// True when `name` is a registered config writer (used by validation).
+pub fn writer_exists(name: &str) -> bool {
+    writers().iter().any(|w| w.name() == name)
+}
+
 /// Write the ACTIVE saved-environment content through the repo type's
-/// `config_writer_type` (inventory-config-ci.md §1.5): `spring` validates
-/// YAML and targets the profile file inside the resources dir; `angular` and
-/// `raw` write verbatim to `target_file` (`environment.ts` / `.env`).
+/// `config_writer_type` (inventory-config-ci.md §1.5), dispatching through the
+/// writers registry: `spring` validates YAML and targets the profile file
+/// inside the resources dir; `angular`/`raw` (and any unknown type) write
+/// verbatim to `target_file` (`environment.ts` / `.env`).
 pub fn write_active_environment(
     writer_type: &str,
     target_file: &Path,
     profile: &str,
     content: &str,
 ) -> DomainResult<()> {
-    match writer_type {
-        "spring" => {
-            let resources_dir = target_file
-                .parent()
-                .ok_or_else(|| {
-                    DomainError::Configuration(format!(
-                        "spring target '{}' has no parent dir",
-                        target_file.display()
-                    ))
-                })?;
-            write_spring_config(resources_dir, profile, content)
-        }
-        // `angular` and `raw` (and any unknown future type) write verbatim —
-        // v1 default behavior.
-        _ => write_config_file_raw(target_file, content),
-    }
+    writer_for(writer_type).write_active(target_file, profile, content)
 }
 
 /// Derive a profile/environment name from a filename using the repo-type
@@ -178,6 +236,14 @@ mod tests {
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
         dir
+    }
+
+    #[test]
+    fn known_writers_registered() {
+        assert!(writer_exists("raw"));
+        assert!(writer_exists("spring"));
+        assert!(writer_exists("angular"));
+        assert!(!writer_exists("toml"));
     }
 
     #[test]

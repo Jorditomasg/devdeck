@@ -29,7 +29,7 @@ import {
 } from '@angular/core';
 
 import { TranslationService } from '../../../core/i18n/translation.service';
-import { IpcCommands } from '../../../core/ipc/commands';
+import { CMD, IpcCommands } from '../../../core/ipc/commands';
 import type { RepoInfo, ServiceStatus } from '../../../core/ipc/tauri.types';
 import { ReposStore } from '../../../core/state/repos.store';
 import { ServicesStore, type LogLine } from '../../../core/state/services.store';
@@ -44,6 +44,7 @@ import { CardHeaderComponent, type CardHeaderText } from './card-header.componen
 import { CardLogComponent, type CardLogText } from './card-log.component';
 import {
   composeCountsLabel,
+  configAffordances,
   dangerEnvActive,
   dockerButtonState,
   dockerCardStatus,
@@ -53,6 +54,7 @@ import {
   serviceUrl,
 } from './card-logic';
 import { dotStatusFor, visibilityForStatus } from './card-visibility';
+import { resolveActions } from './repo-card.actions';
 
 /** `[stream]`-prefix non-service lines, v1 card-log style (§8). */
 export function formatCardLine(entry: LogLine): string {
@@ -114,7 +116,7 @@ export function formatCardLine(entry: LogLine): string {
             (branches)="onBranches()"
             (openConfig)="onOpenConfig()"
             (install)="onInstall()"
-            (seed)="onSeed()"
+            (runAction)="onRunAction($event)"
             (configSelected)="onConfigSelected($event)"
             (openConfigManager)="onOpenConfigManager($event)"
             (moduleTrackedChange)="onModuleTracked($event)"
@@ -293,8 +295,6 @@ export class RepoCardComponent {
     branchesTip: this.i18n.t('tooltip.branches_btn'),
     configText: this.i18n.t('btn.config'),
     configTip: this.i18n.t('tooltip.config_btn'),
-    seedText: this.i18n.t('btn.seed'),
-    seedTip: this.i18n.t('tooltip.seed_btn'),
     javaLabel: this.i18n.t('label.java'),
     cmdLabel: this.i18n.t('label.cmd'),
     applyText: this.i18n.t('btn.apply'),
@@ -324,8 +324,10 @@ export class RepoCardComponent {
     const behind = this.behind();
     const noSelection = this.i18n.t('label.no_selection');
     const javaDefault = this.i18n.t('label.java_default');
-    const hasEnvRows =
-      repo.environmentFiles.length > 0 && repo.repoType !== 'docker-infra';
+    const { hasEnvRows, showConfigBtn, showCmdRow } = configAffordances(
+      repo.configEditable,
+      repo.environmentFiles.length,
+    );
 
     return {
       branch: {
@@ -341,7 +343,7 @@ export class RepoCardComponent {
             ? `${this.i18n.t('btn.pull')} (${behind})`
             : this.i18n.t('btn.pull'),
         pullActive: behind > 0,
-        showConfigBtn: !hasEnvRows && repo.repoType !== 'docker-infra',
+        showConfigBtn,
         showInstallBtn: !!repo.runInstallCmd,
         // §7: "Install" while deps are missing, "Reinstall ✓" once installed
         // (unknown/unchecked counts as installed — empty check_dirs contract).
@@ -352,7 +354,12 @@ export class RepoCardComponent {
             : this.i18n.t('install.label_ok'),
         installEnabled: this.vis().installEnabled,
         installTip: repo.runInstallCmd ?? '',
-        showSeedBtn: repo.repoType === 'docker-infra',
+        actions: resolveActions(repo.uiConfig.actions).map((a) => ({
+          key: a.key,
+          icon: a.icon,
+          label: this.i18n.t(a.labelKey),
+          command: a.command,
+        })),
       },
       modules: hasEnvRows
         ? repo.modules.map((module) => {
@@ -389,7 +396,7 @@ export class RepoCardComponent {
           }
         : null,
       cmd:
-        repo.repoType !== 'docker-infra'
+        showCmdRow
           ? {
               value: state.customCommand,
               placeholder: repo.runCommand || this.i18n.t('label.cmd_placeholder'),
@@ -456,7 +463,7 @@ export class RepoCardComponent {
     });
 
     // §6/§7 deps state: query `is_installed` once on card create (repos with
-    // a non-empty `ui.install.check_dirs` only) and re-query whenever an
+    // a non-empty `ui.install_check_dirs` only) and re-query whenever an
     // install finishes (status leaves 'installing').
     effect(() => {
       this.repo(); // also re-arm if the repo input is ever replaced
@@ -601,8 +608,20 @@ export class RepoCardComponent {
     void this.actions.install(this.repo(), true);
   }
 
-  protected onSeed(): void {
-    void this.actions.seed(this.repo());
+  /**
+   * Run a declared per-type action (resolved from `ui.actions` via the
+   * repo-card action registry). Dispatches the action's IPC command with the
+   * same args its dedicated flow used. Only `run_flyway_seeds` exists today;
+   * the `switch` is the irreducible code that new actions extend.
+   */
+  protected onRunAction(command: string): void {
+    switch (command) {
+      case CMD.runFlywaySeeds:
+        void this.actions.seed(this.repo());
+        break;
+      default:
+        console.error('unknown repo-card action command', command);
+    }
   }
 
   protected onConfigSelected(event: { moduleKey: string; value: string }): void {
@@ -694,9 +713,9 @@ export class RepoCardComponent {
   /** `is_installed` query (§6/§7). No-op for repos without `check_dirs`. */
   private async refreshDepsState(): Promise<void> {
     const repo = this.repo();
-    const dirs = repo.uiConfig.install?.check_dirs ?? [];
+    const dirs = repo.uiConfig.install_check_dirs ?? [];
     if (dirs.length === 0) {
-      return; // empty check_dirs ⇒ always "installed" (UiInstall contract)
+      return; // empty install_check_dirs ⇒ always "installed" (Ui contract)
     }
     const installed = await this.commands.process
       .isInstalled(repo.path, dirs)

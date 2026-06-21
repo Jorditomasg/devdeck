@@ -1,62 +1,32 @@
-# Spring Boot Repository Definition (ported from v1 config/repo_types/spring-boot.yml)
+schema_version: 2
 type: "spring-boot"
 priority: 60
-
-detection:
-  required_files:
-    - "pom.xml"
-  exclude_files: []
-
-heuristics:
-  must_have_directories:
-    - "src/main/resources"
-  must_match_patterns:
-    - "application*.yml"
-    - "application*.yaml"
-    - "application*.properties"
-  # v2: replaces the v1 hardcoded spring-boot fallback — when no root file
-  # matches must_match_patterns, plain files in these dirs are also tried.
-  pattern_search_dirs:
-    - "src/main/resources"
-
-commands:
-  install_cmd: "mvn clean install -DskipTests -B"
-  start_cmd: "mvn spring-boot:run"
-  windows_start_cmd: "mvn spring-boot:run"
-  unix_start_cmd: "./mvnw spring-boot:run"
-  ready_pattern: "Started \\w+ in"
-  error_pattern: "Application run failed"
-  port_patterns:
+detect:
+  files:
+    required: ["pom.xml"]
+  dirs:
+    required: ["src/main/resources"]
+  patterns:
+    match: ["application*.yml", "application*.yaml", "application*.properties"]
+    search_dirs: ["src/main/resources"]
+run:
+  install: { default: "mvn clean install -DskipTests -B" }
+  start: { default: "mvn spring-boot:run", unix: "./mvnw spring-boot:run" }
+logs:
+  ready: "Started \\w+ in"
+  error: "Application run failed"
+  ports:
     - "Tomcat (?:started on|initialized with) port.*?(\\d+)"
     - "http://(?:localhost|127\\.0\\.0\\.1|0\\.0\\.0\\.0|\\[::1\\])[:\\s]+(\\d+)"
-
-env_files:
-  default_dir: "src/main/resources"
-  config_writer_type: "spring"
-  pull_ignore_patterns:
-    - "application*.yml"
-    - "application*.yaml"
-    - "application*.properties"
-  main_config_filename: "application.yml"
-  patterns:
-    - "application*.yml"
-    - "application*.yaml"
-    - "application*.properties"
-  exclude_dirs:
-    - "node_modules"
-    - ".git"
-    - "target"
-  # v2: replaces the v1 hardcoded Spring special case — adds the "default"
-  # profile whenever a base application.yml|yaml|properties exists.
+config:
+  writer: "spring"
+  dir: "src/main/resources"
+  main_file: "application.yml"
+  patterns: ["application*.yml", "application*.yaml", "application*.properties"]
   implicit_default_profile: true
-
+enrich: ["java_version"]
 ui:
   icon: "🍃"
   color: "#22c55e"
-  selectors:
-    - label: "App:"
-  install:
-    check_dirs: ["target"]
-
-features:
-  - "java_version"
+  selectors: [{ label: "App:" }]
+  install_check_dirs: ["target"]
