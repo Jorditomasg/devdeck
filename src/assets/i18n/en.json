@@ -184,7 +184,24 @@
       "java_exe_warn_msg": "The java executable was not found at {java_exe}. Are you sure this is a valid JAVA_HOME path?",
       "java_duplicate": "A Java version named '{name}' already exists.",
       "language_en": "English",
-      "language_es": "Spanish"
+      "language_es": "Spanish",
+      "updates_title": "Updates",
+      "check_updates": "Check for updates",
+      "up_to_date": "You are on the latest version.",
+      "update_available": "Version {version} is available.",
+      "update_now": "Update now",
+      "view_changelog": "View changelog",
+      "current_version": "Current version {version}",
+      "checking": "Checking…",
+      "installing": "Installing…"
+    },
+    "changelog": {
+      "title": "Changelog",
+      "unavailable": "Changelog is unavailable.",
+      "added": "Added",
+      "changed": "Changed",
+      "fixed": "Fixed",
+      "removed": "Removed"
     },
     "workspace_groups": {
       "title": "Workspace Groups",
@@ -585,5 +602,10 @@
     "search": "🔍 Search...",
     "no_results": "No results",
     "more_items": "+{count} more — refine your search"
+  },
+  "repo": {
+    "action": {
+      "seed": "Seed"
+    }
   }
 }

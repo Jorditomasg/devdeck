@@ -56,6 +56,11 @@ pub const APP_SINGLE_INSTANCE: &str = "app://single-instance";
 /// Payload: `{}` (empty object).
 pub const APP_CLOSE_REQUESTED: &str = "app://close-requested";
 
+/// Update download progress while `install_update` runs. Payload:
+/// `{ downloaded: u64, contentLength: u64 | null }` (camelCase). Emitted from
+/// the updater command's `download_and_install` chunk callback.
+pub const UPDATE_PROGRESS: &str = "update://progress";
+
 // ---------------------------------------------------------------------------
 // Shared enums
 // ---------------------------------------------------------------------------

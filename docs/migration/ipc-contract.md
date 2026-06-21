@@ -38,7 +38,7 @@ verbatim** (they are user files that must round-trip byte-compatibly, architectu
 | `AppConfig`, `RepoState`, `WorkspaceGroup` | v1 snake_case (`workspace_dir`, `java_versions`, `custom_command`, …) | `config.json` schema is the migrated v1 schema (inventory-backend.md §8.3) |
 | `ProfileDocument`, `RepoProfile` | v1 snake_case + `"type"` for `repo_type` | profile `.json` files are shared/imported across versions (inventory-backend.md §15.3) |
 | `RevertPoint` | v1 dict keys (`original_branch`, `dest_head_before`, …) | documented v1 payload (inventory-backend.md §10.5) |
-| `UiConfig` / `UiSelector` / `UiInstall` (nested in `RepoInfo.uiConfig`) | YAML keys (`check_dirs`, …) | passthrough of the repo-type YAML `ui:` block |
+| `UiConfig` / `UiSelector` (nested in `RepoInfo.uiConfig`) | snake_case (`install_check_dirs`, `actions`, `selectors`, `icon`, `color`) | passthrough of the repo-type YAML `ui:` block — the Rust `Ui` struct (`domain/repo_type.rs`) has `#[serde(default)]` but NO `rename_all`, so its fields keep their snake_case names on the wire; only the enclosing `RepoInfo.ui_config` field is camelCased (→ `uiConfig`) by `RepoInfo`'s own `rename_all`. Unknown YAML keys round-trip via the struct's `#[serde(flatten)] extra` map. (v2 flattened the v1 nested `ui.install.check_dirs` to a top-level `install_check_dirs`; there is no `UiInstall` type anymore.) |
 
 The TypeScript mirrors reproduce the **wire** casing exactly — no client-side key mapping.
 
@@ -162,6 +162,18 @@ Notes:
   to the scanned repos, and stores the result in `AppState`. The frontend never polls.
 - `danger_flags` on each `RepoInfo` is filled from `repo_config_danger` before returning
   (see `RepoInfo` doc in `domain/repo_info.rs`).
+- `RepoInfo` is serialized camelCase (`#[serde(rename_all = "camelCase")]`). The v2
+  schema redesign added two wire fields (sourced from the repo-type YAML, see
+  inventory-config-ci.md §1):
+  - `restartDelayMs?: number` — the type's declared `run.restart_delay_ms`; absent ⇒
+    the process layer's default (300 ms). Replaces the formerly hardcoded per-type
+    docker restart delay.
+  - `configEditable: boolean` — the type's `config.editable`; whether the repo exposes
+    editable env/config (`false` for docker-infra). Replaces the frontend
+    `repoType !== 'docker-infra'` literals. Defaults to `true`.
+  - `uiConfig.actions?: string[]` — the YAML `ui.actions` list (e.g. `["seed"]`); the
+    repo-card resolves each key through its action registry and renders one button per
+    resolved action.
 
 ### 2.3 Process supervision (`process/`)
 
@@ -169,11 +181,11 @@ Notes:
 |---|---|---|---|---|
 | 3 | `start_service` | `{ serviceId: string, customCommand?: string, javaLabel?: string }` | `void` | process manager `start` — builds `ServiceSpec` from the scanned `RepoInfo` + overrides; `javaLabel` resolves through `java::build_java_env` and config key `java_versions` |
 | 4 | `stop_service` | `{ serviceId: string }` | `void` | process manager `stop` — runs `stop_cmd` when declared, then tree-kill with SIGTERM→SIGKILL escalation (own process group; architecture-v2.md §7.1) |
-| 5 | `restart_service` | `{ serviceId: string, customCommand?: string, javaLabel?: string }` | `void` | stop + delayed start (card restart delay: 300 ms process / 2000 ms docker, inventory-gui.md §28) |
+| 5 | `restart_service` | `{ serviceId: string, customCommand?: string, javaLabel?: string }` | `void` | stop + delayed start (card restart delay = the scanned repo's `RepoInfo.restartDelayMs`, else the 300 ms default; docker-infra ships `run.restart_delay_ms: 2000`. v2 reads this from data — `commands/process.rs::restart_delay` — instead of branching on `repo_type == "docker-infra"`; inventory-gui.md §28) |
 | 6 | `install_dependencies` | `{ serviceId: string, reinstall: boolean, javaLabel?: string }` | `void` | install runner — `install_cmd`/OS-resolved `reinstall_cmd`, 600 s cap +5 s kill grace (`process::constants`), refuses while the same id is running (inventory-backend.md §17.1) |
 | 7 | `list_services` | — | `ServiceSnapshot[]` | registry snapshot — lets a restarted frontend re-hydrate without losing running services (architecture-v2.md §2) |
 | 8 | `stop_all_services` | — | `void` | shutdown-all (30 s cap, `SHUTDOWN_ALL_CAP`); survivors past the cap are force-killed; also wired to Tauri exit |
-| 59 | `is_installed` | `{ path: string, checkDirs: string[] }` | `boolean` | `process::is_installed` — the `ui.install.check_dirs` probe (inventory-backend.md §17.1, §22.17): installed when ALL listed dirs exist; an empty list always counts as installed |
+| 59 | `is_installed` | `{ path: string, checkDirs: string[] }` | `boolean` | `process::is_installed` — the `ui.install_check_dirs` probe (inventory-backend.md §17.1, §22.17): installed when ALL listed dirs exist; an empty list always counts as installed |
 
 All four mutating commands return immediately (`stop_service` runs its stop —
 including the untracked `stop_cmd` fallback — detached, like `restart_service`);
@@ -283,11 +295,23 @@ Compose operation logs flow through `service://log-line` with `stream: "docker"`
 Not exposed (no UI consumer in v1 — `start_mysql` / `stop_mysql` / `is_mysql_running` /
 `get_running_containers` stay library-internal until a feature needs them).
 
+### 2.9 Updates & about (`commands/updates.rs`)
+
+Wraps `tauri-plugin-updater` (Rust-side; the frontend never calls the plugin
+directly) and serves the bundled `CHANGELOG.md`. Configured via
+`plugins.updater` (pubkey + GitHub `latest.json` endpoint) in `tauri.conf.json`.
+
+| # | Command | Args | Returns | Notes |
+|---|---|---|---|---|
+| 77 | `check_for_update` | — | `UpdateInfo { available, version?, notes?, date? }` | queries the updater endpoint; `available: false` when up to date. Called silently on startup + via the manual button |
+| 78 | `install_update` | — | `void` | downloads + installs the update (emits `update://progress`), then restarts the app |
+| 79 | `get_changelog` | — | `ChangelogRelease[] { version, date?, added[], changed[], fixed[], removed[] }` | parses the bundled `CHANGELOG.md` (newest first) |
+
 ---
 
 ## 3. Events
 
-7 events. Only Rust emits; the frontend only listens (`core/ipc/events.ts`). Names and payload
+8 events. Only Rust emits; the frontend only listens (`core/ipc/events.ts`). Names and payload
 structs live in `src-tauri/src/events.rs`.
 
 | Event | Payload (TS mirror) | Cadence / source |
@@ -299,6 +323,7 @@ structs live in `src-tauri/src/events.rs`.
 | `docker://status` | `DockerStatusEvent { name, services: Record<string, "running"\|"stopped"> }` | 15 s poll loop per docker-capable repo (`docker::DOCKER_POLL`) + forced via `docker_refresh_status` |
 | `app://single-instance` | `SingleInstanceEvent { argv, cwd }` | second launch (tauri-plugin-single-instance callback) |
 | `app://close-requested` | `{}` (empty object) | close/quit attempted while services run; Rust prevented the close — the frontend shows the confirm-running dialog and answers with `app_exit { force }` (§2.1 extensions) |
+| `update://progress` | `UpdateProgressEvent { downloaded, contentLength: number \| null }` | download progress while `install_update` runs (updater chunk callback) |
 
 `name` in `git://badge` / `docker://status` / service events is the repo name / service id
 (`"repo"` or `"repo::module"`).

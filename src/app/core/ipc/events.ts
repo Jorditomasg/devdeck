@@ -14,6 +14,7 @@ import type {
   ServiceLogEvent,
   ServiceStatusEvent,
   SingleInstanceEvent,
+  UpdateProgressEvent,
 } from './tauri.types';
 
 /**
@@ -39,6 +40,8 @@ export const EVT = {
    * lifecycle extensions).
    */
   appCloseRequested: 'app://close-requested',
+  /** events.rs `UPDATE_PROGRESS` — download progress during install_update */
+  updateProgress: 'update://progress',
 } as const;
 
 /** Union of all wire event names. */
@@ -94,6 +97,13 @@ export class IpcEvents {
    */
   onAppCloseRequested(handler: () => void): Promise<UnlistenFn> {
     return this.bridge.listen(EVT.appCloseRequested, handler);
+  }
+
+  /** Update download progress while `install_update` runs. */
+  onUpdateProgress(
+    handler: (event: UpdateProgressEvent) => void,
+  ): Promise<UnlistenFn> {
+    return this.bridge.listen(EVT.updateProgress, handler);
   }
 
   /**
