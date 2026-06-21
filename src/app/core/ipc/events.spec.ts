@@ -14,7 +14,8 @@ describe('EVT registry', () => {
     expect(EVT.dockerStatus).toBe('docker://status');
     expect(EVT.appSingleInstance).toBe('app://single-instance');
     expect(EVT.appCloseRequested).toBe('app://close-requested');
-    expect(Object.values(EVT).length).toBe(7);
+    expect(EVT.updateProgress).toBe('update://progress');
+    expect(Object.values(EVT).length).toBe(8);
   });
 });
 

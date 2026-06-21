@@ -19,10 +19,12 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  type OnInit,
   computed,
   inject,
   signal,
 } from '@angular/core';
+import { getVersion } from '@tauri-apps/api/app';
 
 import { TPipe } from '../../../core/i18n/t.pipe';
 import {
@@ -30,6 +32,7 @@ import {
   type LanguageCode,
 } from '../../../core/i18n/translation.service';
 import { SettingsStore } from '../../../core/state/settings.store';
+import { UpdatesStore } from '../../../core/state/updates.store';
 import {
   ButtonComponent,
   DialogShellComponent,
@@ -37,6 +40,7 @@ import {
   SearchableSelectComponent,
 } from '../../../ui';
 import { DialogBase } from '../dialog-base';
+import { ChangelogDialogComponent } from '../changelog/changelog-dialog.component';
 import { JavaManagerDialogComponent } from './java-manager-dialog.component';
 
 /** Languages shipped in v2, in display order. */
@@ -105,6 +109,32 @@ const LANGUAGE_CODES: readonly LanguageCode[] = ['en', 'es'];
             <span class="settings__java-count">{{ javaCountLabel() }}</span>
           </div>
         </ui-form-row>
+        <div class="settings__divider"></div>
+
+        <!-- 5. Updates / About -->
+        <ui-form-row [label]="'dialog.settings.updates_title' | t" labelWidth="155px">
+          <div class="settings__updates">
+            <ui-button variant="blue" [loading]="checking()" (clicked)="checkUpdates()">
+              {{ 'dialog.settings.check_updates' | t }}
+            </ui-button>
+            <ui-button variant="neutral" (clicked)="openChangelog()">
+              {{ 'dialog.settings.view_changelog' | t }}
+            </ui-button>
+          </div>
+        </ui-form-row>
+        <p class="settings__hint">
+          {{ 'dialog.settings.current_version' | t: { version: version() ?? '—' } }}
+        </p>
+        @if (updateInfo()?.available) {
+          <div class="settings__update-banner">
+            <span>
+              {{ 'dialog.settings.update_available' | t: { version: updateInfo()!.version ?? '' } }}
+            </span>
+            <ui-button variant="success" [loading]="installing()" (clicked)="installUpdate()">
+              {{ 'dialog.settings.update_now' | t }}
+            </ui-button>
+          </div>
+        }
       </div>
 
       <div uiDialogFooter>
@@ -118,9 +148,26 @@ const LANGUAGE_CODES: readonly LanguageCode[] = ['en', 'es'];
     </ui-dialog-shell>
   `,
 })
-export class SettingsDialogComponent extends DialogBase {
+export class SettingsDialogComponent extends DialogBase implements OnInit {
   private readonly settings = inject(SettingsStore);
   private readonly i18n = inject(TranslationService);
+  private readonly updates = inject(UpdatesStore);
+
+  /** Manual update-check spinner. */
+  protected readonly checking = signal(false);
+  /** Running app version (loaded on init from the Tauri runtime). */
+  protected readonly version = signal<string | null>(null);
+  /** Latest update-check result (populated by startup check + manual check). */
+  protected readonly updateInfo = this.updates.info;
+  protected readonly installing = this.updates.installing;
+
+  async ngOnInit(): Promise<void> {
+    try {
+      this.version.set(await getVersion());
+    } catch {
+      this.version.set(null);
+    }
+  }
 
   /** Draft language (applied + persisted on Save). */
   protected readonly language = signal<LanguageCode>(this.i18n.language());
@@ -167,6 +214,41 @@ export class SettingsDialogComponent extends DialogBase {
   /** Java registry manager — stacks on top; persists itself on Close (§22). */
   protected openJavaManager(): void {
     this.dialogs.open(JavaManagerDialogComponent);
+  }
+
+  /** Manual update check; reports "up to date" when nothing newer is found. */
+  protected async checkUpdates(): Promise<void> {
+    if (this.checking()) {
+      return;
+    }
+    this.checking.set(true);
+    try {
+      await this.updates.check();
+      if (!this.updates.available()) {
+        await this.dialogs.info(
+          this.i18n.t('dialog.settings.updates_title'),
+          this.i18n.t('dialog.settings.up_to_date'),
+        );
+      }
+    } catch (err: unknown) {
+      await this.dialogs.error(this.i18n.t('misc.error_title'), describe(err));
+    } finally {
+      this.checking.set(false);
+    }
+  }
+
+  /** Download + install the available update (the app restarts on success). */
+  protected async installUpdate(): Promise<void> {
+    try {
+      await this.updates.install();
+    } catch (err: unknown) {
+      await this.dialogs.error(this.i18n.t('misc.error_title'), describe(err));
+    }
+  }
+
+  /** Stack the full changelog viewer on top. */
+  protected openChangelog(): void {
+    this.dialogs.open(ChangelogDialogComponent);
   }
 
   protected async save(): Promise<void> {

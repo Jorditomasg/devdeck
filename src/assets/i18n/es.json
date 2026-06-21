@@ -184,7 +184,24 @@
       "java_exe_warn_msg": "No se ha encontrado el ejecutable java en {java_exe}. ¿Estás seguro de que esta es una ruta JAVA_HOME válida?",
       "java_duplicate": "Ya existe una versión de Java llamada '{name}'.",
       "language_en": "Inglés",
-      "language_es": "Español"
+      "language_es": "Español",
+      "updates_title": "Actualizaciones",
+      "check_updates": "Buscar actualizaciones",
+      "up_to_date": "Tienes la última versión.",
+      "update_available": "La versión {version} está disponible.",
+      "update_now": "Actualizar ahora",
+      "view_changelog": "Ver cambios",
+      "current_version": "Versión actual {version}",
+      "checking": "Comprobando…",
+      "installing": "Instalando…"
+    },
+    "changelog": {
+      "title": "Cambios",
+      "unavailable": "El registro de cambios no está disponible.",
+      "added": "Añadido",
+      "changed": "Cambiado",
+      "fixed": "Corregido",
+      "removed": "Eliminado"
     },
     "workspace_groups": {
       "title": "Grupos de Workspace",
@@ -585,5 +602,10 @@
     "search": "🔍 Buscar...",
     "no_results": "Sin resultados",
     "more_items": "+{count} más — refiná la búsqueda"
+  },
+  "repo": {
+    "action": {
+      "seed": "Sembrar"
+    }
   }
 }

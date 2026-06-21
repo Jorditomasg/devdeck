@@ -21,6 +21,7 @@
 //! - `RunEvent::Exit` → `ProcessManager::shutdown_all` + poller shutdown
 //!   (the v1 atexit contract, inventory-backend.md §21.4).
 
+pub mod changelog;
 pub mod commands;
 pub mod config;
 pub mod detection;
@@ -84,6 +85,7 @@ pub fn run() {
         )
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(setup)
         .on_window_event(|window, event| {
             // Main-window-only behaviors: detached log windows ("log-*")
@@ -215,6 +217,10 @@ pub fn run() {
             commands::docker::docker_compose_logs,
             commands::docker::docker_refresh_status,
             commands::docker::run_flyway_seeds,
+            // §2.9 updates & about
+            commands::updates::check_for_update,
+            commands::updates::install_update,
+            commands::updates::get_changelog,
         ])
         .build(tauri::generate_context!())
         .expect("error while building DevDeck")

@@ -5,12 +5,14 @@ import { CMD, IpcCommands } from './commands';
 import { FakeTauriBridge } from './tauri-bridge.fake';
 
 describe('CMD registry', () => {
-  it('contains the 76 contract commands, all snake_case and unique', () => {
+  it('contains the 79 contract commands, all snake_case and unique', () => {
     // 66 prior (incl. PTY terminals) + 10 git stash/branch management commands
     // (ipc-contract.md §2.4 #62–#71): stash list/push/apply/pop/drop +
-    // create/delete/delete-remote/rename/publish branch.
+    // create/delete/delete-remote/rename/publish branch + 3 updates/about
+    // commands (ipc-contract.md §2.9): check_for_update / install_update /
+    // get_changelog.
     const names = Object.values(CMD);
-    expect(names.length).toBe(76);
+    expect(names.length).toBe(79);
     expect(new Set(names).size).toBe(names.length);
     for (const name of names) {
       expect(name).toMatch(/^[a-z][a-z0-9_]*$/);

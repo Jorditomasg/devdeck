@@ -15,6 +15,8 @@
 //! - [`java`] — §2.6 JDK registry
 //! - [`profiles`] — §2.7 profiles
 //! - [`docker`] — §2.8 docker compose
+//! - [`updates`] — §2.9 updates & about (`check_for_update`,
+//!   `install_update`, `get_changelog`)
 //!
 //! Argument keys arrive camelCase on the wire and map to snake_case Rust
 //! parameters via Tauri 2's default renaming — handlers MUST NOT opt out
@@ -30,6 +32,7 @@ pub mod java;
 pub mod process;
 pub mod profiles;
 pub mod terminal;
+pub mod updates;
 
 pub use error::{AppError, CmdResult};
 

@@ -262,21 +262,26 @@ export interface UiSelector {
   readonly label: string;
 }
 
-/** `ui.install` — install-state heuristics. Empty `check_dirs` ⇒ always "installed". */
-export interface UiInstall {
-  readonly check_dirs: readonly string[];
-}
-
 /**
- * The repo-type YAML `ui:` block, passed through essentially verbatim
- * (v1 parity: raw dict on `RepoInfo.ui_config`). Keys keep YAML snake_case
- * (ipc-contract.md §1.2); unknown keys pass through.
+ * The repo-type `ui:` block as serialized by the Rust `Ui` struct
+ * (domain/repo_type.rs). `Ui` carries `#[serde(default)]` but NO
+ * `rename_all`, so its fields keep their Rust snake_case names on the wire
+ * (`install_check_dirs`, `actions`); the enclosing `RepoInfo.ui_config`
+ * becomes `uiConfig` via RepoInfo's own camelCase rename. Unknown YAML keys
+ * round-trip through the struct's `#[serde(flatten)] extra` map.
  */
 export interface UiConfig {
   readonly icon?: string;
   readonly color?: string;
   readonly selectors: readonly UiSelector[];
-  readonly install: UiInstall;
+  /**
+   * Directories whose presence means "installed" (e.g. `["target"]`); empty
+   * ⇒ always "installed" (§6/§7 deps heuristic). Wire key is snake_case
+   * because the Rust `Ui` struct has no `rename_all`.
+   */
+  readonly install_check_dirs: readonly string[];
+  /** Declared action buttons (e.g. ["seed"]); resolved by the repo-card action registry. */
+  readonly actions?: readonly string[];
   readonly [extra: string]: unknown;
 }
 
@@ -318,6 +323,10 @@ export interface RepoInfo {
   readonly envPatterns: readonly string[];
   readonly uiConfig: UiConfig;
   readonly features: readonly string[];
+  /** Card restart delay in ms; absent ⇒ backend default (300 ms). */
+  readonly restartDelayMs?: number;
+  /** Whether this repo exposes editable env/config (docker-infra: false). */
+  readonly configEditable: boolean;
   readonly javaVersion?: string;
   readonly serverPort?: number;
   readonly contextPath?: string;
@@ -478,4 +487,32 @@ export interface ContainerInfo {
   readonly name: string;
   readonly status: string;
   readonly ports: string;
+}
+
+// ---------------------------------------------------------------------------
+// Updates & about (commands/updates.rs)
+// ---------------------------------------------------------------------------
+
+/** Result of `check_for_update` (ipc-contract.md §2.9). */
+export interface UpdateInfo {
+  readonly available: boolean;
+  readonly version: string | null;
+  readonly notes: string | null;
+  readonly date: string | null;
+}
+
+/** One version block from `get_changelog` (mirrors Rust `ChangelogRelease`). */
+export interface ChangelogRelease {
+  readonly version: string;
+  readonly date: string | null;
+  readonly added: readonly string[];
+  readonly changed: readonly string[];
+  readonly fixed: readonly string[];
+  readonly removed: readonly string[];
+}
+
+/** Payload of `update://progress`. `contentLength` is null until known. */
+export interface UpdateProgressEvent {
+  readonly downloaded: number;
+  readonly contentLength: number | null;
 }

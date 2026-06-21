@@ -11,6 +11,7 @@ import { IpcCommands } from './core/ipc/commands';
 import { ReposStore } from './core/state/repos.store';
 import { ServicesStore } from './core/state/services.store';
 import { SettingsStore } from './core/state/settings.store';
+import { UpdatesStore } from './core/state/updates.store';
 import { DIALOGS } from './features/dialogs/dialog-stack';
 import { DialogService } from './features/dialogs/dialog.service';
 
@@ -48,7 +49,12 @@ export const appConfig: ApplicationConfig = {
       const services = inject(ServicesStore);
       const settings = inject(SettingsStore);
       const i18n = inject(TranslationService);
+      const updates = inject(UpdatesStore);
       const commands = inject(IpcCommands);
+      // Detached log/terminal windows run the same SPA bootstrap; the update
+      // check + changelog are main-window-only concerns.
+      const search = new URLSearchParams(window.location.search);
+      const isMainWindow = !search.has('log') && !search.has('terminal');
       const step = async (name: string, run: () => Promise<unknown>): Promise<void> => {
         try {
           await run();
@@ -62,6 +68,13 @@ export const appConfig: ApplicationConfig = {
         );
         await step('config mirror', () => settings.init());
         await step('i18n', () => i18n.init());
+        if (isMainWindow) {
+          // Register the progress listener now; run the check in the
+          // background (checkSilently swallows offline / no-release errors) so
+          // it never delays showing the window.
+          await step('updates listener', () => updates.listenProgress());
+          void updates.checkSilently();
+        }
       } finally {
         // MUST always fire — Rust shows the hidden window only on this call.
         await commands

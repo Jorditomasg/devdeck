@@ -12,6 +12,7 @@ import { Injectable } from '@angular/core';
 import { TauriBridge } from './tauri-bridge';
 import type {
   AppConfig,
+  ChangelogRelease,
   ComposeService,
   DockerServiceState,
   GitBadge,
@@ -30,6 +31,7 @@ import type {
   ServiceId,
   ServiceSnapshot,
   StashEntry,
+  UpdateInfo,
   WorkspaceGroup,
 } from './tauri.types';
 
@@ -126,6 +128,10 @@ export const CMD = {
   dockerComposeLogs: 'docker_compose_logs',
   dockerRefreshStatus: 'docker_refresh_status',
   runFlywaySeeds: 'run_flyway_seeds',
+  // updates & about (§2.9)
+  checkForUpdate: 'check_for_update',
+  installUpdate: 'install_update',
+  getChangelog: 'get_changelog',
 } as const;
 
 /**
@@ -627,5 +633,20 @@ export class IpcCommands {
     /** Kill the PTY process tree and drop the session (on window close). */
     close: (id: string): Promise<void> =>
       this.bridge.invoke<void>(CMD.closeTerminal, { id }),
+  };
+
+  // -- updates & about (§2.9) -----------------------------------------------
+
+  readonly updates = {
+    /** Query for a newer version; `available: false` when up to date. */
+    check: (): Promise<UpdateInfo> =>
+      this.bridge.invoke<UpdateInfo>(CMD.checkForUpdate),
+
+    /** Download + install the available update; progress via `update://progress`. */
+    install: (): Promise<void> => this.bridge.invoke<void>(CMD.installUpdate),
+
+    /** Full parsed changelog history, newest first. */
+    changelog: (): Promise<ChangelogRelease[]> =>
+      this.bridge.invoke<ChangelogRelease[]>(CMD.getChangelog),
   };
 }
