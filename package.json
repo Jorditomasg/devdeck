@@ -1,8 +1,8 @@
 {
-  "name": "devops-manager",
-  "version": "0.9.0",
+  "name": "devdeck",
+  "version": "1.0.0",
   "private": true,
-  "description": "DevOps Manager - Tauri 2 + Angular desktop app for managing local development services",
+  "description": "DevDeck - Tauri 2 + Angular desktop app for managing local development services",
   "scripts": {
     "start": "ng serve",
     "build": "ng build",

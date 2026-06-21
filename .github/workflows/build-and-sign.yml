@@ -1,5 +1,5 @@
 # =============================================================================
-# DevDeck (DevOps Manager v2) — Build, Sign & Release (Tauri 2 + Angular)
+# DevDeck — Build, Sign & Release (Tauri 2 + Angular)
 # =============================================================================
 # Successor of Jorditomasg/devops-manager's pipeline. Ships a self-contained
 # NSIS installer produced by `tauri build`, signed end-to-end via SignPath —
@@ -84,7 +84,7 @@ jobs:
         run: npm test
 
       # Build the Angular frontend BEFORE `cargo test`: tauri-build's build.rs
-      # validates that `frontendDist` (../dist/devops-manager/browser) exists,
+      # validates that `frontendDist` (../dist/devdeck/browser) exists,
       # so cargo cannot even compile the crate without it.
       - name: Build Angular frontend
         run: npm run build
@@ -97,7 +97,7 @@ jobs:
         run: cargo test --manifest-path src-tauri/Cargo.toml
 
       # Produces src-tauri/target/release/bundle/nsis/
-      #   "DevOps Manager_<version>_x64-setup.exe"
+      #   "DevDeck_<version>_x64-setup.exe"
       - name: Build Tauri app (NSIS installer)
         run: npm run tauri build
 
@@ -141,12 +141,58 @@ jobs:
         with:
           api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
           organization-id: '566b6bce-16ea-4c67-80a2-1654b3efdef4'
-          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG || 'devops-manager' }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG || 'devdeck' }}
           signing-policy-slug: 'release-signing'
           artifact-configuration-slug: ${{ vars.SIGNPATH_ARTIFACT_CONFIG || 'installer' }}
           github-artifact-id: ${{ needs.build.outputs.artifact-id }}
           wait-for-completion: true
           output-artifact-directory: signed/
+
+      - name: Setup Node LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      # ⚠ ORDERING: minisign-sign the SignPath-SIGNED installer, never the
+      # build output. The updater verifies the downloaded (signed) binary
+      # against this signature — signing the unsigned one breaks all updates.
+      - name: Generate updater signature + latest.json
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ''
+          REF_NAME: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || inputs.release-tag }}
+        run: |
+          set -euo pipefail
+          INSTALLER=$(ls signed/*-setup.exe | head -n1)
+          VERSION="${REF_NAME#v}"
+
+          # Minisign-sign the SignPath-signed installer (the artifact users
+          # download). Writes "$INSTALLER.sig".
+          npx --yes @tauri-apps/cli signer sign "$INSTALLER"
+          SIGNATURE=$(cat "$INSTALLER.sig")
+
+          # Release notes = this version's CHANGELOG.md section (## [x.y.z] ...
+          # up to the next "## " heading).
+          NOTES=$(awk -v ver="$VERSION" '
+            $0 ~ "^## \\[" ver "\\]" { grab=1; next }
+            grab && /^## / { exit }
+            grab { print }
+          ' CHANGELOG.md)
+
+          ASSET="https://github.com/${GITHUB_REPOSITORY}/releases/download/${REF_NAME}/$(basename "$INSTALLER")"
+
+          jq -n \
+            --arg version "$VERSION" \
+            --arg notes "$NOTES" \
+            --arg pub_date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg signature "$SIGNATURE" \
+            --arg url "$ASSET" \
+            '{version:$version, notes:$notes, pub_date:$pub_date,
+              platforms:{"windows-x86_64":{signature:$signature, url:$url}}}' \
+            > signed/latest.json
+
+          echo "Generated latest.json for $VERSION"
+          cat signed/latest.json
 
       - name: Upload signed installer (workflow artifact)
         uses: actions/upload-artifact@v4

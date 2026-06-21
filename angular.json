@@ -3,7 +3,7 @@
   "version": 1,
   "newProjectRoot": "projects",
   "projects": {
-    "devops-manager": {
+    "devdeck": {
       "projectType": "application",
       "root": "",
       "sourceRoot": "src",
@@ -18,7 +18,7 @@
         "build": {
           "builder": "@angular/build:application",
           "options": {
-            "outputPath": "dist/devops-manager",
+            "outputPath": "dist/devdeck",
             "index": "src/index.html",
             "browser": "src/main.ts",
             "tsConfig": "tsconfig.app.json",
@@ -66,10 +66,10 @@
           },
           "configurations": {
             "production": {
-              "buildTarget": "devops-manager:build:production"
+              "buildTarget": "devdeck:build:production"
             },
             "development": {
-              "buildTarget": "devops-manager:build:development"
+              "buildTarget": "devdeck:build:development"
             }
           },
           "defaultConfiguration": "development"

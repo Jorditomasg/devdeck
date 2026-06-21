@@ -45,6 +45,29 @@ Cross-compiling the Windows exe from WSL works via `cargo-xwin` (see the engram 
 - Detached log windows: `open_log_window` creates a `log-<id>` webview loading `?log=<serviceId>`; backlog comes from the Rust `LogCache` (fed by the event emitter), live lines from `service://log-line`. Capability `windows` includes `"log-*"`.
 - `Cargo.lock` pins `time 0.3.47` — 0.3.48 breaks `cookie 0.18.1` (E0119). Do not blindly `cargo update`.
 
+## Versioning & changelog (Claude-owned)
+
+DevDeck versioning is driven by Claude, not by hand. Rules:
+
+- **Single source of truth:** `CHANGELOG.md` at the repo root, in
+  [Keep a Changelog](https://keepachangelog.com) format. SemVer. The current
+  baseline is `1.0.0`.
+- **When to write entries:** only at release time (when the user asks for a
+  version bump), NOT per commit. Do not maintain an `[Unreleased]` section
+  between releases.
+- **Entries are user-facing and in English.** Describe the change from the
+  user's point of view ("Auto-update from within the app"), never the
+  implementation ("refactor updater module"). Group under
+  `### Added / Changed / Fixed / Removed`.
+- **Release ritual** (run when the user says e.g. "release 1.1.0" / "minor"):
+  1. `git log <last-tag>..HEAD` → draft the user-facing entries.
+  2. Bump the THREE version files in lockstep: `package.json`,
+     `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`.
+  3. Add a `## [x.y.z] - YYYY-MM-DD` section to `CHANGELOG.md`.
+  4. Conventional commit, then `git tag vx.y.z`. Do NOT push the tag — the user
+     pushes it; the tag push triggers the signed-release CI.
+- The `/release` skill automates this ritual.
+
 ## Releasing
 
 Bump the version in `package.json`, `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml`, then push a `v*` tag. CI builds the NSIS installer, signs it via SignPath and publishes a GitHub Release (`.github/workflows/build-and-sign.yml`). One-time SignPath setup is documented in the workflow file and `docs/migration/ci-v2.md`.
