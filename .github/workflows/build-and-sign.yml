@@ -46,10 +46,10 @@ jobs:
         shell: pwsh
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup Node LTS
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: lts/*
           cache: npm
@@ -69,14 +69,15 @@ jobs:
       - name: Run frontend tests
         run: npm test
 
-      # Build the Angular frontend BEFORE `cargo test`: tauri-build's build.rs
-      # validates that `frontendDist` (../dist/devdeck/browser) exists.
+      # tauri-build's build.rs validates that `frontendDist`
+      # (../dist/devdeck/browser) exists, so build the frontend before Tauri.
       - name: Build Angular frontend
         run: npm run build
 
-      - name: Run Rust tests (non-blocking)
-        continue-on-error: true
-        run: cargo test --manifest-path src-tauri/Cargo.toml
+      # NOTE: `cargo test` is intentionally NOT run here — it compiles the
+      # whole dependency tree a SECOND time in test mode (≈ doubling Rust build
+      # time) for a non-blocking signal. Run Rust tests locally / in a separate
+      # CI job, not in the release path.
 
       # Produces src-tauri/target/release/bundle/nsis/
       #   "DevDeck_<version>_x64-setup.exe" + ".exe.sig" (minisign, for the
@@ -96,7 +97,7 @@ jobs:
 
       # Upload the installer AND its minisign signature for the release job.
       - name: Upload installer + signature
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: devdeck-installer
           path: |
@@ -114,10 +115,10 @@ jobs:
       contents: write # create the GitHub Release
 
     steps:
-      - uses: actions/checkout@v4 # for CHANGELOG.md (release notes)
+      - uses: actions/checkout@v5 # for CHANGELOG.md (release notes)
 
       - name: Download installer artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: devdeck-installer
           path: dist
