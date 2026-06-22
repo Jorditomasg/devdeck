@@ -117,6 +117,7 @@
     "rescan_btn": "Re-escanear workspace",
     "clone_btn": "Clonar nuevo repositorio",
     "settings_btn": "Abrir configuración",
+    "settings_btn_update": "Actualización disponible — abrí configuración para instalar",
     "global_log_btn": "Abrir Log Global en Ventana",
     "docker_profile_checkbox": "Marcá para que este servicio se inicie automáticamente\ncuando pulses Start en la tarjeta del repositorio.\nSe guarda en el perfil activo.",
     "mark_danger_off": "Marcar este entorno como peligroso",

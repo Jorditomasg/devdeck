@@ -19,6 +19,7 @@ import {
 import { TranslationService } from '../../core/i18n/translation.service';
 import { ProfilesStore } from '../../core/state/profiles.store';
 import { SettingsStore } from '../../core/state/settings.store';
+import { UpdatesStore } from '../../core/state/updates.store';
 import {
   ButtonComponent,
   IconButtonComponent,
@@ -116,12 +117,17 @@ export function profileGroupArg(groupName: string | undefined): string | undefin
         [uiTooltip]="i18n.t('tooltip.rescan_btn')"
         (clicked)="rescanRequested.emit()"
       >{{ i18n.t('btn.rescan') }}</ui-button>
-      <ui-icon-button
-        variant="neutral"
-        size="lg"
-        [uiTooltip]="i18n.t('tooltip.settings_btn')"
-        (clicked)="dialogs.openSettings()"
-      >⚙</ui-icon-button>
+      <span class="topbar__settings">
+        <ui-icon-button
+          variant="neutral"
+          size="lg"
+          [uiTooltip]="updateAvailable() ? i18n.t('tooltip.settings_btn_update') : i18n.t('tooltip.settings_btn')"
+          (clicked)="dialogs.openSettings()"
+        >⚙</ui-icon-button>
+        @if (updateAvailable()) {
+          <span class="topbar__update-dot" aria-hidden="true"></span>
+        }
+      </span>
     </div>
   `,
 })
@@ -161,6 +167,11 @@ export class TopbarComponent {
 
   protected readonly dirty = computed(() => this.ws.profileDirty());
 
+  /** Startup `checkSilently()` populates this — drives the gear badge. */
+  protected readonly updateAvailable = computed(
+    () => this.updates.info()?.available ?? false,
+  );
+
   protected readonly profileDisplay = computed(() =>
     profileDisplayName(
       this.activeName(),
@@ -181,6 +192,7 @@ export class TopbarComponent {
     protected readonly i18n: TranslationService,
     protected readonly dialogs: DialogService,
     private readonly settings: SettingsStore,
+    private readonly updates: UpdatesStore,
     private readonly profiles: ProfilesStore,
     private readonly ws: WorkspaceStore,
     private readonly actions: RepoActionsService,

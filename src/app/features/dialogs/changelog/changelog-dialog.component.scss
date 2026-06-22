@@ -1,7 +1,6 @@
 .changelog {
-  max-height: 60vh;
-  overflow-y: auto;
-  padding-right: 8px;
+  // No inner max-height/scroll: let .dialog__content own the scroll so short
+  // changelogs flow from the top instead of leaving a dead gap below a 60vh box.
 
   &__release {
     & + & {

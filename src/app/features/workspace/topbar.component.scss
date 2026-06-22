@@ -79,3 +79,37 @@
     font-weight: 700;
   }
 }
+
+// Update-available indicator on the settings gear — a pulsing dot that the
+// startup update check turns on (UpdatesStore.info().available).
+.topbar__settings {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.topbar__update-dot {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-status-running);
+  box-shadow: 0 0 0 2px var(--color-card);
+  animation: topbar-update-pulse 1.6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes topbar-update-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.35);
+    opacity: 0.65;
+  }
+}
