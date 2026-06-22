@@ -301,6 +301,9 @@ export class RepoCardComponent {
     applyTip: this.i18n.t('tooltip.apply_cmd'),
     resetText: this.i18n.t('btn.reset'),
     resetTip: this.i18n.t('tooltip.reset_cmd'),
+    argsLabel: this.i18n.t('label.args'),
+    applyArgsTip: this.i18n.t('tooltip.apply_args'),
+    resetArgsTip: this.i18n.t('tooltip.reset_args'),
     searchPlaceholder: this.i18n.t('placeholder.search'),
     noResultsText: this.i18n.t('placeholder.no_results'),
   }));
@@ -403,6 +406,14 @@ export class RepoCardComponent {
               tip: this.i18n.t('tooltip.cmd_entry', {
                 cmd: repo.runCommand ?? '',
               }),
+            }
+          : null,
+      args:
+        showCmdRow
+          ? {
+              value: state.startArgs,
+              placeholder: this.i18n.t('label.args_placeholder'),
+              tip: this.i18n.t('tooltip.args_entry'),
             }
           : null,
       docker: repo.features.includes('docker_checkboxes')
@@ -654,8 +665,8 @@ export class RepoCardComponent {
     void this.persistRepoState();
   }
 
-  protected onDockerFile(_file: string): void {
-    this.dialogs.openDockerCompose(this.repo().name);
+  protected onDockerFile(file: string): void {
+    this.dialogs.openDockerCompose(this.repo().name, file);
   }
 
   // -- log handlers (§8) ---------------------------------------------------------------
