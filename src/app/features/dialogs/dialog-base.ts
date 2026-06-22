@@ -1,10 +1,9 @@
 /**
- * Shared base for every dialog container rendered by `app-dialog-host`.
- *
- * The host injects two standard inputs into every dialog component:
- * - `dialogId` — the stack id, needed to close oneself / resolve the promise;
- * - `cascadeLevel` — the stack index, forwarded to `ui-dialog-shell` for the
- *   v1 +20px nesting offset (inventory-gui §13.4).
+ * Shared base for every dialog container. Each dialog renders inside its own
+ * native window (`dialog-window-host`), which injects two standard inputs:
+ * - `dialogId` — id passed to `close()` to resolve the dialog's promise;
+ * - `cascadeLevel` — forwarded to `ui-dialog-shell` for the v1 +20px nesting
+ *   offset (inventory-gui §13.4); window-hosted dialogs pass 0.
  */
 import { Directive, inject, input } from '@angular/core';
 

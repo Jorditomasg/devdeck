@@ -8,18 +8,19 @@
  * host resolves components lazily by kind), which also removes the historical
  * `dialog.service → profile-manager → repo-actions` ESM cycle.
  *
- * The legacy in-app `stack` primitives (`open`/`openForResult`/`close`) remain
- * for interface compatibility but are unused now that all dialogs are windows.
+ * Component-based opens (`open`/`openForResult`/`close`) only happen INSIDE a
+ * dialog window (handled by `WindowDialogsApi`); the main window opens dialogs
+ * by `kind` only. They exist here solely to satisfy `DialogsApi`.
  *
  * NOT migrated — Instance Conflict dialog (inventory-gui §18): v2 uses
  * `tauri-plugin-single-instance` (forwards argv via `app://single-instance`).
  */
-import { Injectable, inject, signal, type Type } from '@angular/core';
+import { Injectable, inject, type Type } from '@angular/core';
 
 import { TranslationService } from '../../core/i18n/translation.service';
 import { IpcCommands } from '../../core/ipc/commands';
 import { IpcEvents } from '../../core/ipc/events';
-import { pushEntry, removeEntry, type DialogEntry, type DialogsApi } from './dialog-stack';
+import { type DialogsApi } from './dialog-stack';
 import { openDialogWindowForResult } from './dialog-window.bridge';
 import { type MessageboxKind } from './messagebox/messagebox.component';
 
@@ -28,14 +29,6 @@ export class DialogService implements DialogsApi {
   private readonly commands = inject(IpcCommands);
   private readonly events = inject(IpcEvents);
   private readonly i18n = inject(TranslationService);
-
-  private readonly _stack = signal<readonly DialogEntry[]>([]);
-  private readonly resolvers = new Map<number, (result: unknown) => void>();
-  private readonly fallbacks = new Map<number, unknown>();
-  private nextId = 1;
-
-  /** Open dialogs, bottom → top. Rendered by `app-dialog-host` (legacy/unused). */
-  readonly stack = this._stack.asReadonly();
 
   // -- generic window openers (every modal is a native window) ----------------
 
@@ -64,44 +57,20 @@ export class DialogService implements DialogsApi {
     return 'DevDeck';
   }
 
-  // -- legacy in-app stack primitives (unused; kept for DialogsApi) -----------
+  // -- DialogsApi contract: component-based opens are window-only -------------
+  // The main window never opens a dialog component in-app — these are reached
+  // only via `WindowDialogsApi` inside a dialog window.
 
-  open(component: Type<unknown>, inputs: Record<string, unknown> = {}): number {
-    const id = this.nextId++;
-    this._stack.update((s) => pushEntry(s, { id, component, inputs }));
-    return id;
+  open(_component: Type<unknown>, _inputs?: Record<string, unknown>): number {
+    throw new Error('DialogService.open: component dialogs are window-only');
   }
 
-  openForResult<T>(
-    component: Type<unknown>,
-    inputs: Record<string, unknown>,
-    fallback: T,
-  ): Promise<T> {
-    return new Promise<T>((resolve) => {
-      const id = this.open(component, inputs);
-      this.resolvers.set(id, resolve as (result: unknown) => void);
-      this.fallbacks.set(id, fallback);
-    });
+  openForResult<T>(_component: Type<unknown>, _inputs: Record<string, unknown>, _fallback: T): Promise<T> {
+    throw new Error('DialogService.openForResult: component dialogs are window-only');
   }
 
-  close(id: number, result?: unknown): void {
-    const before = this._stack();
-    const after = removeEntry(before, id);
-    if (after === before) {
-      return;
-    }
-    this._stack.set(after);
-    const resolve = this.resolvers.get(id);
-    this.resolvers.delete(id);
-    const fallback = this.fallbacks.get(id);
-    this.fallbacks.delete(id);
-    resolve?.(result === undefined ? fallback : result);
-  }
-
-  /** True when an in-app stack dialog is open (windows are tracked by the OS). */
-  hasOpenDialogs(): boolean {
-    return this._stack().length > 0;
-  }
+  /** No in-app stack on the main window; dialog windows resolve themselves. */
+  close(_id: number, _result?: unknown): void {}
 
   // -- contract: feature dialogs (workspace feature calls these) --------------
 

@@ -1,10 +1,7 @@
 /**
- * Pure dialog-stack primitives — the testable core of `DialogService`.
- *
- * The stack is an ordered list (bottom → top) of open dialogs; the index of
- * an entry IS its cascade level (v1 BaseDialog nesting offset, inventory-gui
- * §13.4). Multiple dialogs may layer (e.g. a messagebox over settings over
- * nothing), each rendered by `app-dialog-host` with `cascadeLevel = index`.
+ * The `DIALOGS` injection token and the `DialogsApi` contract both providers
+ * fulfil — `DialogService` (main window) and `WindowDialogsApi` (inside each
+ * native dialog window).
  */
 import { InjectionToken, type Type } from '@angular/core';
 
@@ -42,7 +39,6 @@ export interface DialogsApi {
   /** Open a dialog by `kind` as a native window and resolve with its result. */
   openKindForResult<T>(kind: string, inputs: Record<string, unknown>, fallback: T): Promise<T>;
   close(id: number, result?: unknown): void;
-  hasOpenDialogs(): boolean;
   openClone(): void;
   openSettings(): void;
   openMergeBranch(repoName: string): void;
@@ -63,39 +59,4 @@ export interface DialogsApi {
     message: string,
     opts?: { initialValue?: string; placeholder?: string },
   ): Promise<string | null>;
-}
-
-/** One open dialog: component class + its inputs. */
-export interface DialogEntry {
-  /** Monotonic id — stable across stack mutations (used for `track`). */
-  readonly id: number;
-  readonly component: Type<unknown>;
-  /** Extra inputs forwarded to the component (besides dialogId/cascadeLevel). */
-  readonly inputs: Readonly<Record<string, unknown>>;
-}
-
-/** Push a dialog on top of the stack. */
-export function pushEntry(
-  stack: readonly DialogEntry[],
-  entry: DialogEntry,
-): readonly DialogEntry[] {
-  return [...stack, entry];
-}
-
-/** Remove a dialog by id (no-op when absent). */
-export function removeEntry(
-  stack: readonly DialogEntry[],
-  id: number,
-): readonly DialogEntry[] {
-  return stack.some((e) => e.id === id) ? stack.filter((e) => e.id !== id) : stack;
-}
-
-/** Cascade level (= stack index) of a dialog; -1 when not open. */
-export function cascadeLevelOf(stack: readonly DialogEntry[], id: number): number {
-  return stack.findIndex((e) => e.id === id);
-}
-
-/** The topmost dialog (`undefined` on an empty stack). */
-export function topEntry(stack: readonly DialogEntry[]): DialogEntry | undefined {
-  return stack[stack.length - 1];
 }
