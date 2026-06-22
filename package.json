@@ -1,6 +1,6 @@
 {
   "name": "devdeck",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "private": true,
   "description": "DevDeck - Tauri 2 + Angular desktop app for managing local development services",
   "scripts": {
