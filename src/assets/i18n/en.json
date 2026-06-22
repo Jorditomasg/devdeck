@@ -117,6 +117,7 @@
     "rescan_btn": "Re-scan workspace",
     "clone_btn": "Clone new repository",
     "settings_btn": "Open settings",
+    "settings_btn_update": "Update available — open settings to install",
     "global_log_btn": "Open Global Log in Window",
     "docker_profile_checkbox": "Check to auto-start this service\nwhen you press Start on the repo card.\nSaved in the active profile.",
     "mark_danger_off": "Mark this environment as dangerous",
