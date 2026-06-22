@@ -98,7 +98,16 @@ jobs:
 
       # Produces src-tauri/target/release/bundle/nsis/
       #   "DevDeck_<version>_x64-setup.exe"
+      # `createUpdaterArtifacts: true` makes `tauri build` emit + sign the
+      # updater artifacts at the end of the bundle, so the signing key must be
+      # in THIS step's env or the build fails ("public key found, but no
+      # private key"). The .sig produced here is discarded — only `*-setup.exe`
+      # is uploaded, and sign-and-release regenerates the .sig over the
+      # SignPath-signed installer.
       - name: Build Tauri app (NSIS installer)
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ''
         run: npm run tauri build
 
       - name: Verify installer exists

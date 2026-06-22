@@ -4,7 +4,9 @@
 //! user's Settings override (`AppConfig::terminal_shell`); `detect_shells`
 //! lists the shells found on this machine for the Settings picker.
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
+#[cfg(unix)]
+use std::path::Path;
 
 use serde::Serialize;
 
