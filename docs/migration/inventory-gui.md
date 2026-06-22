@@ -1,4 +1,4 @@
-# GUI Feature Inventory — DevOps Manager (Python/customtkinter → Angular + Tauri 2 migration contract)
+# GUI Feature Inventory — DevDeck (Python/customtkinter → Angular + Tauri 2 migration contract)
 
 > **Purpose**: Exhaustive functional spec of the current GUI layer. Angular implementation agents
 > will NOT read the Python source — every behavior listed here is a migration requirement.
@@ -54,7 +54,7 @@
 Source: `gui/app.py` — class `DevOpsManagerApp(ProfileManagerMixin, ctk.CTk)` (app.py:43).
 
 ### Window basics
-- Title: `"DevOps Manager"`; initial geometry `1300x900`; min size `1000x650` (app.py:99-101).
+- Title: `"DevDeck"`; initial geometry `1300x900`; min size `1000x650` (app.py:99-101).
 - Dark appearance mode + "blue" CTk theme set BEFORE window creation (app.py:47-48).
 - **Anti white-flash**: window starts at `alpha 0.0` (app.py:50) and only becomes visible
   (`alpha 1.0`) after the full UI is built and repos scanned (app.py:164-166). Tauri equivalent:
@@ -69,7 +69,7 @@ Source: `gui/app.py` — class `DevOpsManagerApp(ProfileManagerMixin, ctk.CTk)` 
 ### Startup sequence (app.py:44-170)
 1. Set theme, create window invisible.
 2. Resolve workspace dir (constructor arg or app dir), load settings from
-   `devops_manager_config.json` via cached config loader (app.py:719-727).
+   `devdeck_config.json` via cached config loader (app.py:719-727).
 3. Resolve active workspace group (`core.config_manager.get_active_group`), default `"Default"`.
 4. Per-group last profile: settings key `last_profile_by_group` (dict group→profile name), with
    one-time migration from legacy `last_profile` for the Default group (app.py:83-89).
@@ -118,7 +118,7 @@ Fixed-height frame (`theme.G.topbar_height` = 56, `fg=theme.C.app`, no propagate
 buttons are packed FIRST so they reserve space; the path label fills the remainder (app.py:200-202).
 
 ### Left section
-- Logo label: `"🚀 DevOps Manager"`, font h1 bold, `text_primary` (app.py:204-207).
+- Logo label: `"🚀 DevDeck"`, font h1 bold, `text_primary` (app.py:204-207).
 - **Workspace path label** (app.py:209-217):
   - Shows current workspace dir, mono base font, accent color, `hand2` cursor.
   - Click (Button-1) → opens the workspace folder in the OS file explorer
@@ -1026,7 +1026,7 @@ Rows:
    minimize-to-tray behavior (§25).
 4. **Quick access** (`shortcut_title`): OS-adaptive button — Windows `btn.create_shortcut_win` /
    Linux `btn.create_shortcut_linux` (`blue`, width 260) with matching tooltip.
-   - Windows (:202-221, 279-370): creates `DevOps Manager.lnk` on the Desktop via raw COM
+   - Windows (:202-221, 279-370): creates `DevDeck.lnk` on the Desktop via raw COM
      IShellLink ctypes (target `wscript.exe /nologo run.vbs`, icon, workdir); success info shows
      the path; COM errors raise localized `shortcut_err_link/qi/save` with HRESULT.
    - Linux (:223-277): writes a `.desktop` entry (Exec=run.sh, icon, `Terminal=false`) into
@@ -1168,7 +1168,7 @@ On window `<Unmap>` where `state == 'iconic'` AND setting `minimize_to_tray` is 
 ### Tray status loop (`_do_update_tray_status`, app.py:1008-1040) — every 5000 ms
 - Computes running count; switches the app/window/dialog icons red↔green on transition
   (`_apply_window_icon` also walks open CTkToplevels, app.py:992-1006).
-- Updates the tray image and tooltip: `"DevOps Manager — {running}/{total} corriendo"`
+- Updates the tray image and tooltip: `"DevDeck — {running}/{total} corriendo"`
   (hardcoded Spanish — flag for i18n).
 
 ### Tray menu (`_build_tray_menu`, app.py:1042-1064) — built dynamically each open
@@ -1254,7 +1254,7 @@ dropdown, and apply it (`_skip_dirty_check=True`).
 Summary of the flows spread across §2, §4, §24, §26:
 
 - Groups = named sets of directories; exactly one is active. Persisted in
-  `devops_manager_config.json` (`workspace_groups`, `active_group`) via `core.config_manager`.
+  `devdeck_config.json` (`workspace_groups`, `active_group`) via `core.config_manager`.
 - Topbar swap rule: >1 group OR active group with >1 path → group combo replaces the path label.
 - Selecting a group: persists, rescans across ALL its paths (repos deduped by path, sorted by
   name), then loads that group's own last profile.
@@ -1536,7 +1536,7 @@ the main thread. All `winfo_exists()` guards correspond to "component still moun
 
 ## 34. Persistence touched by the GUI
 
-All in `devops_manager_config.json` (single file, mtime-cached reads via
+All in `devdeck_config.json` (single file, mtime-cached reads via
 `_load_config_cached`; writers must invalidate the cache):
 
 | Key | Written by | Content |

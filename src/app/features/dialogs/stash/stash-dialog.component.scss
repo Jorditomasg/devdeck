@@ -1,0 +1,100 @@
+// Stash-management dialog — tabbed (Manage / Logs), paginated stash table.
+@use '../shared/controls' as c;
+@use '../../../../styles/mixins' as mx;
+
+.stash {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.stash__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.stash__section {
+  @include c.section;
+}
+
+.stash__section-title {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-md);
+  font-weight: 700;
+}
+
+.stash__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.stash__input {
+  @include c.text-input;
+  flex: 1 1 180px;
+  min-width: 160px;
+}
+
+.stash__check {
+  @include c.checkbox-row;
+}
+
+// -- Stash table --------------------------------------------------------------
+
+.stash__table-wrap {
+  border: var(--geo-border-width) solid var(--color-border-subtle);
+  border-radius: var(--geo-corner-panel);
+  overflow: hidden;
+}
+
+.stash__table {
+  @include c.data-table;
+}
+
+.stash__actions-head {
+  text-align: right;
+}
+
+.stash__name {
+  @include mx.ellipsis;
+  display: inline-block;
+  max-width: 300px;
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-md);
+  vertical-align: middle;
+}
+
+.stash__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.stash__empty {
+  margin: 0;
+  padding: 20px;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+// -- Logs tab -----------------------------------------------------------------
+
+.stash__log {
+  @include c.mono-textarea;
+  min-height: 260px;
+  max-height: 420px;
+  margin: 0;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
+
+.stash__log-empty {
+  margin: 0;
+  padding: 32px;
+  text-align: center;
+  color: var(--color-text-muted);
+}

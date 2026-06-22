@@ -1,22 +1,20 @@
 //! Config commands (ipc-contract.md §2.5) — persistence through
-//! `ConfigStore` (atomic write-through, no mtime gymnastics) plus the
-//! one-shot v1 migration (#36, architecture-v2.md §6).
+//! `ConfigStore` (atomic write-through, no mtime gymnastics).
 //!
 //! `AppConfig` / `RepoState` / `WorkspaceGroup` keep their v1 snake_case
 //! wire keys verbatim (ipc-contract.md §1.2 deliberate exceptions) — they
 //! are persisted v1-compatible documents.
 
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use tauri::State;
 
 use super::error::CmdResult;
 use crate::config::{
-    self, AppConfig, MigrationReport, RepoState, WorkspaceGroup, DEFAULT_GROUP_NAME,
-    SENTINEL_NOT_SELECTED,
+    self, AppConfig, RepoState, WorkspaceGroup, DEFAULT_GROUP_NAME, SENTINEL_NOT_SELECTED,
 };
-use crate::state::{default_v1_candidates, AppState};
+use crate::state::AppState;
 
 /// #23 `get_app_config` → `AppConfig` (sentinels normalized on load;
 /// v1 keys accepted forever).
@@ -185,45 +183,4 @@ pub async fn apply_environment(
 ) -> CmdResult<()> {
     config::write_active_environment(&writer_type, Path::new(&target_file), &profile, &content)?;
     Ok(())
-}
-
-/// #36 `migrate_from_v1 { v1Root? }` → `MigrationReport | null`.
-///
-/// - `v1Root` given (folder-picker fallback, architecture-v2.md §6 step 1):
-///   run the migrator against that root explicitly.
-/// - `v1Root` omitted: deliver the report of the probe that already ran
-///   during `lib.rs` setup (taken once — later calls return `null`); when
-///   no probe ran (e.g. config existed), re-probe the default candidates.
-///
-/// `null` = nothing to migrate / already migrated. The migrator itself is
-/// idempotent — it no-ops once `config.json` exists.
-#[tauri::command]
-pub async fn migrate_from_v1(
-    state: State<'_, AppState>,
-    v1_root: Option<String>,
-) -> CmdResult<Option<MigrationReport>> {
-    let profiles_dest = config::default_profiles_dir()?;
-
-    if let Some(root) = v1_root {
-        return Ok(config::migrate_from_v1(
-            &state.config,
-            Path::new(&root),
-            &profiles_dest,
-        )?);
-    }
-
-    // No explicit root: hand over the setup-time probe result, if any.
-    if let Ok(mut pending) = state.pending_migration.lock() {
-        if let Some(report) = pending.take() {
-            return Ok(Some(report));
-        }
-    }
-
-    // Nothing pending — probe the default candidates (no-op when already
-    // migrated; `find_v1_install` misses → nothing to migrate).
-    let candidates: Vec<PathBuf> = default_v1_candidates();
-    match config::find_v1_install(&candidates) {
-        Some(root) => Ok(config::migrate_from_v1(&state.config, &root, &profiles_dest)?),
-        None => Ok(None),
-    }
 }

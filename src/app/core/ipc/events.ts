@@ -8,6 +8,8 @@ import { Injectable } from '@angular/core';
 
 import { TauriBridge, type UnlistenFn } from './tauri-bridge';
 import type {
+  AppConfig,
+  DialogResolvedEvent,
   DockerStatusEvent,
   GitBadgeEvent,
   ScanProgressEvent,
@@ -42,6 +44,17 @@ export const EVT = {
   appCloseRequested: 'app://close-requested',
   /** events.rs `UPDATE_PROGRESS` — download progress during install_update */
   updateProgress: 'update://progress',
+  /**
+   * events.rs `DIALOG_RESOLVED` — a native dialog window settled. Payload
+   * `{ token, result }`; `result` is null when cancelled. See
+   * docs/migration/dialogs-as-windows.md.
+   */
+  dialogResolved: 'dialog://resolved',
+  /**
+   * events.rs `CONFIG_CHANGED` — the persisted `AppConfig` changed (single
+   * `ConfigStore::save` choke point). Every window's `SettingsStore` re-syncs.
+   */
+  configChanged: 'config://changed',
 } as const;
 
 /** Union of all wire event names. */
@@ -104,6 +117,25 @@ export class IpcEvents {
     handler: (event: UpdateProgressEvent) => void,
   ): Promise<UnlistenFn> {
     return this.bridge.listen(EVT.updateProgress, handler);
+  }
+
+  /**
+   * A native dialog window resolved. Openers filter by their own `token` and
+   * resolve their awaiting promise (`result === null` → registered fallback).
+   * See docs/migration/dialogs-as-windows.md.
+   */
+  onDialogResolved(
+    handler: (event: DialogResolvedEvent) => void,
+  ): Promise<UnlistenFn> {
+    return this.bridge.listen(EVT.dialogResolved, handler);
+  }
+
+  /**
+   * The persisted config changed (any window). Payload is the full new
+   * `AppConfig`; `SettingsStore` replaces its state so every window re-syncs.
+   */
+  onConfigChanged(handler: (config: AppConfig) => void): Promise<UnlistenFn> {
+    return this.bridge.listen(EVT.configChanged, handler);
   }
 
   /**

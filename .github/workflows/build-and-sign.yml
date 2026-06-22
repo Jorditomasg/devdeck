@@ -1,7 +1,7 @@
 # =============================================================================
 # DevDeck — Build, Sign & Release (Tauri 2 + Angular)
 # =============================================================================
-# Successor of Jorditomasg/devops-manager's pipeline. Ships a self-contained
+# Successor of Jorditomasg/devdeck's pipeline. Ships a self-contained
 # NSIS installer produced by `tauri build`, signed end-to-end via SignPath —
 # the released asset is the complete, installable, SIGNED artifact.
 #

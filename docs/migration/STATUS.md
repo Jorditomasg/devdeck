@@ -1,4 +1,4 @@
-# Engineering Status — DevOps Manager v2
+# Engineering Status — DevDeck v2
 
 Last updated: 2026-06-12. Companion docs: [`architecture-v2.md`](architecture-v2.md),
 [`ipc-contract.md`](ipc-contract.md), [`ci-v2.md`](ci-v2.md),

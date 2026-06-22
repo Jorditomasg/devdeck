@@ -407,7 +407,15 @@
       "done_popped": "✓ Stash popped.",
       "done_dropped": "✓ Stash dropped.",
       "failed": "✗ {msg}",
-      "log_label": "📋 Progress"
+      "log_label": "📋 Progress",
+      "col_stash": "Stash",
+      "col_actions": "Actions",
+      "tab_manage": "Manage",
+      "tab_logs": "Logs",
+      "logs_empty": "No activity yet.",
+      "tip_apply": "Apply (keep the stash)",
+      "tip_pop": "Apply and drop the stash",
+      "tip_drop": "Discard this stash permanently"
     },
     "prompt": {
       "rename_title": "Rename branch",
@@ -441,7 +449,18 @@
       "done_published": "✓ Branch published.",
       "done_deleted": "✓ Branch deleted.",
       "failed": "✗ {msg}",
-      "log_label": "📋 Progress"
+      "log_label": "📋 Progress",
+      "empty": "No local branches.",
+      "col_branch": "Branch",
+      "col_actions": "Actions",
+      "tab_manage": "Manage",
+      "tab_logs": "Logs",
+      "logs_empty": "No activity yet.",
+      "tip_checkout": "Switch to this branch",
+      "tip_rename": "Rename this branch",
+      "tip_publish": "Publish to origin (push + track)",
+      "tip_delete_remote": "Delete this branch on origin",
+      "tip_delete_local": "Delete this local branch"
     },
     "merge": {
       "title": "Merge branches",
@@ -597,6 +616,10 @@
   },
   "badge": {
     "danger_env": "⚠ ENV"
+  },
+  "pagination": {
+    "prev": "Previous page",
+    "next": "Next page"
   },
   "placeholder": {
     "search": "🔍 Search...",

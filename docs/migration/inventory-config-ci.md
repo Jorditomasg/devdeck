@@ -1,17 +1,17 @@
 # Inventory — Configuration Formats, Packaging & CI/CD
 
-**Purpose**: exhaustive contract for the Tauri 2 (Rust + Angular) rewrite of DevOps Manager.
+**Purpose**: exhaustive contract for the Tauri 2 (Rust + Angular) rewrite of DevDeck.
 This document stands alone: it captures every config schema, design token, translation key,
 persistence format, script behavior and CI/CD detail of the current Python implementation.
 
-Sources inventoried (all paths relative to repo root `devops-manager/`):
+Sources inventoried (all paths relative to repo root `devdeck/`):
 
 | Area | Files |
 |---|---|
 | Repo-type definitions | `config/repo_types/{angular,docker-infra,maven-lib,nx-workspace,react,spring-boot}.yml` |
 | Translations | `config/translations/en_EN.yml`, `config/translations/es_ES.yml` |
 | UI theme | `config/ui_theme.yml` (merged over defaults in `gui/theme.py`) |
-| User config | `devops_manager_config.json` (repo root, gitignored), `.devops-profiles/*.json` (gitignored) |
+| User config | `devdeck_config.json` (repo root, gitignored), `.devops-profiles/*.json` (gitignored) |
 | CI/CD | `.github/workflows/build-and-sign.yml`, `installer.iss` |
 | Scripts | `scripts/win/*`, `scripts/linux/*` |
 | Toolchain | `pyproject.toml`, `.python-version`, `uv.lock`, `.gitignore` |
@@ -347,7 +347,7 @@ The v1 dead keys and hardcodes that this doc previously flagged are now resolved
 - Fallback: missing key in the active language falls back to the always-loaded `en_EN`
   catalog (`core/i18n.py:21`); a missing key everywhere returns the key itself.
 - Language selection: `init_i18n(language_code)` called once in `main.py` before any widget;
-  code persisted under `"language"` in `devops_manager_config.json`; change requires restart.
+  code persisted under `"language"` in `devdeck_config.json`; change requires restart.
 - Many values embed emoji/symbols that are part of the UX (e.g. `btn.start: "▶ Start"`,
   `badge.danger_env: "⚠ ENV"`) — port them verbatim.
 
@@ -945,15 +945,15 @@ Consumed via `theme.btn_style(variant, height, width, font_size)`.
 
 Three persistence locations, **all rooted in the application directory** (not OS config dirs):
 
-1. `devops_manager_config.json` — app settings + per-repo state (gitignored).
+1. `devdeck_config.json` — app settings + per-repo state (gitignored).
 2. `.devops-profiles/` — one JSON file per saved profile, per-group subdirs (gitignored).
-3. `%TEMP%/devops_manager_instances/<pid>.json` — single-instance registry (runtime only).
+3. `%TEMP%/devdeck_instances/<pid>.json` — single-instance registry (runtime only).
 
 > Migration note: Tauri should map (1) and (2) to `app_config_dir`/`app_data_dir`; today the
 > location next to the executable means a compiled install under Program Files would try to
 > write there.
 
-### 4.1 `devops_manager_config.json` — full schema
+### 4.1 `devdeck_config.json` — full schema
 
 Read through an mtime-invalidated in-memory cache (`core/config_manager.py:14-56`); every
 write must invalidate the cache. All keys are top-level and optional.
@@ -1048,7 +1048,7 @@ key is rejected (`profile_manager.py:113-120`). Import clones missing repos (usi
 ### 4.3 Single-instance registry
 
 `core/instance_manager.py`: each instance writes
-`<TMP>/devops_manager_instances/<pid>.json` (`instance_manager.py:22,38-39`) containing at
+`<TMP>/devdeck_instances/<pid>.json` (`instance_manager.py:22,38-39`) containing at
 least `{workspace, pid, port}` and listens on an ephemeral loopback port. Protocol verbs:
 `PING→PONG`, `SHUTDOWN→OK` (`instance_manager.py:24-27`). Stale entries are pruned when the
 port no longer answers. Conflict UI = `gui/dialogs/instance_conflict.py`
@@ -1086,15 +1086,15 @@ handler in `main.py:17-36`; gitignored.
      --windows-console-mode=hide
      --windows-icon-from-ico=assets\icons\icon_red.ico
      --output-dir=dist
-     --output-filename=devops-manager
+     --output-filename=devdeck
      --assume-yes-for-downloads
      main.py
    ```
 
    Output: `dist/main.dist/` folder (standalone dist, NOT onefile).
-5. Package: `Compress-Archive dist\main.dist\devops-manager.exe → dist\devops-manager-unsigned.zip`
+5. Package: `Compress-Archive dist\main.dist\devdeck.exe → dist\devdeck-unsigned.zip`
    (`build-and-sign.yml:40-45`) — **only the .exe is zipped, not the dist folder**.
-6. `actions/upload-artifact@v4` as `devops-manager-unsigned`; the step's `artifact-id` is
+6. `actions/upload-artifact@v4` as `devdeck-unsigned`; the step's `artifact-id` is
    exported as job output (`build-and-sign.yml:11-12,47-52`).
 
 ### 5.3 Job `sign` (ubuntu-latest, `build-and-sign.yml:55-81`)
@@ -1105,7 +1105,7 @@ Uses `SignPath/github-action-submit-signing-request@v1` (`build-and-sign.yml:60-
 |---|---|
 | `api-token` | secret **`SIGNPATH_API_TOKEN`** (only secret in the pipeline) |
 | `organization-id` | `566b6bce-16ea-4c67-80a2-1654b3efdef4` |
-| `project-slug` | `devops-manager` |
+| `project-slug` | `devdeck` |
 | `signing-policy-slug` | `release-signing` |
 | `artifact-configuration-slug` | `exe` |
 | `github-artifact-id` | `${{ needs.build.outputs.artifact-id }}` |
@@ -1113,15 +1113,15 @@ Uses `SignPath/github-action-submit-signing-request@v1` (`build-and-sign.yml:60-
 | `output-artifact-directory` | `signed/` |
 
 SignPath pulls the unsigned GitHub artifact (zip), signs the exe per the `exe` artifact
-configuration, and the action writes the signed file to `signed/devops-manager.exe`.
+configuration, and the action writes the signed file to `signed/devdeck.exe`.
 Then:
-- `actions/upload-artifact@v4` → `devops-manager-signed`
-- `softprops/action-gh-release@v2` (only on tag refs) publishes `signed/devops-manager.exe`
+- `actions/upload-artifact@v4` → `devdeck-signed`
+- `softprops/action-gh-release@v2` (only on tag refs) publishes `signed/devdeck.exe`
   as a GitHub Release asset (`build-and-sign.yml:77-81`).
 
 ### 5.4 ⚠ Pipeline findings (verify before replicating)
 
-1. **The released artifact is a bare `devops-manager.exe` from a `--standalone` (multi-file)
+1. **The released artifact is a bare `devdeck.exe` from a `--standalone` (multi-file)
    build.** Nuitka standalone exes require the surrounding `main.dist/` folder (DLLs,
    `config/`, `assets/`); only the exe is zipped, signed and released. Either the release is
    currently broken for end users, or it is consumed only with a separately distributed
@@ -1137,12 +1137,12 @@ Then:
 
 | Setting | Value |
 |---|---|
-| Defines | `MyAppName "DevOps Manager"`, `MyAppPublisher "Jorditomasg"`, `MyAppURL "https://github.com/Jorditomasg/devops-manager"`, `MyAppExeName "devops-manager.exe"`, `MyAppVersion` default `1.0.0` (overridable via `#ifndef`, `installer.iss:5-7`) |
+| Defines | `MyAppName "DevDeck"`, `MyAppPublisher "Jorditomasg"`, `MyAppURL "https://github.com/Jorditomasg/devdeck"`, `MyAppExeName "devdeck.exe"`, `MyAppVersion` default `1.0.0` (overridable via `#ifndef`, `installer.iss:5-7`) |
 | `AppId` | `{{B7F3A2C1-D4E5-4F6A-8B9C-0D1E2F3A4B5C}` (keep stable for upgrades) |
-| Install dir | `{autopf}\DevOps Manager` (Program Files), `PrivilegesRequired=admin` |
+| Install dir | `{autopf}\DevDeck` (Program Files), `PrivilegesRequired=admin` |
 | Arch | `x64compatible` only, 64-bit install mode |
-| Output | `dist\devops-manager-setup.exe` (`OutputDir=dist`, `OutputBaseFilename=devops-manager-setup`) |
-| Icon | `assets\icons\icon_red.ico`; `UninstallDisplayIcon={app}\devops-manager.exe` |
+| Output | `dist\devdeck-setup.exe` (`OutputDir=dist`, `OutputBaseFilename=devdeck-setup`) |
+| Icon | `assets\icons\icon_red.ico`; `UninstallDisplayIcon={app}\devdeck.exe` |
 | Compression | `lzma`, `SolidCompression=yes`, `WizardStyle=modern` |
 | Languages | English only |
 | Tasks | optional unchecked `desktopicon` |
@@ -1150,7 +1150,7 @@ Then:
 | Icons | Start-menu group + uninstaller + optional desktop icon |
 | Run | post-install optional launch (`nowait postinstall skipifsilent`) |
 
-> Equivalent Tauri NSIS config: productName `DevOps Manager`, publisher `Jorditomasg`,
+> Equivalent Tauri NSIS config: productName `DevDeck`, publisher `Jorditomasg`,
 > perMachine install, x64 only, keep a stable upgrade GUID, desktop-shortcut optional.
 
 ### 5.6 `scripts/build-installer.bat` — REMOVED
@@ -1171,18 +1171,18 @@ desired locally, this is the reference procedure.
 |---|---|
 | `run.vbs` | Silent launcher. Resolves project root via three nested `GetParentFolderName` calls on `WScript.ScriptFullName`; verifies `.venv\Scripts\pythonw.exe` exists (MsgBox error otherwise); `WScript.Shell.Run` with `windowStyle=0` → zero console flash. |
 | `run.bat` | Console launcher: `cd` to root, checks venv, `start "" .venv\Scripts\pythonw.exe main.py`. |
-| `install.bat` | Bootstraps `uv` (PATH → `%USERPROFILE%\.local\bin\uv.exe` → `pip install uv` → PowerShell `irm https://astral.sh/uv/install.ps1`), runs `uv sync`, then creates a desktop shortcut `DevOps Manager.lnk` via PowerShell `WScript.Shell.CreateShortcut`: target `wscript.exe`, argument = quoted `run.vbs` path, icon `assets\icons\icon_red.ico,0`, working dir = root. |
-| `compile.bat` | Activates venv, runs the same Nuitka command as CI (with `tk-inter` plugin, hidden console, icon). Output `dist\main.dist\devops-manager.exe`. |
-| `run-compiled.bat` | `start "" dist\main.dist\devops-manager.exe %*`. |
+| `install.bat` | Bootstraps `uv` (PATH → `%USERPROFILE%\.local\bin\uv.exe` → `pip install uv` → PowerShell `irm https://astral.sh/uv/install.ps1`), runs `uv sync`, then creates a desktop shortcut `DevDeck.lnk` via PowerShell `WScript.Shell.CreateShortcut`: target `wscript.exe`, argument = quoted `run.vbs` path, icon `assets\icons\icon_red.ico,0`, working dir = root. |
+| `compile.bat` | Activates venv, runs the same Nuitka command as CI (with `tk-inter` plugin, hidden console, icon). Output `dist\main.dist\devdeck.exe`. |
+| `run-compiled.bat` | `start "" dist\main.dist\devdeck.exe %*`. |
 
 ### 6.2 Linux (`scripts/linux/`)
 
 | Script | What it does |
 |---|---|
 | `run.sh` | Resolves root from script dir; uses `.venv/bin/python` directly (no `uv run` overhead). TTY detection (`[ -t 1 ]`): attached `exec` from a shell, otherwise `nohup ... &` detached (file-manager / desktop launch). Forwards `"$@"` (workspace path arg). |
-| `install.sh` | Installs `uv` if missing (`curl -LsSf https://astral.sh/uv/install.sh \| sh`), `uv sync`, then writes a `.desktop` entry (`Name=DevOps Manager`, `Exec=<root>/scripts/linux/run.sh`, `Icon=<root>/assets/icons/icon_red.ico`, `Terminal=false`, `Categories=Development;Utility;`) into `~/.local/share/applications/devops-manager.desktop` and onto the Desktop (localized via `xdg-user-dir DESKTOP`), `chmod +x`. |
-| `compile.sh` | Same Nuitka build, WITHOUT `--enable-plugin=tk-inter`, `--windows-console-mode` and icon flags. Output `dist/main.dist/devops-manager`. |
-| `run-compiled.sh` | Requires a workspace path argument; runs `./dist/main.dist/devops-manager "$1" &`. |
+| `install.sh` | Installs `uv` if missing (`curl -LsSf https://astral.sh/uv/install.sh \| sh`), `uv sync`, then writes a `.desktop` entry (`Name=DevDeck`, `Exec=<root>/scripts/linux/run.sh`, `Icon=<root>/assets/icons/icon_red.ico`, `Terminal=false`, `Categories=Development;Utility;`) into `~/.local/share/applications/devdeck.desktop` and onto the Desktop (localized via `xdg-user-dir DESKTOP`), `chmod +x`. |
+| `compile.sh` | Same Nuitka build, WITHOUT `--enable-plugin=tk-inter`, `--windows-console-mode` and icon flags. Output `dist/main.dist/devdeck`. |
+| `run-compiled.sh` | Requires a workspace path argument; runs `./dist/main.dist/devdeck "$1" &`. |
 
 App-side equivalents: Settings → Quick Access recreates the shortcut at runtime (`.lnk` via
 `IShellLink` ctypes on Windows, `.desktop` on Linux) — see `dialog.settings.shortcut_*` keys.
@@ -1196,7 +1196,7 @@ workspace overrides the configured one.
 
 ### 7.1 `pyproject.toml` (19 lines)
 
-- `name = "devops-manager"`, `version = "1.0.0"`, `requires-python = ">=3.13"`
+- `name = "devdeck"`, `version = "1.0.0"`, `requires-python = ">=3.13"`
   (note: `CLAUDE.md` claims >=3.9 — stale; the project file says 3.13).
 - Runtime deps: `customtkinter>=5.2.0`, `PyYAML>=6.0`, `gitpython>=3.1.0`,
   `Pillow>=10.0.0`, `pystray>=0.19.4`.
@@ -1220,7 +1220,7 @@ gitpython → `git2` crate or git CLI; pystray/Pillow → Tauri tray API; PyYAML
 ### 7.4 `.gitignore` (31 lines)
 
 Ignored: `__pycache__/`, `*.py[cod]`; venvs (`.env`, `.venv`, `env/`, `venv/`);
-**user configs** (`.devops-profiles/`, `devops_manager_config.json`); logs
+**user configs** (`.devops-profiles/`, `devdeck_config.json`); logs
 (`error.log`, `error.log.*`); IDEs (`.vscode/`, `.idea/`); AI artifacts
 (`.agents/`, `.claude/`, `skills-lock.json`); translation caches (`*.cache.json`);
 build output (`dist/`).

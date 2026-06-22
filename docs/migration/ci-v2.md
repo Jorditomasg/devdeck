@@ -1,4 +1,4 @@
-# CI/CD — DevOps Manager v2 (`.github/workflows/v2-build-and-sign.yml`)
+# CI/CD — DevDeck v2 (`.github/workflows/v2-build-and-sign.yml`)
 
 Pipeline for the Tauri 2 + Angular rewrite in `v2/`. The v1 workflow
 (`build-and-sign.yml`) is untouched and keeps serving `v1` tags until retired.
@@ -13,7 +13,7 @@ Triggers: tag push `v2.*`, or `workflow_dispatch` (optional `release-tag` input
 | `build` | windows-latest | Node LTS + Rust stable (npm + cargo caches) → `npm ci` in `v2/` → non-blocking `tsc --noEmit` → `ng build` (required before `cargo test`: tauri-build validates `frontendDist`) → non-blocking `cargo test` → `npm run tauri build` → upload unsigned NSIS installer as GitHub artifact |
 | `sign-and-release` | ubuntu-latest | SignPath signs the installer (by artifact id, `wait-for-completion`) → upload signed artifact → `softprops/action-gh-release` attaches the **signed** installer (published on tags, draft on dispatch) |
 
-Output: `DevOps Manager_<version>_x64-setup.exe` from
+Output: `DevDeck_<version>_x64-setup.exe` from
 `v2/src-tauri/target/release/bundle/nsis/` — a self-contained NSIS installer.
 
 **This fixes v1's packaging bug** (inventory-config-ci.md §5.4): v1 released a
@@ -28,7 +28,7 @@ asset could not run. In v2 the signed release asset is the complete installer.
 | `SIGNPATH_V2_ARTIFACT_CONFIG` | repo variable (optional) | Overrides the SignPath artifact-configuration slug. Default: `installer` |
 
 SignPath constants (same as v1): organization `566b6bce-16ea-4c67-80a2-1654b3efdef4`,
-project `devops-manager`, policy `release-signing`.
+project `devdeck`, policy `release-signing`.
 
 ## ⚠ SignPath artifact configuration
 
@@ -77,7 +77,7 @@ installer as a workflow artifact.
 cd v2
 npm install                 # or: npm ci (once the lockfile is committed)
 npm run tauri build         # ng build + cargo build --release + NSIS bundling
-# installer: v2/src-tauri/target/release/bundle/nsis/DevOps Manager_<version>_x64-setup.exe
+# installer: v2/src-tauri/target/release/bundle/nsis/DevDeck_<version>_x64-setup.exe
 
 # dev loop
 npm run tauri dev           # ng serve on :4200 + tauri window

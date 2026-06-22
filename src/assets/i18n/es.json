@@ -407,7 +407,15 @@
       "done_popped": "✓ Stash recuperado (pop).",
       "done_dropped": "✓ Stash eliminado.",
       "failed": "✗ {msg}",
-      "log_label": "📋 Progreso"
+      "log_label": "📋 Progreso",
+      "col_stash": "Stash",
+      "col_actions": "Acciones",
+      "tab_manage": "Gestión",
+      "tab_logs": "Logs",
+      "logs_empty": "Sin actividad todavía.",
+      "tip_apply": "Aplicar (conservar el stash)",
+      "tip_pop": "Aplicar y eliminar el stash",
+      "tip_drop": "Descartar este stash permanentemente"
     },
     "prompt": {
       "rename_title": "Renombrar rama",
@@ -441,7 +449,18 @@
       "done_published": "✓ Rama publicada.",
       "done_deleted": "✓ Rama borrada.",
       "failed": "✗ {msg}",
-      "log_label": "📋 Progreso"
+      "log_label": "📋 Progreso",
+      "empty": "No hay ramas locales.",
+      "col_branch": "Rama",
+      "col_actions": "Acciones",
+      "tab_manage": "Gestión",
+      "tab_logs": "Logs",
+      "logs_empty": "Sin actividad todavía.",
+      "tip_checkout": "Cambiar a esta rama",
+      "tip_rename": "Renombrar esta rama",
+      "tip_publish": "Publicar en origin (push + tracking)",
+      "tip_delete_remote": "Borrar esta rama en origin",
+      "tip_delete_local": "Borrar esta rama local"
     },
     "merge": {
       "title": "Mergear ramas",
@@ -597,6 +616,10 @@
   },
   "badge": {
     "danger_env": "⚠ ENV"
+  },
+  "pagination": {
+    "prev": "Página anterior",
+    "next": "Página siguiente"
   },
   "placeholder": {
     "search": "🔍 Buscar...",

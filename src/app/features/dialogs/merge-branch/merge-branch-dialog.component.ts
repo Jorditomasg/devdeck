@@ -29,6 +29,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  afterNextRender,
   computed,
   inject,
   input,
@@ -349,7 +350,10 @@ export class MergeBranchDialogComponent extends DialogBase {
 
   constructor() {
     super();
-    void this.loadBranches();
+    // Inputs (repoName) are bound by the host AFTER construction, so defer the
+    // first load to after the first render — otherwise repoPath() is empty and
+    // the branch combos come back blank.
+    afterNextRender(() => void this.loadBranches());
   }
 
   // -- selector logic (§20) -----------------------------------------------------

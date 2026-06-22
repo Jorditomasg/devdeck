@@ -6,6 +6,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  afterNextRender,
   computed,
   inject,
   input,
@@ -17,73 +18,143 @@ import { TranslationService } from '../../../core/i18n/translation.service';
 import { IpcCommands } from '../../../core/ipc/commands';
 import type { OpOutput, StashEntry } from '../../../core/ipc/tauri.types';
 import { ReposStore } from '../../../core/state/repos.store';
-import { ButtonComponent, DialogShellComponent } from '../../../ui';
+import {
+  ButtonComponent,
+  DialogShellComponent,
+  PaginationComponent,
+  type TabDef,
+  TabsComponent,
+  TooltipDirective,
+  clampPage,
+  pageSlice,
+} from '../../../ui';
 import { DialogBase } from '../dialog-base';
 import { stashEntryLabel } from './stash.logic';
+
+/** Rows shown per page in the stash table (design: 12). */
+const PAGE_SIZE = 12;
 
 @Component({
   selector: 'app-stash-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ButtonComponent, DialogShellComponent, TPipe],
+  styleUrl: './stash-dialog.component.scss',
+  imports: [
+    ButtonComponent,
+    DialogShellComponent,
+    PaginationComponent,
+    TabsComponent,
+    TooltipDirective,
+    TPipe,
+  ],
   template: `
     <ui-dialog-shell
       [dialogTitle]="'dialog.stash.title' | t: { name: repoName() }"
-      width="560px"
+      width="620px"
       [cascadeLevel]="cascadeLevel()"
       (closed)="closeSelf()"
     >
       <div class="stash">
-        <section class="stash__section">
-          <h3 class="stash__section-title">{{ 'dialog.stash.add_section' | t }}</h3>
-          <div class="stash__row">
-            <input
-              #nameInput
-              class="stash__input"
-              type="text"
-              [placeholder]="'dialog.stash.name_placeholder' | t"
-              [value]="name()"
-              [disabled]="busy()"
-              (input)="name.set(nameInput.value)"
-            />
-            <label class="stash__check">
-              <input
-                type="checkbox"
-                [checked]="includeUntracked()"
-                [disabled]="busy()"
-                (change)="includeUntracked.set(!includeUntracked())"
-              />
-              {{ 'dialog.stash.include_untracked' | t }}
-            </label>
-            <ui-button variant="blue" [loading]="busy()" (clicked)="add()">
-              {{ (busy() ? 'dialog.stash.btn_adding' : 'dialog.stash.btn_add') | t }}
-            </ui-button>
-          </div>
-        </section>
+        <ui-tabs [tabs]="tabs()" [(active)]="activeTab" />
 
-        <section class="stash__section">
-          <h3 class="stash__section-title">{{ 'dialog.stash.entries_section' | t }}</h3>
-          @if (entries().length === 0) {
-            <p class="stash__empty">{{ 'dialog.stash.empty' | t }}</p>
-          } @else {
-            @for (entry of entries(); track entry.index) {
-              <div class="stash__entry">
-                <span class="stash__entry-label">{{ label(entry) }}</span>
-                <ui-button size="sm" variant="success" [disabled]="busy()" (clicked)="apply(entry)">
-                  {{ 'dialog.stash.btn_apply' | t }}
-                </ui-button>
-                <ui-button size="sm" variant="blue" [disabled]="busy()" (clicked)="pop(entry)">
-                  {{ 'dialog.stash.btn_pop' | t }}
-                </ui-button>
-                <ui-button size="sm" variant="danger-deep" [disabled]="busy()" (clicked)="drop(entry)">
-                  {{ 'dialog.stash.btn_drop' | t }}
-                </ui-button>
-              </div>
+        @switch (activeTab()) {
+          @case ('manage') {
+            <div class="stash__panel">
+              <section class="stash__section">
+                <h3 class="stash__section-title">{{ 'dialog.stash.add_section' | t }}</h3>
+                <div class="stash__row">
+                  <input
+                    #nameInput
+                    class="stash__input"
+                    type="text"
+                    [placeholder]="'dialog.stash.name_placeholder' | t"
+                    [value]="name()"
+                    [disabled]="busy()"
+                    (input)="name.set(nameInput.value)"
+                  />
+                  <label class="stash__check">
+                    <input
+                      type="checkbox"
+                      [checked]="includeUntracked()"
+                      [disabled]="busy()"
+                      (change)="includeUntracked.set(!includeUntracked())"
+                    />
+                    {{ 'dialog.stash.include_untracked' | t }}
+                  </label>
+                  <ui-button variant="blue" [loading]="busy()" (clicked)="add()">
+                    {{ (busy() ? 'dialog.stash.btn_adding' : 'dialog.stash.btn_add') | t }}
+                  </ui-button>
+                </div>
+              </section>
+
+              @if (entries().length === 0) {
+                <p class="stash__empty">{{ 'dialog.stash.empty' | t }}</p>
+              } @else {
+                <div class="stash__table-wrap">
+                  <table class="stash__table">
+                    <thead>
+                      <tr>
+                        <th>{{ 'dialog.stash.col_stash' | t }}</th>
+                        <th class="stash__actions-head">{{ 'dialog.stash.col_actions' | t }}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (entry of visible(); track entry.index) {
+                        <tr>
+                          <td><span class="stash__name">{{ label(entry) }}</span></td>
+                          <td>
+                            <div class="stash__actions">
+                              <ui-button
+                                size="sm"
+                                variant="success"
+                                [uiTooltip]="'dialog.stash.tip_apply' | t"
+                                [disabled]="busy()"
+                                (clicked)="apply(entry)"
+                              >
+                                ⬇ {{ 'dialog.stash.btn_apply' | t }}
+                              </ui-button>
+                              <ui-button
+                                size="sm"
+                                variant="blue"
+                                [uiTooltip]="'dialog.stash.tip_pop' | t"
+                                [disabled]="busy()"
+                                (clicked)="pop(entry)"
+                              >
+                                ⤓ {{ 'dialog.stash.btn_pop' | t }}
+                              </ui-button>
+                              <ui-button
+                                size="sm"
+                                variant="danger-deep"
+                                [uiTooltip]="'dialog.stash.tip_drop' | t"
+                                [disabled]="busy()"
+                                (clicked)="drop(entry)"
+                              >
+                                🗑 {{ 'dialog.stash.btn_drop' | t }}
+                              </ui-button>
+                            </div>
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+                <ui-pagination
+                  [(page)]="page"
+                  [total]="entries().length"
+                  [pageSize]="pageSize"
+                  [prevLabel]="'pagination.prev' | t"
+                  [nextLabel]="'pagination.next' | t"
+                />
+              }
+            </div>
+          }
+          @case ('logs') {
+            @if (logLines().length === 0) {
+              <p class="stash__log-empty">{{ 'dialog.stash.logs_empty' | t }}</p>
+            } @else {
+              <pre class="stash__log">{{ logText() }}</pre>
             }
           }
-        </section>
-
-        <p class="stash__log-label">{{ 'dialog.stash.log_label' | t }}</p>
-        <pre class="stash__log">{{ logText() }}</pre>
+        }
       </div>
 
       <div uiDialogFooter>
@@ -103,13 +174,33 @@ export class StashDialogComponent extends DialogBase {
   protected readonly includeUntracked = signal(true); // default ON (design)
   protected readonly entries = signal<readonly StashEntry[]>([]);
   protected readonly busy = signal(false);
-  private readonly logLines = signal<readonly string[]>([]);
+  protected readonly logLines = signal<readonly string[]>([]);
+
+  protected readonly pageSize = PAGE_SIZE;
+  protected readonly activeTab = signal('manage');
+  protected readonly page = signal(1);
+
+  /** Stash entries on the current page (clamped). */
+  protected readonly visible = computed(() => pageSlice(this.entries(), this.page(), PAGE_SIZE));
 
   protected readonly logText = computed(() => this.logLines().join('\n'));
 
+  /** Tab bar — the Logs label carries the message count once there are any. */
+  protected readonly tabs = computed<readonly TabDef[]>(() => {
+    const count = this.logLines().length;
+    const logs = this.i18n.t('dialog.stash.tab_logs');
+    return [
+      { id: 'manage', label: this.i18n.t('dialog.stash.tab_manage') },
+      { id: 'logs', label: count ? `${logs} (${count})` : logs },
+    ];
+  });
+
   constructor() {
     super();
-    void this.reload();
+    // Inputs (repoName) are bound by the host AFTER construction, so defer the
+    // first load to after the first render — otherwise repoPath() is empty and
+    // the list comes back blank until a mutation triggers a second reload.
+    afterNextRender(() => void this.reload());
   }
 
   protected label(entry: StashEntry): string {
@@ -185,6 +276,8 @@ export class StashDialogComponent extends DialogBase {
   private async reload(): Promise<void> {
     const list = await this.commands.git.stashList(this.repoPath()).catch(() => [] as StashEntry[]);
     this.entries.set(list);
+    // Keep the page valid when the list shrinks (e.g. after a drop/pop).
+    this.page.set(clampPage(this.page(), list.length, PAGE_SIZE));
   }
 
   private repoPath(): string {

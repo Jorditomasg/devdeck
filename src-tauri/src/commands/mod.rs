@@ -11,7 +11,7 @@
 //! - [`detection`] — §2.2 `scan_workspace`
 //! - [`process`] — §2.3 process supervision
 //! - [`git`] — §2.4 git operations
-//! - [`config`] — §2.5 config persistence + §2.5 #36 v1 migration
+//! - [`config`] — §2.5 config persistence
 //! - [`java`] — §2.6 JDK registry
 //! - [`profiles`] — §2.7 profiles
 //! - [`docker`] — §2.8 docker compose
@@ -25,6 +25,7 @@
 pub mod app;
 pub mod config;
 pub mod detection;
+pub mod dialog;
 pub mod docker;
 pub mod error;
 pub mod git;

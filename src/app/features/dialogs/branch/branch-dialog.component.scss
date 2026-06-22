@@ -1,0 +1,125 @@
+// Branch-management dialog — tabbed (Manage / Logs), paginated branch table.
+@use '../shared/controls' as c;
+@use '../../../../styles/mixins' as mx;
+
+.branch {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.branch__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.branch__section {
+  @include c.section;
+}
+
+.branch__section-title {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-md);
+  font-weight: 700;
+}
+
+.branch__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.branch__input {
+  @include c.text-input;
+  flex: 1 1 180px;
+  min-width: 160px;
+}
+
+.branch__sublabel {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-base);
+}
+
+.branch__combo {
+  width: 200px;
+}
+
+.branch__check {
+  @include c.checkbox-row;
+}
+
+.branch__error {
+  @include c.inline-error;
+  margin: 0;
+}
+
+// -- Branch table -------------------------------------------------------------
+
+.branch__table-wrap {
+  border: var(--geo-border-width) solid var(--color-border-subtle);
+  border-radius: var(--geo-corner-panel);
+  overflow: hidden;
+}
+
+.branch__table {
+  @include c.data-table;
+}
+
+.branch__actions-head {
+  text-align: right;
+}
+
+.branch__name {
+  @include mx.ellipsis;
+  display: inline-block;
+  max-width: 260px;
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-md);
+  vertical-align: middle;
+}
+
+.branch__current {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: var(--geo-corner-badge);
+  background-color: var(--color-status-running);
+  color: var(--color-text-white);
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.branch__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.branch__empty {
+  margin: 0;
+  padding: 20px;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+// -- Logs tab -----------------------------------------------------------------
+
+.branch__log {
+  @include c.mono-textarea;
+  min-height: 260px;
+  max-height: 420px;
+  margin: 0;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
+
+.branch__log-empty {
+  margin: 0;
+  padding: 32px;
+  text-align: center;
+  color: var(--color-text-muted);
+}

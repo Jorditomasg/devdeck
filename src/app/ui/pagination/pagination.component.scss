@@ -1,0 +1,43 @@
+// Compact previous/next pager (ui-pagination).
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding-top: 6px;
+}
+
+.pager__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--geo-btn-height-sm);
+  height: var(--geo-btn-height-sm);
+  background-color: var(--color-section);
+  border: var(--geo-border-width) solid var(--color-border-default);
+  border-radius: var(--geo-corner-btn);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-md);
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    opacity 0.15s ease;
+
+  &:hover:not(:disabled) {
+    border-color: var(--color-text-accent-bright);
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+}
+
+.pager__status {
+  min-width: 56px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-base);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}

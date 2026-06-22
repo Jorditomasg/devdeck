@@ -15,7 +15,9 @@ describe('EVT registry', () => {
     expect(EVT.appSingleInstance).toBe('app://single-instance');
     expect(EVT.appCloseRequested).toBe('app://close-requested');
     expect(EVT.updateProgress).toBe('update://progress');
-    expect(Object.values(EVT).length).toBe(8);
+    expect(EVT.dialogResolved).toBe('dialog://resolved');
+    expect(EVT.configChanged).toBe('config://changed');
+    expect(Object.values(EVT).length).toBe(10);
   });
 });
 

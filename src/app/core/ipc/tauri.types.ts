@@ -12,7 +12,7 @@
  * - src-tauri/src/events.rs (event payloads)
  * - src-tauri/src/domain/ (RepoInfo, ServiceStatus, RepoTypeDef.ui)
  * - src-tauri/src/git/types.rs, docker/types.rs, profiles/types.rs,
- *   config/app_config.rs, config/migrate.rs, process/types.rs
+ *   config/app_config.rs, process/types.rs
  */
 
 // ---------------------------------------------------------------------------
@@ -36,7 +36,6 @@ export type AppErrorKind =
   | 'io'
   | 'yaml_parse'
   | 'json_parse'
-  | 'migration'
   | 'no_os_directory'
   | 'git'
   | 'docker'
@@ -369,11 +368,10 @@ export interface WindowState {
 }
 
 /**
- * The application config document — the migrated v1
- * `devops_manager_config.json` schema (inventory-backend.md §8.3,
- * inventory-config-ci.md §4.1) with v1 snake_case keys preserved verbatim.
- * Spanish sentinels are normalized by the Rust reader before this reaches
- * the frontend (architecture-v2.md §6).
+ * The application config document — the v1 config schema
+ * (inventory-backend.md §8.3, inventory-config-ci.md §4.1) with v1
+ * snake_case keys preserved verbatim. Spanish sentinels are normalized by
+ * the Rust reader before this reaches the frontend.
  */
 export interface AppConfig {
   readonly workspace_dir?: string;
@@ -398,20 +396,6 @@ export interface AppConfig {
   readonly repo_config_danger?: Readonly<Record<string, readonly string[]>>;
   readonly recent_workspaces?: readonly string[];
   readonly window?: WindowState;
-  readonly migratedFrom?: string;
-  readonly migratedAt?: string;
-}
-
-/**
- * Result of `migrate_from_v1` (config/migrate.rs `MigrationReport`; the
- * commands layer must add `Serialize` + camelCase — ipc-contract.md §2.5).
- */
-export interface MigrationReport {
-  /** v1 install directory the data came from. */
-  readonly source: string;
-  readonly configImported: boolean;
-  readonly profilesCopied: number;
-  readonly migratedAt: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -515,4 +499,14 @@ export interface ChangelogRelease {
 export interface UpdateProgressEvent {
   readonly downloaded: number;
   readonly contentLength: number | null;
+}
+
+/**
+ * Payload of `dialog://resolved` — a native dialog window settled. `result` is
+ * the dialog's JSON outcome, or `null` when cancelled (the opener applies its
+ * registered fallback). See docs/migration/dialogs-as-windows.md.
+ */
+export interface DialogResolvedEvent {
+  readonly token: string;
+  readonly result: unknown;
 }

@@ -17,8 +17,11 @@
  * event instead. There is no "close the others / open anyway" choice to
  * present anymore, so the dialog is intentionally dropped.
  */
-import { Injectable, signal, type Type } from '@angular/core';
+import { Injectable, inject, signal, type Type } from '@angular/core';
 
+import { TranslationService } from '../../core/i18n/translation.service';
+import { IpcCommands } from '../../core/ipc/commands';
+import { IpcEvents } from '../../core/ipc/events';
 import { CloneDialogComponent } from './clone/clone-dialog.component';
 import { ConfigEditorDialogComponent } from './config-editor/config-editor-dialog.component';
 import { ConfirmCloseDialogComponent } from './confirm-close/confirm-close-dialog.component';
@@ -30,21 +33,23 @@ import {
 } from './dialog-stack';
 import { DockerComposeDialogComponent } from './docker-compose/docker-compose-dialog.component';
 import { MergeBranchDialogComponent } from './merge-branch/merge-branch-dialog.component';
-import {
-  MessageboxComponent,
-  type MessageboxKind,
-} from './messagebox/messagebox.component';
-import { PromptDialogComponent } from './prompt/prompt-dialog.component';
+import { type MessageboxKind } from './messagebox/messagebox.component';
+import { openDialogWindowForResult } from './dialog-window.bridge';
 // NOTE: ProfileManagerDialogComponent is intentionally NOT imported here —
 // see openProfileManager() for the cycle-breaking lazy import.
 import { BranchDialogComponent } from './branch/branch-dialog.component';
 import { RepoConfigManagerDialogComponent } from './repo-config-manager/repo-config-manager-dialog.component';
 import { SettingsDialogComponent } from './settings/settings-dialog.component';
 import { StashDialogComponent } from './stash/stash-dialog.component';
-import { WorkspaceGroupsDialogComponent } from './workspace-groups/workspace-groups-dialog.component';
 
 @Injectable({ providedIn: 'root' })
 export class DialogService implements DialogsApi {
+  // Openers for native dialog windows (docs/migration/dialogs-as-windows.md):
+  // migrated dialog kinds open a `dlg-*` window instead of pushing the stack.
+  private readonly commands = inject(IpcCommands);
+  private readonly events = inject(IpcEvents);
+  private readonly i18n = inject(TranslationService);
+
   private readonly _stack = signal<readonly DialogEntry[]>([]);
   private readonly resolvers = new Map<number, (result: unknown) => void>();
   private readonly fallbacks = new Map<number, unknown>();
@@ -103,12 +108,33 @@ export class DialogService implements DialogsApi {
 
   // -- contract: feature dialogs (workspace feature calls these) --------------
 
+  /**
+   * Open a migrated feature dialog as its own native window
+   * (docs/migration/dialogs-as-windows.md). Fire-and-forget — the window owns
+   * its lifecycle; cross-window state stays in sync via `config://changed`.
+   */
+  private openWindow(kind: string, title: string, args: unknown = {}): void {
+    void openDialogWindowForResult(
+      this.commands,
+      this.events,
+      kind,
+      title,
+      args,
+      null,
+      'main',
+    );
+  }
+
   /** Clone-repository dialog (inventory-gui §15). */
   openClone(): void {
     this.open(CloneDialogComponent);
   }
 
-  /** Application settings (+ java managers) dialog (§22). */
+  /**
+   * Application settings (+ java managers) dialog (§22). Still in-app: it opens
+   * the Java manager and changelog via `dialogs.open()`, which a dialog window
+   * cannot do yet — migrate alongside those in a later phase.
+   */
   openSettings(): void {
     this.open(SettingsDialogComponent);
   }
@@ -138,7 +164,11 @@ export class DialogService implements DialogsApi {
     this.open(RepoConfigManagerDialogComponent, { repoName });
   }
 
-  /** Raw config-file editor (§16). */
+  /**
+   * Raw config-file editor (§16). Still in-app: its unsaved-changes guard must
+   * intercept the close, which a native window's OS ✕ would bypass — needs the
+   * window close-guard mechanism (later phase).
+   */
   openConfigEditor(repoName: string, filePath: string): void {
     this.open(ConfigEditorDialogComponent, { repoName, filePath });
   }
@@ -160,9 +190,9 @@ export class DialogService implements DialogsApi {
     );
   }
 
-  /** Workspace groups CRUD dialog (§24). */
+  /** Workspace groups CRUD dialog (§24) — native window. */
   openWorkspaceGroups(): void {
-    this.open(WorkspaceGroupsDialogComponent);
+    this.openWindow('workspace-groups', this.i18n.t('dialog.workspace_groups.title'));
   }
 
   /**
@@ -208,8 +238,12 @@ export class DialogService implements DialogsApi {
     message: string,
     opts: { initialValue?: string; placeholder?: string } = {},
   ): Promise<string | null> {
-    return this.openForResult<string | null>(
-      PromptDialogComponent,
+    // Migrated to a native window (Phase 2, docs/migration/dialogs-as-windows.md).
+    return openDialogWindowForResult<string | null>(
+      this.commands,
+      this.events,
+      'prompt',
+      title,
       {
         title,
         message,
@@ -217,18 +251,29 @@ export class DialogService implements DialogsApi {
         placeholder: opts.placeholder ?? '',
       },
       null,
+      'main',
     );
   }
 
+  /**
+   * Messagebox suite — migrated to a native window (Phase 1,
+   * docs/migration/dialogs-as-windows.md). Opens a `dlg-messagebox-*` window
+   * parented to the main window; resolves via `dialog://resolved` (cancel →
+   * the `false` fallback).
+   */
   private messagebox(
     kind: MessageboxKind,
     title: string,
     message: string,
   ): Promise<boolean> {
-    return this.openForResult<boolean>(
-      MessageboxComponent,
+    return openDialogWindowForResult<boolean>(
+      this.commands,
+      this.events,
+      'messagebox',
+      title,
       { kind, title, message },
       false,
+      'main',
     );
   }
 }

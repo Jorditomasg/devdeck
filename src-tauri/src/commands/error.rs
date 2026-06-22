@@ -3,7 +3,7 @@
 //! failed `invoke` rejects with.
 //!
 //! Kinds are extend-only, never renamed:
-//! `configuration | detection | io | yaml_parse | json_parse | migration |
+//! `configuration | detection | io | yaml_parse | json_parse |
 //! no_os_directory` (from [`DomainError::kind`]), `git`, `docker`,
 //! `process`, `profile`, `terminal`, `invalid_args`.
 
@@ -140,8 +140,6 @@ mod tests {
     fn domain_errors_keep_their_stable_kind() {
         let err: AppError = DomainError::Configuration("x".into()).into();
         assert_eq!(err.kind, "configuration");
-        let err: AppError = DomainError::Migration("x".into()).into();
-        assert_eq!(err.kind, "migration");
         let err: AppError = DomainError::YamlParse {
             path: "a.yml".into(),
             message: "bad".into(),
