@@ -58,7 +58,11 @@ tauri-plugin-single-instance = "2.4"
 
 [profile.release]
 panic = "abort"
-codegen-units = 1
-lto = true
+# Build-time over run-time: DevDeck is IO/process-bound, not compute-bound, so
+# the heaviest optimizations (codegen-units = 1 + fat LTO) cost minutes of CI
+# for no perceptible runtime gain. `thin` LTO + parallel codegen build several
+# times faster; `opt-level = "s"` + strip keep the binary small.
+codegen-units = 16
+lto = "thin"
 opt-level = "s"
 strip = true
