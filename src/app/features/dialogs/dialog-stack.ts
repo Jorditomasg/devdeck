@@ -34,6 +34,13 @@ export interface DialogsApi {
     inputs: Record<string, unknown>,
     fallback: T,
   ): Promise<T>;
+  /**
+   * Open a dialog by `kind` as a native window (docs/migration/dialogs-as-windows.md).
+   * Fire-and-forget — the window owns its lifecycle.
+   */
+  openKind(kind: string, inputs?: Record<string, unknown>): void;
+  /** Open a dialog by `kind` as a native window and resolve with its result. */
+  openKindForResult<T>(kind: string, inputs: Record<string, unknown>, fallback: T): Promise<T>;
   close(id: number, result?: unknown): void;
   hasOpenDialogs(): boolean;
   openClone(): void;

@@ -91,6 +91,11 @@ pub struct AppConfig {
     /// (fixed 1300x900 — §8.3 backend note); v2 decides to persist it.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub window: Option<WindowState>,
+    /// v2: shell command/path for new interactive terminals. `None` / empty
+    /// → the per-platform default (`terminal::shell::default_shell`). Set from
+    /// Settings; one of the detected shells or a custom path.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub terminal_shell: Option<String>,
 
     /// Lossless passthrough of unknown keys (forward/backward compat).
     #[serde(flatten)]

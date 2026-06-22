@@ -83,6 +83,9 @@ import {
   `,
 })
 export class JavaManagerDialogComponent extends DialogBase {
+  /** Window kind for opening this as a child dialog window (minify-safe). */
+  static readonly dialogKind = 'java-manager';
+
   private readonly settings = inject(SettingsStore);
   private readonly i18n = inject(TranslationService);
 

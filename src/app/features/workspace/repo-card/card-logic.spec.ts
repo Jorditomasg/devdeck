@@ -91,10 +91,10 @@ describe('configAffordances (§7 config-row gating)', () => {
     });
   });
 
-  it('shows the config button (not env rows) when editable without env files', () => {
+  it('hides the config button for editable repos without env files (user request)', () => {
     expect(configAffordances(true, 0)).toEqual({
       hasEnvRows: false,
-      showConfigBtn: true,
+      showConfigBtn: false,
       showCmdRow: true,
     });
   });

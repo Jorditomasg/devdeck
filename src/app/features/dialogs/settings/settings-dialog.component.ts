@@ -31,6 +31,8 @@ import {
   TranslationService,
   type LanguageCode,
 } from '../../../core/i18n/translation.service';
+import { IpcCommands } from '../../../core/ipc/commands';
+import type { ShellInfo } from '../../../core/ipc/tauri.types';
 import { SettingsStore } from '../../../core/state/settings.store';
 import { UpdatesStore } from '../../../core/state/updates.store';
 import {
@@ -100,6 +102,53 @@ const LANGUAGE_CODES: readonly LanguageCode[] = ['en', 'es'];
         </ui-form-row>
         <div class="settings__divider"></div>
 
+        <!-- 3b. Terminal — shell for new PTY terminals -->
+        <ui-form-row [label]="'dialog.settings.terminal_title' | t" labelWidth="155px">
+          <div class="settings__terminal">
+            <label class="settings__radio">
+              <input
+                type="radio"
+                name="shell"
+                [checked]="!customMode() && terminalShellDraft() === ''"
+                (change)="pickShell('')"
+              />
+              {{ 'dialog.settings.terminal_default' | t }}
+            </label>
+            @for (sh of shells(); track sh.command) {
+              <label class="settings__radio">
+                <input
+                  type="radio"
+                  name="shell"
+                  [checked]="!customMode() && terminalShellDraft() === sh.command"
+                  (change)="pickShell(sh.command)"
+                />
+                {{ sh.label }} <span class="settings__radio-cmd">{{ sh.command }}</span>
+              </label>
+            }
+            <label class="settings__radio">
+              <input
+                type="radio"
+                name="shell"
+                [checked]="customMode()"
+                (change)="enableCustom()"
+              />
+              {{ 'dialog.settings.terminal_custom' | t }}
+            </label>
+            @if (customMode()) {
+              <input
+                #customInput
+                class="settings__custom"
+                type="text"
+                [value]="terminalShellDraft()"
+                [placeholder]="'dialog.settings.terminal_custom_ph' | t"
+                (input)="terminalShellDraft.set(customInput.value)"
+              />
+            }
+          </div>
+        </ui-form-row>
+        <p class="settings__hint">{{ 'dialog.settings.terminal_desc' | t }}</p>
+        <div class="settings__divider"></div>
+
         <!-- 4. Java (§22 row 5; row 4 shortcut omitted — see class JSDoc) -->
         <ui-form-row [label]="'dialog.settings.java_title' | t" labelWidth="155px">
           <div class="settings__java">
@@ -149,9 +198,13 @@ const LANGUAGE_CODES: readonly LanguageCode[] = ['en', 'es'];
   `,
 })
 export class SettingsDialogComponent extends DialogBase implements OnInit {
+  /** Window kind for opening this as a child dialog window (minify-safe). */
+  static readonly dialogKind = 'settings';
+
   private readonly settings = inject(SettingsStore);
   private readonly i18n = inject(TranslationService);
   private readonly updates = inject(UpdatesStore);
+  private readonly commands = inject(IpcCommands);
 
   /** Manual update-check spinner. */
   protected readonly checking = signal(false);
@@ -161,12 +214,25 @@ export class SettingsDialogComponent extends DialogBase implements OnInit {
   protected readonly updateInfo = this.updates.info;
   protected readonly installing = this.updates.installing;
 
+  /** Shells detected on this machine (loaded on init). */
+  protected readonly shells = signal<readonly ShellInfo[]>([]);
+  /** Draft shell command (`''` = per-platform default). Persisted on Save. */
+  protected readonly terminalShellDraft = signal(this.settings.terminalShell());
+  /** True when "Custom" is picked: the draft is a free-typed command. */
+  protected readonly customMode = signal(false);
+
   async ngOnInit(): Promise<void> {
     try {
       this.version.set(await getVersion());
     } catch {
       this.version.set(null);
     }
+    // Load detected shells, THEN decide if the saved value is a custom command
+    // (non-empty and not one of the detected shells).
+    const shells = await this.commands.terminal.listShells().catch(() => [] as ShellInfo[]);
+    this.shells.set(shells);
+    const saved = this.terminalShellDraft();
+    this.customMode.set(saved !== '' && !shells.some((s) => s.command === saved));
   }
 
   /** Draft language (applied + persisted on Save). */
@@ -204,6 +270,17 @@ export class SettingsDialogComponent extends DialogBase implements OnInit {
     if (code !== undefined) {
       this.language.set(code);
     }
+  }
+
+  /** Pick a detected shell (or the default, `command === ''`). */
+  protected pickShell(command: string): void {
+    this.customMode.set(false);
+    this.terminalShellDraft.set(command);
+  }
+
+  /** Switch to a free-typed custom command (keeps any current draft text). */
+  protected enableCustom(): void {
+    this.customMode.set(true);
   }
 
   /** Workspace-groups shortcut — stacks the groups dialog on top (§22 row 2). */
@@ -263,6 +340,10 @@ export class SettingsDialogComponent extends DialogBase implements OnInit {
       }
       if (this.minimizeToTray() !== this.settings.minimizeToTray()) {
         await this.settings.setMinimizeToTray(this.minimizeToTray());
+      }
+      const shell = this.terminalShellDraft().trim();
+      if (shell !== this.settings.terminalShell()) {
+        await this.settings.setTerminalShell(shell || null);
       }
       this.closeSelf();
     } catch (err: unknown) {

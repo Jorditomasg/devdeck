@@ -396,6 +396,14 @@ export interface AppConfig {
   readonly repo_config_danger?: Readonly<Record<string, readonly string[]>>;
   readonly recent_workspaces?: readonly string[];
   readonly window?: WindowState;
+  /** v2: shell command for new terminals (undefined → per-platform default). */
+  readonly terminal_shell?: string;
+}
+
+/** One shell offered by `list_shells` for the Settings terminal picker. */
+export interface ShellInfo {
+  readonly label: string;
+  readonly command: string;
 }
 
 // ---------------------------------------------------------------------------

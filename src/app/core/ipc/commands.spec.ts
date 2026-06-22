@@ -5,7 +5,7 @@ import { CMD, IpcCommands } from './commands';
 import { FakeTauriBridge } from './tauri-bridge.fake';
 
 describe('CMD registry', () => {
-  it('contains the 82 contract commands, all snake_case and unique', () => {
+  it('contains the 84 contract commands, all snake_case and unique', () => {
     // 65 prior (incl. PTY terminals) + 10 git stash/branch management commands
     // (ipc-contract.md §2.4 #62–#71): stash list/push/apply/pop/drop +
     // create/delete/delete-remote/rename/publish branch + 3 updates/about
@@ -13,9 +13,10 @@ describe('CMD registry', () => {
     // get_changelog + 3 native dialog-window commands
     // (docs/migration/dialogs-as-windows.md): open_dialog_window /
     // get_dialog_args / resolve_dialog + `list_repos` (Phase 3 cross-window
-    // repo hydration).
+    // repo hydration) + `list_shells` / `set_terminal_shell` (Settings terminal
+    // picker).
     const names = Object.values(CMD);
-    expect(names.length).toBe(82);
+    expect(names.length).toBe(84);
     expect(new Set(names).size).toBe(names.length);
     for (const name of names) {
       expect(name).toMatch(/^[a-z][a-z0-9_]*$/);

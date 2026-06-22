@@ -62,4 +62,19 @@ export class TauriBridge {
       await handler();
     });
   }
+
+  /**
+   * Intercept THIS window's OS close, ALWAYS preventing the default destroy,
+   * and run `handler`. Used by dialog windows so the close routes through the
+   * dialog's guard and resolves via `resolve_dialog` (Rust destroys the
+   * window) — the webview holds no `core:window:*` perms, so it must never
+   * call `destroy()` itself (the wrapper would, hence the unconditional
+   * `preventDefault`). See docs/migration/dialogs-as-windows.md.
+   */
+  onWindowClosePrevented(handler: () => void): Promise<UnlistenFn> {
+    return getCurrentWindow().onCloseRequested((event) => {
+      event.preventDefault();
+      handler();
+    });
+  }
 }

@@ -84,6 +84,9 @@ export class SettingsStore {
     () => this._config()?.repo_state ?? {},
   );
 
+  /** Shell command for new terminals (`''` = per-platform default). */
+  readonly terminalShell = computed(() => this._config()?.terminal_shell ?? '');
+
   /** Last loaded profile name for the active group (`''` = none). */
   readonly lastProfileForActiveGroup = computed(() => {
     const group = this.activeGroup()?.name;
@@ -136,6 +139,17 @@ export class SettingsStore {
   async setMinimizeToTray(value: boolean): Promise<void> {
     await this.commands.config.setMinimizeToTray(value);
     this.patch({ minimize_to_tray: value });
+  }
+
+  /**
+   * Persist the shell command for new terminals (`''`/`null` → per-platform
+   * default). Saved via the terminal command group; `config://changed` keeps
+   * every window in sync (the local patch is just for immediacy).
+   */
+  async setTerminalShell(shell: string | null): Promise<void> {
+    const value = shell?.trim() ? shell.trim() : null;
+    await this.commands.terminal.setShell(value);
+    this.patch({ terminal_shell: value ?? undefined });
   }
 
   async setActiveGroup(name: string): Promise<void> {

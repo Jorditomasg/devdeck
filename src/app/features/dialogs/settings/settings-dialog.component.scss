@@ -25,6 +25,40 @@
   @include c.checkbox-row;
 }
 
+.settings__terminal {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.settings__radio {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-base);
+  cursor: pointer;
+  user-select: none;
+
+  input[type='radio'] {
+    accent-color: var(--color-text-accent);
+    cursor: pointer;
+  }
+}
+
+.settings__radio-cmd {
+  color: var(--color-text-placeholder);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+}
+
+.settings__custom {
+  @include c.text-input;
+  margin-left: 24px;
+  width: calc(100% - 24px);
+}
+
 .settings__java {
   display: flex;
   align-items: center;
