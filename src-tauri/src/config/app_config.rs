@@ -120,6 +120,11 @@ pub struct RepoState {
     /// Start-command override (`""` = none).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub custom_command: Option<String>,
+    /// Extra arguments appended to the resolved start command (`""`/`None` =
+    /// none). Unlike [`custom_command`], this keeps the repo-type's OS-aware and
+    /// `{main_app}` resolution and only appends — e.g. Spring Batch job params.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub start_args: Option<String>,
     /// Selected JDK display label; `None` = system default. v1 persisted the
     /// [`SENTINEL_SYSTEM_DEFAULT`] string instead (normalized on load).
     #[serde(skip_serializing_if = "Option::is_none")]

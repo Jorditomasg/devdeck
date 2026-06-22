@@ -165,6 +165,7 @@ export class WorkspacePageComponent {
           {
             selected: persisted.selected ?? true,
             customCommand: persisted.custom_command ?? '',
+            startArgs: persisted.start_args ?? '',
             javaLabel: normalizeJavaVersion(persisted.java_version) ?? '',
             expanded: persisted.expanded ?? false,
           },

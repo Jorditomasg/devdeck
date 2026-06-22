@@ -73,6 +73,9 @@ pub struct RepoProfile {
     pub profile_tracked: Vec<String>,
     /// User override of the start command (`""` = none).
     pub custom_command: String,
+    /// Extra args appended to the resolved start command (`""` = none).
+    /// Keeps the type's OS-aware/`{main_app}` resolution — only appends.
+    pub start_args: String,
     /// Selected JDK display label. v1 persisted the Spanish sentinel
     /// `"Sistema (Por Defecto)"` for the system default — readers must keep
     /// accepting it forever (architecture-v2.md §6); use

@@ -246,7 +246,7 @@ export class IpcCommands {
     /** Fire-and-forget; lifecycle arrives via `service://status-changed`. */
     startService: (
       serviceId: ServiceId,
-      opts?: { customCommand?: string; javaLabel?: string },
+      opts?: { customCommand?: string; startArgs?: string; javaLabel?: string },
     ): Promise<void> =>
       this.bridge.invoke<void>(CMD.startService, { serviceId, ...opts }),
 
@@ -255,7 +255,7 @@ export class IpcCommands {
 
     restartService: (
       serviceId: ServiceId,
-      opts?: { customCommand?: string; javaLabel?: string },
+      opts?: { customCommand?: string; startArgs?: string; javaLabel?: string },
     ): Promise<void> =>
       this.bridge.invoke<void>(CMD.restartService, { serviceId, ...opts }),
 

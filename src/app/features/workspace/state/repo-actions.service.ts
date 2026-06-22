@@ -436,6 +436,7 @@ export class RepoActionsService {
 
   private startOverrides(repo: RepoInfo): {
     customCommand?: string;
+    startArgs?: string;
     javaLabel?: string;
   } {
     const state = this.ws.card(repo.name);
@@ -443,11 +444,12 @@ export class RepoActionsService {
       state.customCommand && state.customCommand !== repo.runCommand
         ? state.customCommand
         : undefined;
+    const startArgs = state.startArgs ? state.startArgs : undefined;
     const javaLabel =
       repo.features.includes('java_version') && state.javaLabel
         ? state.javaLabel
         : undefined;
-    return { customCommand, javaLabel };
+    return { customCommand, startArgs, javaLabel };
   }
 
   private envTargetFile(repo: RepoInfo, moduleKey: string): string | undefined {
