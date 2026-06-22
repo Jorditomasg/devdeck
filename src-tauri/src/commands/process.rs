@@ -7,7 +7,6 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use std::time::Duration;
 
 use tauri::State;
@@ -18,7 +17,7 @@ use crate::domain::RepoInfo;
 use crate::java;
 use crate::process::constants::SHUTDOWN_ALL_CAP;
 use crate::process::{
-    InstallSpec, ProcessManager, ServiceSnapshot, ServiceSpec, StopCommand, StopOutcome,
+    InstallSpec, ServiceSnapshot, ServiceSpec, StopCommand, StopOutcome,
 };
 use crate::state::AppState;
 
@@ -310,10 +309,6 @@ pub(crate) fn restart_delay(repo: &RepoInfo) -> Duration {
         .map(Duration::from_millis)
         .unwrap_or(RESTART_DELAY)
 }
-
-// Keep the manager type referenced for doc links even if unused directly.
-#[allow(unused)]
-fn _doc_anchor(_: Arc<ProcessManager>) {}
 
 #[cfg(test)]
 mod tests {
