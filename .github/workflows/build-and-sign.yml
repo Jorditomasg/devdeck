@@ -1,19 +1,16 @@
 # =============================================================================
-# DevDeck — Build, Sign & Release (Tauri 2 + Angular)
+# DevDeck — Build & Release (Tauri 2 + Angular)
 # =============================================================================
-# Successor of Jorditomasg/devdeck's pipeline. Ships a self-contained
-# NSIS installer produced by `tauri build`, signed end-to-end via SignPath —
-# the released asset is the complete, installable, SIGNED artifact.
+# Builds the NSIS installer and publishes it as a GitHub Release. The installer
+# is NOT Authenticode-signed (Windows SmartScreen will show "unknown publisher"
+# the first time) — code signing was removed.
 #
-# Action versions (verified 2026-06-11):
-#   - actions/checkout@v4, actions/setup-node@v4, dtolnay/rust-toolchain@stable,
-#     Swatinem/rust-cache@v2 — verified via tauri-action official docs.
-#   - signpath/github-action-submit-signing-request@v2 — verified via
-#     docs.signpath.io/trusted-build-systems/github.
-#   - actions/upload-artifact@v4, softprops/action-gh-release@v2 — proven with
-#     the SignPath connector in the predecessor repo's pipeline.
+# The installer IS minisign-signed for the in-app auto-updater: `tauri build`
+# (with createUpdaterArtifacts) emits "<installer>.sig", and the release job
+# publishes a `latest.json` carrying that signature so DevDeck can update itself
+# (the app verifies it against the public key in tauri.conf.json).
 
-name: Build and Sign
+name: Build and Release
 
 on:
   push:
@@ -23,19 +20,17 @@ on:
     inputs:
       release-tag:
         description: >-
-          Tag name for a DRAFT release (e.g. v2.0.1). Leave empty to only
-          build + sign (artifacts available on the workflow run, no release).
+          Tag name for a DRAFT release (e.g. v1.0.2). Leave empty to only
+          build (artifacts available on the workflow run, no release).
         required: false
         default: ''
         type: string
 
-# One release pipeline per ref at a time. Never cancel a run mid-signing —
-# SignPath requests are external state we don't want to abandon half-way.
+# One release pipeline per ref at a time.
 concurrency:
-  group: build-and-sign-${{ github.ref }}
+  group: build-and-release-${{ github.ref }}
   cancel-in-progress: false
 
-# Minimal default; jobs that need more declare it explicitly.
 permissions:
   contents: read
 
@@ -49,8 +44,6 @@ jobs:
     defaults:
       run:
         shell: pwsh
-    outputs:
-      artifact-id: ${{ steps.upload.outputs.artifact-id }}
 
     steps:
       - uses: actions/checkout@v4
@@ -73,37 +66,22 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      # Cheap frontend typecheck. Non-blocking: plain tsc does not check
-      # Angular templates (that's the compiler's job during `ng build`,
-      # which IS blocking below), so this is an early-warning signal only.
-      - name: Typecheck frontend (non-blocking)
-        continue-on-error: true
-        run: npx tsc -p tsconfig.app.json --noEmit
-
       - name: Run frontend tests
         run: npm test
 
       # Build the Angular frontend BEFORE `cargo test`: tauri-build's build.rs
-      # validates that `frontendDist` (../dist/devdeck/browser) exists,
-      # so cargo cannot even compile the crate without it.
+      # validates that `frontendDist` (../dist/devdeck/browser) exists.
       - name: Build Angular frontend
         run: npm run build
 
-      # Non-blocking for now: some tests exercise detection/docker/process
-      # code that shells out to git/docker and may be environment-sensitive
-      # on hosted runners. Flip to blocking once proven green in CI.
       - name: Run Rust tests (non-blocking)
         continue-on-error: true
         run: cargo test --manifest-path src-tauri/Cargo.toml
 
       # Produces src-tauri/target/release/bundle/nsis/
-      #   "DevDeck_<version>_x64-setup.exe"
-      # `createUpdaterArtifacts: true` makes `tauri build` emit + sign the
-      # updater artifacts at the end of the bundle, so the signing key must be
-      # in THIS step's env or the build fails ("public key found, but no
-      # private key"). The .sig produced here is discarded — only `*-setup.exe`
-      # is uploaded, and sign-and-release regenerates the .sig over the
-      # SignPath-signed installer.
+      #   "DevDeck_<version>_x64-setup.exe" + ".exe.sig" (minisign, for the
+      # in-app updater). The signing key must be present in THIS step's env
+      # because createUpdaterArtifacts signs at the end of the bundle.
       - name: Build Tauri app (NSIS installer)
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -116,72 +94,46 @@ jobs:
           if (-not $installer) { throw 'NSIS installer not found under src-tauri/target/release/bundle/nsis/' }
           Write-Host "Installer: $($installer.Name) ($([math]::Round($installer.Length / 1MB, 1)) MB)"
 
-      # SignPath consumes the GitHub artifact by id (the connector downloads
-      # the artifact zip and signs the PE file inside per the artifact
-      # configuration). The artifact is the COMPLETE installer.
-      - name: Upload unsigned installer
-        id: upload
+      # Upload the installer AND its minisign signature for the release job.
+      - name: Upload installer + signature
         uses: actions/upload-artifact@v4
         with:
-          name: devdeck-unsigned
-          path: src-tauri/target/release/bundle/nsis/*-setup.exe
+          name: devdeck-installer
+          path: |
+            src-tauri/target/release/bundle/nsis/*-setup.exe
+            src-tauri/target/release/bundle/nsis/*-setup.exe.sig
           if-no-files-found: error
 
   # ---------------------------------------------------------------------------
-  # Sign via SignPath, then publish the SIGNED installer.
+  # Publish the installer + latest.json (updater manifest) as a GitHub Release.
   # ---------------------------------------------------------------------------
-  sign-and-release:
+  release:
     needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: write # create the GitHub Release
-      actions: read   # SignPath connector reads the workflow artifact
 
     steps:
-      # ⚠ SignPath setup for THIS repo (one-time, before the first release):
-      #   1. In the SignPath dashboard, point the project's repository link at
-      #      Jorditomasg/devdeck (or create a new project and update the
-      #      slugs below).
-      #   2. Create an 'installer' artifact configuration (zip-file containing
-      #      a pe-file) — the predecessor's 'exe' config describes a bare PE.
-      #   3. Set the SIGNPATH_API_TOKEN secret in this repo.
-      - name: Sign NSIS installer with SignPath
-        uses: signpath/github-action-submit-signing-request@v2
-        with:
-          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
-          organization-id: '566b6bce-16ea-4c67-80a2-1654b3efdef4'
-          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG || 'devdeck' }}
-          signing-policy-slug: 'release-signing'
-          artifact-configuration-slug: ${{ vars.SIGNPATH_ARTIFACT_CONFIG || 'installer' }}
-          github-artifact-id: ${{ needs.build.outputs.artifact-id }}
-          wait-for-completion: true
-          output-artifact-directory: signed/
+      - uses: actions/checkout@v4 # for CHANGELOG.md (release notes)
 
-      - name: Setup Node LTS
-        uses: actions/setup-node@v4
+      - name: Download installer artifact
+        uses: actions/download-artifact@v4
         with:
-          node-version: lts/*
+          name: devdeck-installer
+          path: dist
 
-      # ⚠ ORDERING: minisign-sign the SignPath-SIGNED installer, never the
-      # build output. The updater verifies the downloaded (signed) binary
-      # against this signature — signing the unsigned one breaks all updates.
-      - name: Generate updater signature + latest.json
+      - name: Generate latest.json (updater manifest)
         env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ''
           REF_NAME: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || inputs.release-tag }}
         run: |
           set -euo pipefail
-          INSTALLER=$(ls signed/*-setup.exe | head -n1)
+          INSTALLER=$(ls dist/*-setup.exe | head -n1)
           VERSION="${REF_NAME#v}"
 
-          # Minisign-sign the SignPath-signed installer (the artifact users
-          # download). Writes "$INSTALLER.sig".
-          npx --yes @tauri-apps/cli signer sign "$INSTALLER"
+          # Minisign signature emitted by `tauri build` (createUpdaterArtifacts).
           SIGNATURE=$(cat "$INSTALLER.sig")
 
-          # Release notes = this version's CHANGELOG.md section (## [x.y.z] ...
-          # up to the next "## " heading).
+          # Release notes = this version's CHANGELOG.md section.
           NOTES=$(awk -v ver="$VERSION" '
             $0 ~ "^## \\[" ver "\\]" { grab=1; next }
             grab && /^## / { exit }
@@ -198,17 +150,10 @@ jobs:
             --arg url "$ASSET" \
             '{version:$version, notes:$notes, pub_date:$pub_date,
               platforms:{"windows-x86_64":{signature:$signature, url:$url}}}' \
-            > signed/latest.json
+            > dist/latest.json
 
           echo "Generated latest.json for $VERSION"
-          cat signed/latest.json
-
-      - name: Upload signed installer (workflow artifact)
-        uses: actions/upload-artifact@v4
-        with:
-          name: devdeck-signed
-          path: signed/*-setup.exe
-          if-no-files-found: error
+          cat dist/latest.json
 
       # Tag push => published release; manual dispatch with a release-tag
       # input => DRAFT release for review.
@@ -218,5 +163,7 @@ jobs:
         with:
           tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || inputs.release-tag }}
           draft: ${{ github.event_name == 'workflow_dispatch' }}
-          files: signed/*-setup.exe
+          files: |
+            dist/*-setup.exe
+            dist/latest.json
           fail_on_unmatched_files: true

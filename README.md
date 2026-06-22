@@ -27,14 +27,17 @@ more juggling a dozen terminals.
 
 ## Install
 
-You don't need to build anything — grab the signed installer and run.
+You don't need to build anything — just download the installer and run it.
 
 1. **Download** the latest `DevDeck_<version>_x64-setup.exe` from the
    [Releases page](https://github.com/Jorditomasg/devdeck/releases).
-2. **Install** it. The installer is signed via SignPath, so Windows SmartScreen should pass it
-   without warnings.
+2. **Run it.** The installer isn't code-signed, so Windows SmartScreen may warn about an
+   "unknown publisher" — click **More info → Run anyway** to continue.
 3. **Launch DevDeck** and, on first run, **pick your workspace folder** — the directory that
    holds your project repositories.
+
+DevDeck updates itself: when a new version is released, the app detects it and installs the
+update from within DevDeck — no need to re-download manually.
 
 DevDeck scans the folder and shows one **card per repository**. From each card you can start,
 stop and restart the service, open a live log window, run git operations, bring Docker Compose
