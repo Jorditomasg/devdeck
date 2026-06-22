@@ -123,6 +123,8 @@ export function formatCardLine(entry: LogLine): string {
             (javaSelected)="onJavaSelected($event)"
             (commandApply)="onCommandApply($event)"
             (commandReset)="onCommandReset()"
+            (argsApply)="onArgsApply($event)"
+            (argsReset)="onArgsReset()"
             (dockerFileClicked)="onDockerFile($event)"
           />
           <app-card-log
@@ -665,6 +667,16 @@ export class RepoCardComponent {
     void this.persistRepoState();
   }
 
+  protected onArgsApply(value: string): void {
+    this.ws.patchCard(this.repo().name, { startArgs: value.trim() });
+    void this.persistRepoState();
+  }
+
+  protected onArgsReset(): void {
+    this.ws.patchCard(this.repo().name, { startArgs: '' });
+    void this.persistRepoState();
+  }
+
   protected onDockerFile(file: string): void {
     this.dialogs.openDockerCompose(this.repo().name, file);
   }
@@ -739,13 +751,14 @@ export class RepoCardComponent {
     return this.state().dockerActive.some((a) => composeDisplayName(a) === base);
   }
 
-  /** Persist the v1 `repo_state` quartet (§34). */
+  /** Persist the v1 `repo_state` quartet + start args (§34). */
   private persistRepoState(): Promise<void> {
     const state = this.state();
     return this.settings
       .setRepoState(this.repo().name, {
         selected: state.selected,
         custom_command: state.customCommand,
+        ...(state.startArgs ? { start_args: state.startArgs } : {}),
         ...(state.javaLabel ? { java_version: state.javaLabel } : {}),
         expanded: state.expanded,
       })

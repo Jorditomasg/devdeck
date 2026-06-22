@@ -188,7 +188,7 @@ export class ServicesStore {
    */
   async start(
     id: ServiceId,
-    opts?: { customCommand?: string; javaLabel?: string },
+    opts?: { customCommand?: string; startArgs?: string; javaLabel?: string },
   ): Promise<void> {
     this.patchService(id, { status: 'starting' });
     await this.commands.process.startService(id, opts);
@@ -201,7 +201,7 @@ export class ServicesStore {
 
   async restart(
     id: ServiceId,
-    opts?: { customCommand?: string; javaLabel?: string },
+    opts?: { customCommand?: string; startArgs?: string; javaLabel?: string },
   ): Promise<void> {
     this.patchService(id, { status: 'stopping' });
     await this.commands.process.restartService(id, opts);

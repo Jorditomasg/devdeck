@@ -35,8 +35,8 @@ verbatim** (they are user files that must round-trip byte-compatibly, architectu
 
 | Type | Wire keys | Why |
 |---|---|---|
-| `AppConfig`, `RepoState`, `WorkspaceGroup` | v1 snake_case (`workspace_dir`, `java_versions`, `custom_command`, …) | `config.json` schema is the v1 schema (inventory-backend.md §8.3) |
-| `ProfileDocument`, `RepoProfile` | v1 snake_case + `"type"` for `repo_type` | profile `.json` files are shared/imported across versions (inventory-backend.md §15.3) |
+| `AppConfig`, `RepoState`, `WorkspaceGroup` | v1 snake_case (`workspace_dir`, `java_versions`, `custom_command`, `start_args`, …) | `config.json` schema is the v1 schema (inventory-backend.md §8.3) |
+| `ProfileDocument`, `RepoProfile` | v1 snake_case + `"type"` for `repo_type` (incl. `start_args`, a v2 addition) | profile `.json` files are shared/imported across versions (inventory-backend.md §15.3) |
 | `RevertPoint` | v1 dict keys (`original_branch`, `dest_head_before`, …) | documented v1 payload (inventory-backend.md §10.5) |
 | `UiConfig` / `UiSelector` (nested in `RepoInfo.uiConfig`) | snake_case (`install_check_dirs`, `actions`, `selectors`, `icon`, `color`) | passthrough of the repo-type YAML `ui:` block — the Rust `Ui` struct (`domain/repo_type.rs`) has `#[serde(default)]` but NO `rename_all`, so its fields keep their snake_case names on the wire; only the enclosing `RepoInfo.ui_config` field is camelCased (→ `uiConfig`) by `RepoInfo`'s own `rename_all`. Unknown YAML keys round-trip via the struct's `#[serde(flatten)] extra` map. (v2 flattened the v1 nested `ui.install.check_dirs` to a top-level `install_check_dirs`; there is no `UiInstall` type anymore.) |
 
@@ -182,9 +182,9 @@ Notes:
 
 | # | Command | Args | Returns | Backing |
 |---|---|---|---|---|
-| 3 | `start_service` | `{ serviceId: string, customCommand?: string, javaLabel?: string }` | `void` | process manager `start` — builds `ServiceSpec` from the scanned `RepoInfo` + overrides; `javaLabel` resolves through `java::build_java_env` and config key `java_versions` |
+| 3 | `start_service` | `{ serviceId: string, customCommand?: string, startArgs?: string, javaLabel?: string }` | `void` | process manager `start` — builds `ServiceSpec` from the scanned `RepoInfo` + overrides; `startArgs` is appended to the resolved start command (type default OR `customCommand`), preserving OS-aware/`{main_app}` resolution; `javaLabel` resolves through `java::build_java_env` and config key `java_versions` |
 | 4 | `stop_service` | `{ serviceId: string }` | `void` | process manager `stop` — runs `stop_cmd` when declared, then tree-kill with SIGTERM→SIGKILL escalation (own process group; architecture-v2.md §7.1) |
-| 5 | `restart_service` | `{ serviceId: string, customCommand?: string, javaLabel?: string }` | `void` | stop + delayed start (card restart delay = the scanned repo's `RepoInfo.restartDelayMs`, else the 300 ms default; docker-infra ships `run.restart_delay_ms: 2000`. v2 reads this from data — `commands/process.rs::restart_delay` — instead of branching on `repo_type == "docker-infra"`; inventory-gui.md §28) |
+| 5 | `restart_service` | `{ serviceId: string, customCommand?: string, startArgs?: string, javaLabel?: string }` | `void` | stop + delayed start (card restart delay = the scanned repo's `RepoInfo.restartDelayMs`, else the 300 ms default; docker-infra ships `run.restart_delay_ms: 2000`. v2 reads this from data — `commands/process.rs::restart_delay` — instead of branching on `repo_type == "docker-infra"`; inventory-gui.md §28) |
 | 6 | `install_dependencies` | `{ serviceId: string, reinstall: boolean, javaLabel?: string }` | `void` | install runner — `install_cmd`/OS-resolved `reinstall_cmd`, 600 s cap +5 s kill grace (`process::constants`), refuses while the same id is running (inventory-backend.md §17.1) |
 | 7 | `list_services` | — | `ServiceSnapshot[]` | registry snapshot — lets a restarted frontend re-hydrate without losing running services (architecture-v2.md §2) |
 | 8 | `stop_all_services` | — | `void` | shutdown-all (30 s cap, `SHUTDOWN_ALL_CAP`); survivors past the cap are force-killed; also wired to Tauri exit |

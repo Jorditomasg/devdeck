@@ -73,7 +73,10 @@ export interface JavaRowVm {
   readonly recommended: string;
 }
 
-/** Row 3 — custom command (§7 row 3); `null` hides the row (docker-infra). */
+/**
+ * Row 3 — custom command (§7 row 3); `null` hides the row (docker-infra).
+ * Reused by row 3b (start arguments) — same shape.
+ */
 export interface CmdRowVm {
   readonly value: string;
   readonly placeholder: string;
@@ -95,6 +98,8 @@ export interface CardExpandVm {
   readonly modules: readonly ModuleRowVm[];
   readonly java: JavaRowVm | null;
   readonly cmd: CmdRowVm | null;
+  /** Row 3b — start arguments; `null` hides the row (same rule as `cmd`). */
+  readonly args: CmdRowVm | null;
   readonly docker: readonly DockerBtnVm[];
 }
 
@@ -121,6 +126,9 @@ export interface CardExpandText {
   readonly applyTip: string;
   readonly resetText: string;
   readonly resetTip: string;
+  readonly argsLabel: string;
+  readonly applyArgsTip: string;
+  readonly resetArgsTip: string;
   readonly searchPlaceholder: string;
   readonly noResultsText: string;
 }
@@ -285,6 +293,34 @@ export interface CardExpandText {
       </div>
     }
 
+    <!-- Row 3b — start arguments (§7 row 3b) -->
+    @if (vm().args; as args) {
+      <div class="row">
+        <span class="row__label">{{ text().argsLabel }}</span>
+        <input
+          #argsInput
+          class="row__cmd"
+          type="text"
+          [value]="args.value"
+          [placeholder]="args.placeholder"
+          [uiTooltip]="args.tip"
+          (keydown.enter)="argsApply.emit(argsInput.value)"
+        />
+        <ui-button
+          variant="success"
+          size="sm"
+          [uiTooltip]="text().applyArgsTip"
+          (clicked)="argsApply.emit(argsInput.value)"
+        >{{ text().applyText }}</ui-button>
+        <ui-button
+          variant="neutral"
+          size="sm"
+          [uiTooltip]="text().resetArgsTip"
+          (clicked)="argsInput.value = ''; argsReset.emit()"
+        >{{ text().resetText }}</ui-button>
+      </div>
+    }
+
     <!-- Row 3.5 — docker compose buttons (§7 row 3.5) -->
     @if (vm().docker.length > 0) {
       <div class="row row--docker">
@@ -324,5 +360,7 @@ export class CardExpandComponent {
   readonly javaSelected = output<string>();
   readonly commandApply = output<string>();
   readonly commandReset = output<void>();
+  readonly argsApply = output<string>();
+  readonly argsReset = output<void>();
   readonly dockerFileClicked = output<string>();
 }

@@ -352,6 +352,8 @@ export interface WorkspaceGroup {
 export interface RepoState {
   readonly selected?: boolean;
   readonly custom_command?: string;
+  /** Extra args appended to the resolved start command (`''`/absent = none). */
+  readonly start_args?: string;
   /** Selected JDK display label; absent = system default (sentinel normalized). */
   readonly java_version?: string;
   readonly expanded?: boolean;
@@ -432,6 +434,8 @@ export interface RepoProfile {
   readonly profile: string | null;
   readonly profile_tracked: readonly string[];
   readonly custom_command: string;
+  /** Extra args appended to the resolved start command (`''` = none). */
+  readonly start_args: string;
   readonly java_version?: string;
   readonly selected: boolean;
   readonly docker_compose_active?: readonly string[];

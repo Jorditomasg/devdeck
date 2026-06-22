@@ -24,6 +24,7 @@ function repo(partial: Partial<RepoProfile> = {}): RepoProfile {
     profile: null,
     profile_tracked: [],
     custom_command: '',
+    start_args: '',
     selected: true,
     ...partial,
   };

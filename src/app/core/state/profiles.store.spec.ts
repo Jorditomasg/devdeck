@@ -20,6 +20,7 @@ function repoProfile(extra?: Partial<RepoProfile>): RepoProfile {
     profile: 'mysql',
     profile_tracked: ['src/main/resources/application.yml'],
     custom_command: '',
+    start_args: '',
     selected: true,
     ...extra,
   };
