@@ -15,9 +15,10 @@ use crate::events::{EventEmitter, DIALOG_RESOLVED};
 use crate::state::AppState;
 
 /// Fixed (non-resizable) inner size per dialog kind, in logical pixels.
-/// Carried from the in-app `ui-dialog-shell` widths; height is fixed because
-/// the windows do not resize (design: not resizable). Unknown kinds fall back
-/// to a sensible medium size.
+/// Sole source of truth for dialog window size (the panel fills the window;
+/// `ui-dialog-shell` no longer carries a width). Height is fixed because the
+/// windows do not resize (design: not resizable). Unknown kinds fall back to a
+/// sensible medium size.
 fn dialog_size(kind: &str) -> (f64, f64) {
     match kind {
         "messagebox" => (460.0, 220.0),

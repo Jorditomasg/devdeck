@@ -34,8 +34,6 @@ const ICONS: Record<MessageboxKind, string> = {
   template: `
     <ui-dialog-shell
       [dialogTitle]="title()"
-      width="460px"
-      [cascadeLevel]="cascadeLevel()"
       (closed)="closeSelf()"
     >
       <div class="msg msg--{{ kind() }}">

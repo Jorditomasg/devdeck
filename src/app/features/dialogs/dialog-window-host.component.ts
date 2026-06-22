@@ -74,11 +74,11 @@ export class DialogWindowHostComponent {
         return {} as Record<string, unknown>;
       }),
     ]);
-    // dialogId/cascadeLevel satisfy DialogBase's required inputs; the window
-    // host owns close via WindowDialogsApi, so the numeric id is unused.
+    // dialogId satisfies DialogBase's required input; the window host owns
+    // close via WindowDialogsApi, so the numeric id is unused.
     this.rendered.set({
       component,
-      inputs: { ...(args ?? {}), dialogId: 0, cascadeLevel: 0 },
+      inputs: { ...(args ?? {}), dialogId: 0 },
     });
   }
 }

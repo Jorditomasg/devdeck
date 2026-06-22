@@ -13,7 +13,6 @@ import {
 import { TooltipDirective } from '../tooltip/tooltip.directive';
 import { DIALOG_WINDOW_CLOSE, DIALOG_WINDOW_MODE } from './dialog-window-mode';
 
-const CASCADE_OFFSET_PX = 20; // v1 _CASCADE_OFFSET_PX (§13.4)
 const KNOCK_DURATION_MS = 360;
 const FOCUSABLE =
   'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), ' +
@@ -24,8 +23,6 @@ const FOCUSABLE =
  *
  * - **CSS backdrop at 50% darken** replaces the PIL screenshot overlay hack
  *   (§13.3 — `_OVERLAY_DARKEN = 0.5`).
- * - **Centered + cascade**: each nesting level offsets the panel +20px x/y
- *   (§13.4) — pass `cascadeLevel` = how many dialogs are already open.
  * - **Blocked-click "knock"** (§13.7): clicking the backdrop while
  *   `closeOnBackdrop` is false plays a subtle shake + border flash instead
  *   of closing — the v2 equivalent of v1's `bell()` + lift. Also exposed as
@@ -59,16 +56,10 @@ const FOCUSABLE =
 export class DialogShellComponent {
   /** Header title (already translated). */
   readonly dialogTitle = input('');
-  /** CSS width of the panel (e.g. '500px'); height grows with content. */
-  readonly width = input('auto');
-  /** Nesting depth: offsets the panel +20px x/y per level (§13.4). */
-  readonly cascadeLevel = input(0);
   /** ESC requests close (default true). */
   readonly closeOnEscape = input(true);
   /** Backdrop click closes (default false → "knock" feedback, §13.7). */
   readonly closeOnBackdrop = input(false);
-  /** Show the header ✕ button. */
-  readonly showClose = input(true);
   /** User requested close (ESC / ✕ / backdrop). Container removes the dialog. */
   readonly closed = output<void>();
 
@@ -79,7 +70,6 @@ export class DialogShellComponent {
   protected readonly windowed = inject(DIALOG_WINDOW_MODE);
 
   protected readonly knocking = signal(false);
-  protected readonly offset = (): number => this.cascadeLevel() * CASCADE_OFFSET_PX;
 
   private readonly panel = viewChild.required<ElementRef<HTMLElement>>('panel');
   private knockTimer: ReturnType<typeof setTimeout> | undefined;

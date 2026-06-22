@@ -60,8 +60,6 @@ export interface ImportApplyResult {
     <ui-dialog-shell
       #shell
       [dialogTitle]="'dialog.import.title' | t"
-      width="620px"
-      [cascadeLevel]="cascadeLevel()"
       (closed)="requestClose()"
     >
       @if (step() === 'options') {

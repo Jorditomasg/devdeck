@@ -52,8 +52,6 @@ export interface JavaVersionEntry {
   template: `
     <ui-dialog-shell
       [dialogTitle]="title()"
-      width="520px"
-      [cascadeLevel]="cascadeLevel()"
       (closed)="closeSelf(null)"
     >
       <div class="java-editor">

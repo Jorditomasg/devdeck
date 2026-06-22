@@ -49,8 +49,6 @@ import {
   template: `
     <ui-dialog-shell
       [dialogTitle]="'dialog.workspace_groups.title' | t"
-      width="620px"
-      [cascadeLevel]="cascadeLevel()"
       (closed)="closeSelf()"
     >
       <div class="groups">

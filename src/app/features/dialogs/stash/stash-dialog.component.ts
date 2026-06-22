@@ -49,8 +49,6 @@ const PAGE_SIZE = 12;
   template: `
     <ui-dialog-shell
       [dialogTitle]="'dialog.stash.title' | t: { name: repoName() }"
-      width="620px"
-      [cascadeLevel]="cascadeLevel()"
       (closed)="closeSelf()"
     >
       <div class="stash">

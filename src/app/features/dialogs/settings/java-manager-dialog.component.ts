@@ -35,8 +35,6 @@ import {
   template: `
     <ui-dialog-shell
       [dialogTitle]="'btn.manage_java' | t"
-      width="560px"
-      [cascadeLevel]="cascadeLevel()"
       (closed)="closeSelf()"
     >
       <div class="java-mgr">

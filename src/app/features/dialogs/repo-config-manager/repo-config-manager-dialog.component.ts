@@ -54,8 +54,6 @@ import {
     <ui-dialog-shell
       #shell
       [dialogTitle]="title()"
-      width="850px"
-      [cascadeLevel]="cascadeLevel()"
       (closed)="requestClose()"
     >
       <div class="envmgr">

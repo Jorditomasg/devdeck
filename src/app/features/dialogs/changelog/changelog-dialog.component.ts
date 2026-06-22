@@ -31,8 +31,6 @@ interface ChangelogGroup {
   template: `
     <ui-dialog-shell
       [dialogTitle]="'dialog.changelog.title' | t"
-      width="640px"
-      [cascadeLevel]="cascadeLevel()"
       (closed)="closeSelf()"
     >
       <div class="changelog">

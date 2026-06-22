@@ -40,8 +40,6 @@ import { defaultFolderName, foldCloneProgress, isValidGitUrl } from './clone.log
   template: `
     <ui-dialog-shell
       [dialogTitle]="'dialog.clone.title' | t"
-      width="520px"
-      [cascadeLevel]="cascadeLevel()"
       [closeOnEscape]="!busy()"
       (closed)="onClose()"
     >

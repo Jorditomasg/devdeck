@@ -60,8 +60,6 @@ const JSON_FILTER = [{ name: 'JSON', extensions: ['json'] }] as const;
   template: `
     <ui-dialog-shell
       [dialogTitle]="'dialog.profile.title' | t"
-      width="580px"
-      [cascadeLevel]="cascadeLevel()"
       (closed)="closeSelf()"
     >
       <div class="profiles">

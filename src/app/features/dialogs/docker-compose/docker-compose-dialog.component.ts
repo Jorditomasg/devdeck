@@ -73,8 +73,6 @@ const FOLLOW_UP_MS = 3000;
   template: `
     <ui-dialog-shell
       [dialogTitle]="title()"
-      width="900px"
-      [cascadeLevel]="cascadeLevel()"
       (closed)="closeSelf()"
     >
       <div class="docker">
