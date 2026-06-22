@@ -166,6 +166,9 @@ export interface ImportApplyResult {
   `,
 })
 export class ImportOptionsDialogComponent extends DialogBase {
+  /** Window kind for opening this as a child dialog window (minify-safe). */
+  static readonly dialogKind = 'import-options';
+
   /** The loaded/imported profile document. */
   readonly doc = input.required<ProfileDocument>();
   /** Clone-missing plan (`get_missing_repos`, contract §2.7 #45). */

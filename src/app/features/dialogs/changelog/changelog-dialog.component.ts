@@ -65,6 +65,9 @@ interface ChangelogGroup {
   `,
 })
 export class ChangelogDialogComponent extends DialogBase implements OnInit {
+  /** Window kind for opening this as a child dialog window (minify-safe). */
+  static readonly dialogKind = 'changelog';
+
   private readonly updates = inject(UpdatesStore);
 
   protected readonly releases = signal<readonly ChangelogRelease[] | null>(null);

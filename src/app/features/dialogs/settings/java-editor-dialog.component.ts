@@ -105,6 +105,9 @@ export interface JavaVersionEntry {
   `,
 })
 export class JavaEditorDialogComponent extends DialogBase {
+  /** Window kind for opening this as a child dialog window (minify-safe). */
+  static readonly dialogKind = 'java-editor';
+
   /** Pre-filled name (edit mode); empty = new entry. */
   readonly initialName = input('');
   /** Pre-filled JAVA_HOME path (edit mode). */

@@ -29,6 +29,7 @@ import type {
   RevertOutcome,
   ServiceId,
   ServiceSnapshot,
+  ShellInfo,
   StashEntry,
   UpdateInfo,
   WorkspaceGroup,
@@ -52,6 +53,8 @@ export const CMD = {
   terminalWrite: 'terminal_write',
   terminalResize: 'terminal_resize',
   closeTerminal: 'close_terminal',
+  listShells: 'list_shells',
+  setTerminalShell: 'set_terminal_shell',
   // native dialog windows (docs/migration/dialogs-as-windows.md)
   openDialogWindow: 'open_dialog_window',
   getDialogArgs: 'get_dialog_args',
@@ -673,6 +676,16 @@ export class IpcCommands {
     /** Kill the PTY process tree and drop the session (on window close). */
     close: (id: string): Promise<void> =>
       this.bridge.invoke<void>(CMD.closeTerminal, { id }),
+
+    /** Shells detected on this machine, for the Settings terminal picker. */
+    listShells: (): Promise<ShellInfo[]> => this.bridge.invoke<ShellInfo[]>(CMD.listShells),
+
+    /**
+     * Persist the shell command for NEW terminals (`null`/empty → per-platform
+     * default). Emits `config://changed`.
+     */
+    setShell: (shell: string | null): Promise<void> =>
+      this.bridge.invoke<void>(CMD.setTerminalShell, { shell }),
   };
 
   // -- updates & about (§2.9) -----------------------------------------------

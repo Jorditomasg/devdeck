@@ -29,7 +29,8 @@ export {
 export { LogViewerComponent } from './log-viewer/log-viewer.component';
 export { DEFAULT_MAX_LINES } from './log-viewer/log-viewer.logic';
 export { DialogShellComponent } from './dialog-shell/dialog-shell.component';
-export { DIALOG_WINDOW_MODE } from './dialog-shell/dialog-window-mode';
+export { DIALOG_WINDOW_MODE, DIALOG_WINDOW_CLOSE } from './dialog-shell/dialog-window-mode';
+export type { DialogWindowClose } from './dialog-shell/dialog-window-mode';
 export { TabsComponent } from './tabs/tabs.component';
 export type { TabDef } from './tabs/tabs.component';
 export { PaginationComponent } from './pagination/pagination.component';

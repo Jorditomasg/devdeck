@@ -55,16 +55,17 @@ export interface CardHeaderText {
       <!-- §6 item 2: status dot with 3s logging flash (§8) -->
       <ui-status-dot [status]="dot()" [flashTick]="flashTick()" [label]="statusText()" />
 
-      <!-- §6 item 3: type badge on ui_config.color -->
+      <!-- §6 item 3: type badge on ui_config.color (kept — shows repo type) -->
       <ui-badge tone="solid" [bg]="typeColor()">{{ typeLabel() }}</ui-badge>
 
-      <!-- §6 item 4: icon + name; right-click opens the remote URL -->
+      <!-- §6 item 4: name; right-click opens the remote URL. The ui_config.icon
+           emoji was removed (cleaner header, user request); the type badge stays. -->
       <span
         class="header__name"
         [uiTooltip]="text().openRepoTip"
         (contextmenu)="onContextMenu($event)"
       >
-        {{ icon() }} {{ name() }}
+        {{ name() }}
       </span>
 
       <!-- §6 item 5: badges -->

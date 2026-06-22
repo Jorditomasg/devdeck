@@ -6,12 +6,10 @@
  * - `close(id, result)` → `resolve_dialog(token, result)` (this window's own
  *   token), which emits `dialog://resolved` and closes the window Rust-side.
  *   `undefined` result → cancel (`null`); the opener applies its fallback.
- * - Sub-dialogs (`confirm` / `prompt` / messageboxes) open CHILD windows
- *   parented to THIS window via {@link openDialogWindowForResult}.
- *
- * Feature dialogs (`openSettings`, `openBranches`, …) are not opened from
- * within a dialog window in the migrated phases; they throw until a later
- * phase wires them.
+ * - EVERY nested dialog (`confirm`/`prompt`/messagebox, feature dialogs, AND
+ *   component-based `open()`/`openForResult()`) opens a CHILD window parented
+ *   to THIS window. Component-based calls resolve the component to a `kind` via
+ *   its class name (the same kinds the window registry maps).
  */
 import { Injectable, inject } from '@angular/core';
 import type { Type } from '@angular/core';
@@ -21,8 +19,15 @@ import { IpcEvents } from '../../core/ipc/events';
 import type { DialogsApi } from './dialog-stack';
 import { openDialogWindowForResult } from './dialog-window.bridge';
 
-function notInWindow(method: string): never {
-  throw new Error(`${method}() is not available inside a dialog window`);
+/**
+ * Components opened from WITHIN a dialog window via the component-based
+ * `open()`/`openForResult()` carry a `static dialogKind`. We key off that (NOT
+ * `component.name`, which the production minifier mangles) to resolve the
+ * child-window kind. Components only ever opened by `kind` (the common case)
+ * don't need it.
+ */
+interface DialogComponentWithKind {
+  readonly dialogKind: string;
 }
 
 @Injectable()
@@ -36,12 +41,45 @@ export class WindowDialogsApi implements DialogsApi {
 
   // -- generic primitives -----------------------------------------------------
 
-  open(_component: Type<unknown>, _inputs?: Record<string, unknown>): number {
-    return notInWindow('open');
+  /** Open a component-based sub-dialog as a child window (fire-and-forget). */
+  open(component: Type<unknown>, inputs: Record<string, unknown> = {}): number {
+    void this.openKindForResult(this.kindOf(component), inputs, null);
+    return 0; // window-based: no in-app stack id
   }
 
-  openForResult<T>(): Promise<T> {
-    return notInWindow('openForResult');
+  openForResult<T>(
+    component: Type<unknown>,
+    inputs: Record<string, unknown>,
+    fallback: T,
+  ): Promise<T> {
+    return this.openKindForResult(this.kindOf(component), inputs, fallback);
+  }
+
+  openKind(kind: string, inputs: Record<string, unknown> = {}): void {
+    void this.openKindForResult(kind, inputs, null);
+  }
+
+  openKindForResult<T>(kind: string, inputs: Record<string, unknown>, fallback: T): Promise<T> {
+    return openDialogWindowForResult<T>(
+      this.commands,
+      this.events,
+      kind,
+      'DevDeck',
+      inputs,
+      fallback,
+      this.token,
+    );
+  }
+
+  /** Resolve a component class to its window kind via `static dialogKind`. */
+  private kindOf(component: Type<unknown>): string {
+    const kind = (component as Partial<DialogComponentWithKind>).dialogKind;
+    if (!kind) {
+      throw new Error(
+        `component '${component.name}' has no static dialogKind (needed to open it as a window)`,
+      );
+    }
+    return kind;
   }
 
   /** Resolve THIS window. `undefined` → cancel (opener applies its fallback). */
@@ -97,50 +135,42 @@ export class WindowDialogsApi implements DialogsApi {
     title: string,
     message: string,
   ): Promise<boolean> {
-    return openDialogWindowForResult<boolean>(
-      this.commands,
-      this.events,
-      'messagebox',
-      title,
-      { kind, title, message },
-      false,
-      this.token,
-    );
+    return this.openKindForResult<boolean>('messagebox', { kind, title, message }, false);
   }
 
-  // -- feature dialogs (wired per migration phase) ----------------------------
+  // -- feature dialogs (child windows parented to this one) -------------------
 
   openClone(): void {
-    notInWindow('openClone');
+    this.openKind('clone');
   }
   openSettings(): void {
-    notInWindow('openSettings');
+    this.openKind('settings');
   }
-  openMergeBranch(_repoName: string): void {
-    notInWindow('openMergeBranch');
+  openMergeBranch(repoName: string): void {
+    this.openKind('merge-branch', { repoName });
   }
-  openStash(_repoName: string): void {
-    notInWindow('openStash');
+  openStash(repoName: string): void {
+    this.openKind('stash', { repoName });
   }
-  openBranches(_repoName: string): void {
-    notInWindow('openBranches');
+  openBranches(repoName: string): void {
+    this.openKind('branch', { repoName });
   }
-  openDockerCompose(_repoName: string): void {
-    notInWindow('openDockerCompose');
+  openDockerCompose(repoName: string): void {
+    this.openKind('docker-compose', { repoName });
   }
-  openRepoConfigManager(_repoName: string): void {
-    notInWindow('openRepoConfigManager');
+  openRepoConfigManager(repoName: string): void {
+    this.openKind('repo-config-manager', { repoName });
   }
-  openConfigEditor(_repoName: string, _filePath: string): void {
-    notInWindow('openConfigEditor');
+  openConfigEditor(repoName: string, filePath: string): void {
+    this.openKind('config-editor', { repoName, filePath });
   }
   openProfileManager(): void {
-    notInWindow('openProfileManager');
+    this.openKind('profile-manager');
   }
   openWorkspaceGroups(): void {
-    notInWindow('openWorkspaceGroups');
+    this.openKind('workspace-groups');
   }
-  confirmClose(_runningCount: number): Promise<boolean> {
-    return notInWindow('confirmClose');
+  confirmClose(runningCount: number): Promise<boolean> {
+    return this.openKindForResult<boolean>('confirm-close', { runningCount }, false);
   }
 }

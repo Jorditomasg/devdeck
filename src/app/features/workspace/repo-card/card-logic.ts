@@ -83,8 +83,12 @@ export interface ConfigAffordances {
 /**
  * §7 config-row gating, keyed on `RepoInfo.configEditable`: non-editable repos
  * (e.g. docker-infra) get no env rows, no config button, no command row.
- * Env rows need both editable config AND at least one environment file;
- * the standalone config button only appears when editable WITHOUT env rows.
+ * Env rows need both editable config AND at least one environment file.
+ *
+ * The standalone "Config" button is intentionally NOT shown for editable repos
+ * that have no environment files (user request): with nothing to configure it
+ * was confusing (e.g. DevDeck's own Angular repo). Editing still happens
+ * through the env selector rows when there ARE env files.
  */
 export function configAffordances(
   configEditable: boolean,
@@ -93,7 +97,7 @@ export function configAffordances(
   const hasEnvRows = envFileCount > 0 && configEditable;
   return {
     hasEnvRows,
-    showConfigBtn: !hasEnvRows && configEditable,
+    showConfigBtn: false,
     showCmdRow: configEditable,
   };
 }

@@ -121,6 +121,8 @@ Rust-side: `<repoId>::term::<n>`, monotonic per repo.
 | 64 | `terminal_write` | `{ id: string, data: string }` | `void` | forwards keystrokes (the `xterm.onData` string) to the PTY input |
 | 65 | `terminal_resize` | `{ id: string, cols: number, rows: number }` | `void` | resizes the PTY viewport (SIGWINCH) |
 | 66 | `close_terminal` | `{ id: string }` | `void` | force-kills the PTY process tree (`kill.rs`) and drops the session — invoked by the window on close (no confirmation: closing a terminal window kills its shell) |
+| — | `list_shells` | — | `ShellInfo[]` (`{ label, command }`) | shells detected on this machine (PATH + well-known paths: pwsh/powershell/cmd/wsl/Git Bash on Windows; `$SHELL`/bash/zsh/fish/sh on Unix) — for the Settings terminal picker |
+| — | `set_terminal_shell` | `{ shell: string \| null }` | `void` | persist the shell command for NEW terminals (`null`/empty → per-platform default); `open_terminal_window` reads `AppConfig::terminal_shell`. Emits `config://changed` |
 
 **Minimize-to-tray** (config key `minimize_to_tray`, v1 default `true`):
 Rust-side only — `lib.rs` watches the main window's `Resized` events, probes

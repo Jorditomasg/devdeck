@@ -11,7 +11,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { TooltipDirective } from '../tooltip/tooltip.directive';
-import { DIALOG_WINDOW_MODE } from './dialog-window-mode';
+import { DIALOG_WINDOW_CLOSE, DIALOG_WINDOW_MODE } from './dialog-window-mode';
 
 const CASCADE_OFFSET_PX = 20; // v1 _CASCADE_OFFSET_PX (§13.4)
 const KNOCK_DURATION_MS = 360;
@@ -89,6 +89,11 @@ export class DialogShellComponent {
     TooltipDirective.hideAll();
     afterNextRender(() => this.panel().nativeElement.focus());
     inject(DestroyRef).onDestroy(() => clearTimeout(this.knockTimer));
+    // In a dialog window, route the OS ✕ through the same `closed` path as
+    // ESC / in-content ✕ so each dialog's close guard still runs.
+    if (this.windowed) {
+      inject(DIALOG_WINDOW_CLOSE, { optional: true })?.onRequest(() => this.closed.emit());
+    }
   }
 
   /** Blocked-interaction feedback: subtle shake + border flash (§13.7). */

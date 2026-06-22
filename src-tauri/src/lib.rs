@@ -179,6 +179,8 @@ pub fn run() {
             commands::terminal::terminal_write,
             commands::terminal::terminal_resize,
             commands::terminal::close_terminal,
+            commands::terminal::list_shells,
+            commands::terminal::set_terminal_shell,
             // native dialog windows (docs/migration/dialogs-as-windows.md)
             commands::dialog::open_dialog_window,
             commands::dialog::get_dialog_args,

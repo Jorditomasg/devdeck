@@ -22,7 +22,8 @@ import {
 } from '@angular/core';
 
 import { IpcCommands } from '../../core/ipc/commands';
-import { DIALOG_WINDOW_MODE } from '../../ui';
+import { DIALOG_WINDOW_CLOSE, DIALOG_WINDOW_MODE } from '../../ui';
+import { DialogWindowCloseService } from './dialog-window-close.service';
 import { DIALOGS } from './dialog-stack';
 import { DIALOG_WINDOW_COMPONENTS } from './dialog-window-registry';
 import { WindowDialogsApi } from './window-dialogs-api';
@@ -39,6 +40,8 @@ interface RenderedDialog {
   providers: [
     { provide: DIALOGS, useClass: WindowDialogsApi },
     { provide: DIALOG_WINDOW_MODE, useValue: true },
+    DialogWindowCloseService,
+    { provide: DIALOG_WINDOW_CLOSE, useExisting: DialogWindowCloseService },
   ],
   template: `
     @if (rendered(); as r) {
@@ -59,17 +62,18 @@ export class DialogWindowHostComponent {
   }
 
   private async load(): Promise<void> {
-    const component = DIALOG_WINDOW_COMPONENTS[this.kind];
-    if (!component) {
+    const loader = DIALOG_WINDOW_COMPONENTS[this.kind];
+    if (!loader) {
       console.error(`unknown dialog kind '${this.kind}'`);
       return;
     }
-    const args = await this.commands.dialog
-      .getArgs<Record<string, unknown>>(this.token)
-      .catch((err: unknown) => {
+    const [component, args] = await Promise.all([
+      loader(),
+      this.commands.dialog.getArgs<Record<string, unknown>>(this.token).catch((err: unknown) => {
         console.error('get_dialog_args failed', err);
         return {} as Record<string, unknown>;
-      });
+      }),
+    ]);
     // dialogId/cascadeLevel satisfy DialogBase's required inputs; the window
     // host owns close via WindowDialogsApi, so the numeric id is unused.
     this.rendered.set({

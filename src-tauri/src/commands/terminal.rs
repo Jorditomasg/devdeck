@@ -12,7 +12,7 @@ use tauri::ipc::{Channel, InvokeResponseBody};
 use super::app::{urlencode_component, window_label};
 use super::error::{AppError, CmdResult};
 use crate::state::AppState;
-use crate::terminal::shell::default_shell;
+use crate::terminal::shell::{detect_shells, resolve_shell, ShellInfo};
 
 /// PTY size before the webview's first fit/resize (corrected immediately after
 /// `attach_terminal` by a `terminal_resize`).
@@ -32,7 +32,10 @@ pub async fn open_terminal_window(
     title: String,
 ) -> CmdResult<String> {
     let id = state.terminals.next_id(&repo_id);
-    let shell = default_shell();
+    // Honor the Settings shell override (`AppConfig::terminal_shell`); fall
+    // back to the per-platform default when unset/empty or config is unreadable.
+    let override_shell = state.config.load().ok().and_then(|c| c.terminal_shell);
+    let shell = resolve_shell(override_shell.as_deref());
     state.terminals.open(
         &id,
         &shell,
@@ -98,5 +101,25 @@ pub async fn terminal_resize(
 #[tauri::command]
 pub async fn close_terminal(state: tauri::State<'_, AppState>, id: String) -> CmdResult<()> {
     state.terminals.close(&id).await;
+    Ok(())
+}
+
+/// `list_shells` → shells detected on this machine, for the Settings terminal
+/// picker. The user may also save a custom command not in this list.
+#[tauri::command]
+pub async fn list_shells() -> CmdResult<Vec<ShellInfo>> {
+    Ok(detect_shells())
+}
+
+/// `set_terminal_shell { shell }` → persist the shell command for new
+/// terminals (`null`/empty resets to the per-platform default). Saving emits
+/// `config://changed` (every window re-syncs).
+#[tauri::command]
+pub async fn set_terminal_shell(
+    state: tauri::State<'_, AppState>,
+    shell: Option<String>,
+) -> CmdResult<()> {
+    let normalized = shell.map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
+    state.config.update(|c| c.terminal_shell = normalized)?;
     Ok(())
 }

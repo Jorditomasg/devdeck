@@ -28,11 +28,15 @@ fn dialog_size(kind: &str) -> (f64, f64) {
         "stash" => (620.0, 560.0),
         "merge-branch" => (600.0, 600.0),
         "settings" => (640.0, 620.0),
+        "java-manager" => (560.0, 520.0),
+        "java-editor" => (520.0, 320.0),
+        "changelog" => (640.0, 640.0),
         "docker-compose" => (640.0, 600.0),
         "config-editor" => (720.0, 600.0),
         "repo-config-manager" => (680.0, 560.0),
         "workspace-groups" => (560.0, 520.0),
         "profile-manager" => (680.0, 600.0),
+        "import-options" => (640.0, 560.0),
         _ => (560.0, 480.0),
     }
 }

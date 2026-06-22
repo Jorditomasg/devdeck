@@ -14,3 +14,24 @@ import { InjectionToken } from '@angular/core';
 export const DIALOG_WINDOW_MODE = new InjectionToken<boolean>('DIALOG_WINDOW_MODE', {
   factory: () => false,
 });
+
+/**
+ * Bridge for the OS window-close request inside a dialog window. The host
+ * provides an implementation that intercepts the native ✕ (preventing the
+ * default close); `ui-dialog-shell` registers a callback so the OS ✕ routes
+ * through the SAME `closed` path as ESC / in-content ✕ — preserving each
+ * dialog's close guard (e.g. config-editor's unsaved-changes prompt). Without
+ * this, the OS ✕ would close the window and bypass the guard (data loss).
+ *
+ * Lives in `ui/` so the pure shell can inject it; the feature host provides the
+ * Tauri-backed implementation. `null` outside a dialog window (in-app stack).
+ */
+export interface DialogWindowClose {
+  /** Register the handler fired when the OS window close is requested. */
+  onRequest(handler: () => void): void;
+}
+
+export const DIALOG_WINDOW_CLOSE = new InjectionToken<DialogWindowClose | null>(
+  'DIALOG_WINDOW_CLOSE',
+  { factory: () => null },
+);
