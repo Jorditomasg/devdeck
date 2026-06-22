@@ -37,7 +37,6 @@ import {
   SearchableSelectComponent,
 } from '../../../ui';
 import { DialogBase } from '../dialog-base';
-import { PromptDialogComponent } from '../shared/prompt-dialog.component';
 import {
   basenameOf,
   envNameFromFile,
@@ -502,21 +501,15 @@ export class RepoConfigManagerDialogComponent extends DialogBase {
     return true;
   }
 
-  /** `_AskNameDialog` replacement (shared prompt, §23). `null` = cancelled. */
+  /** `_AskNameDialog` replacement (generic prompt window, §23). `null` = cancelled. */
   private askName(
     titleKey: string,
     promptKey: string,
     initial: string,
   ): Promise<string | null> {
-    return this.dialogs.openForResult<string | null>(
-      PromptDialogComponent,
-      {
-        title: this.i18n.t(titleKey),
-        prompt: this.i18n.t(promptKey),
-        initial,
-      },
-      null,
-    );
+    return this.dialogs.prompt(this.i18n.t(titleKey), this.i18n.t(promptKey), {
+      initialValue: initial,
+    });
   }
 
   /** Name-collision guard: `false` + themed error when taken (§23). */

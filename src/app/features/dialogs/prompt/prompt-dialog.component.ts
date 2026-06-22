@@ -1,9 +1,18 @@
 /**
  * Generic single-line text prompt — the v2 replacement for a `simpledialog`
  * ask-string. Resolves the entered text on OK, or `null` on Cancel/ESC/✕
- * (the registered fallback). Used by the branch dialog for rename.
+ * (the registered fallback). Used for renames (branch, repo-config names): the
+ * pre-filled text is focused and selected, matching v1's pre-selected entry.
  */
-import { ChangeDetectionStrategy, Component, input, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  afterNextRender,
+  input,
+  signal,
+  viewChild,
+} from '@angular/core';
 
 import { TPipe } from '../../../core/i18n/t.pipe';
 import { ButtonComponent, DialogShellComponent } from '../../../ui';
@@ -52,9 +61,17 @@ export class PromptDialogComponent extends DialogBase {
 
   protected readonly value = signal('');
 
+  private readonly field = viewChild.required<ElementRef<HTMLInputElement>>('field');
+
   constructor() {
     super();
-    queueMicrotask(() => this.value.set(this.initialValue()));
+    afterNextRender(() => {
+      this.value.set(this.initialValue());
+      const el = this.field().nativeElement;
+      el.value = this.initialValue();
+      el.focus();
+      el.select(); // v1: entry text pre-selected for quick rename
+    });
   }
 
   protected confirm(): void {
