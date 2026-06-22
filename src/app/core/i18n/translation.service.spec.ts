@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { CMD, IpcCommands } from '../ipc/commands';
-import { IpcEvents } from '../ipc/events';
+import { EVT, IpcEvents } from '../ipc/events';
 import { FakeTauriBridge } from '../ipc/tauri-bridge.fake';
 import { SettingsStore } from '../state/settings.store';
 import {
@@ -51,7 +51,7 @@ async function makeService(persistedLanguage?: string): Promise<{
   });
   const settings = new SettingsStore(new IpcCommands(bridge), new IpcEvents(bridge));
   await settings.load();
-  const service = new TranslationService(settings);
+  const service = new TranslationService(settings, new IpcEvents(bridge));
   service.catalogLoader = (lang: LanguageCode) =>
     lang === 'es' ? Promise.resolve(ES) : Promise.resolve(EN);
   await service.init();
@@ -131,13 +131,28 @@ describe('TranslationService', () => {
     });
   });
 
+  it('re-activates on config://changed without re-persisting (cross-window)', async () => {
+    // A detached window seeds 'en' at boot; another window then switches to
+    // Spanish. The broadcast must retranslate THIS window's signal — and must
+    // NOT call set_language again (no save loop).
+    const { service, bridge } = await makeService('en_EN');
+    expect(service.language()).toBe('en');
+
+    bridge.emit(EVT.configChanged, { language: 'es_ES' });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(service.language()).toBe('es');
+    expect(service.t('btn.start')).toBe('▶ Iniciar');
+    expect(bridge.invokesOf(CMD.setLanguage)).toHaveLength(0);
+  });
+
   it('survives a broken catalog (fallback chain stays functional)', async () => {
     const bridge = new FakeTauriBridge().whenInvoked(CMD.getAppConfig, {
       language: 'es_ES',
     });
     const settings = new SettingsStore(new IpcCommands(bridge), new IpcEvents(bridge));
     await settings.load();
-    const service = new TranslationService(settings);
+    const service = new TranslationService(settings, new IpcEvents(bridge));
     service.catalogLoader = (lang: LanguageCode) =>
       lang === 'es'
         ? Promise.reject(new Error('boom'))

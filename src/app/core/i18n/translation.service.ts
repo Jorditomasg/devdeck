@@ -17,6 +17,7 @@
  */
 import { Injectable, computed, signal } from '@angular/core';
 
+import { IpcEvents } from '../ipc/events';
 import { SettingsStore } from '../state/settings.store';
 
 /** v2 catalog codes (asset file basenames). */
@@ -102,15 +103,29 @@ export class TranslationService {
     return (await response.json()) as Catalog;
   };
 
-  constructor(private readonly settings: SettingsStore) {}
+  constructor(
+    private readonly settings: SettingsStore,
+    private readonly events: IpcEvents,
+  ) {}
 
   /**
    * Load the persisted language (+ the `en` fallback catalog). Called from
    * the app initializer AFTER `SettingsStore.load()`. Loader failures are
    * swallowed per catalog — the fallback chain still yields keys, and the
    * app must boot even with broken assets (v1 resilience contract).
+   *
+   * Also subscribes to `config://changed`: a language switch persists through
+   * the single `ConfigStore::save` choke point, which broadcasts to EVERY
+   * window. Each window owns its own `TranslationService` signal, so without
+   * this re-activation only the originating window would re-render — detached
+   * log/terminal/dialog windows (and the main window, when the change came
+   * from a dialog window) would keep the stale language. `persist: false`
+   * avoids a re-save loop (the value already came from a save).
    */
   async init(): Promise<void> {
+    await this.events.onConfigChanged((config) => {
+      void this.activate(normalizeLanguage(config.language), false);
+    });
     const lang = normalizeLanguage(this.settings.language());
     await this.activate(lang, false);
   }

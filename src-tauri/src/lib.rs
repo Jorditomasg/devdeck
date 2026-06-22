@@ -417,6 +417,32 @@ fn build_tray(
     Ok(())
 }
 
+/// Retranslate the tray menu + tooltip after a live language change.
+///
+/// The menu is built once at startup (`build_tray`); only the tooltip
+/// auto-refreshes via the status emitter. `set_language` calls this so the
+/// menu items ("Show / Hide", "Quit") follow the language too. We rebuild the
+/// menu on the EXISTING tray icon (`set_menu`) rather than rebuilding the tray
+/// — the icon's `on_menu_event` handler keys off the (unchanged) item ids, so
+/// it keeps working. No-ops when the tray was never built (non-desktop/tests).
+pub(crate) fn refresh_tray(app: &tauri::AppHandle, tray: &TrayStatus) {
+    let Some(tray_icon) = app.tray_by_id(TRAY_ID) else {
+        return;
+    };
+    let (toggle_label, quit_label) = state::tray_menu_labels(tray.is_spanish());
+    let result = (|| -> tauri::Result<()> {
+        let toggle = MenuItem::with_id(app, MENU_TOGGLE_ID, toggle_label, true, None::<&str>)?;
+        let quit = MenuItem::with_id(app, MENU_QUIT_ID, quit_label, true, None::<&str>)?;
+        let menu = Menu::with_items(app, &[&toggle, &quit])?;
+        tray_icon.set_menu(Some(menu))?;
+        tray_icon.set_tooltip(Some(tray.tooltip()))?;
+        Ok(())
+    })();
+    if let Err(err) = result {
+        log::warn!("failed to retranslate tray after language change: {err}");
+    }
+}
+
 /// Show + unminimize + focus (single-instance takeover, tray restore).
 fn show_window(window: &tauri::WebviewWindow) {
     let _ = window.show();
