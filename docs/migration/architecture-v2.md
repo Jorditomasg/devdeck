@@ -1,4 +1,4 @@
-# Architecture — DevOps Manager v2 (Tauri 2 + Angular)
+# Architecture — DevDeck v2 (Tauri 2 + Angular)
 
 Status: **approved baseline** for the v2 rewrite. Companion documents (the migration contract):
 
@@ -162,7 +162,7 @@ The v1 promise — *drop a YAML file in, get a new framework, zero code changes*
   (`bundle.resources` in `tauri.conf.json`) and loaded read-only from the resource dir at
   startup.
 - **User overrides**: a `repo-types/` folder inside the OS config dir
-  (`dirs::config_dir()/devops-manager/repo-types/`) is merged over the bundled set by `type` id
+  (`dirs::config_dir()/devdeck/repo-types/`) is merged over the bundled set by `type` id
   (user file with the same `type` replaces the bundled one; new files add types). This replaces
   v1's "edit files inside the install dir" model, which broke under Program Files (§4 config-ci).
 - **Schema** = the serde model from config-ci §1.2, with the §1.8 fixes:
@@ -186,11 +186,11 @@ The v1 promise — *drop a YAML file in, get a new framework, zero code changes*
 On first launch, if the OS config dir has no `config.json`, the Rust `config` module runs a
 one-shot migrator:
 
-1. **Locate v1 data**: `devops_manager_config.json` and `.devops-profiles/` next to the v1
+1. **Locate v1 data**: `devdeck_config.json` and `.devops-profiles/` next to the v1
    install (probe: path handed via CLI arg, the workspace parent convention of `main.py` §1,
    and a user-prompted folder picker as fallback).
-2. **Translate `devops_manager_config.json`** (full schema in §8.3 backend / §4.1 config-ci) →
-   `config.json` in `dirs::config_dir()/devops-manager/`. Key normalizations:
+2. **Translate `devdeck_config.json`** (full schema in §8.3 backend / §4.1 config-ci) →
+   `config.json` in `dirs::config_dir()/devdeck/`. Key normalizations:
    - **Spanish sentinel values become typed nulls.** v1 persisted UI strings as magic values:
      - `active_configs` entries equal to `"- Sin Seleccionar -"` → key dropped
        (absent = none selected);
@@ -205,7 +205,7 @@ one-shot migrator:
      (v1 tolerated this — real config files exhibit it, §8.3).
    - `repo_configs` / `repo_config_danger` / `java_versions` / `language` /
      `minimize_to_tray` copied as-is (the `repo::module` config-key convention is kept).
-2. **Copy `.devops-profiles/`** → `dirs::data_dir()/devops-manager/profiles/`, preserving the
+2. **Copy `.devops-profiles/`** → `dirs::data_dir()/devdeck/profiles/`, preserving the
    per-group subdirectory layout and sanitization rules (§15.1 backend), including the
    "custom group with no profiles falls back to root listing" compatibility behavior.
 3. **Leave v1 files untouched** (read-only migration; v1 remains usable during transition).
@@ -269,12 +269,12 @@ v2/
   src-tauri/
     Cargo.toml                # tauri 2 + tray-icon; serde, serde_json, serde_yaml_ng, tokio,
                               # regex, thiserror, dirs; plugins: single-instance, dialog, opener, log
-    tauri.conf.json           # DevOps Manager / es.orizon.devops-manager / NSIS / resources
+    tauri.conf.json           # DevDeck / es.orizon.devdeck / NSIS / resources
     capabilities/default.json
     build.rs
     icons/                    # icon.ico (red) + icon-green.ico from v1 assets; PNG set TODO
     src/
-      main.rs                 # thin: devops_manager_lib::run()
+      main.rs                 # thin: devdeck_lib::run()
       lib.rs                  # Builder + plugins + modules
       state.rs                # AppState
       events.rs               # event constants + payload structs

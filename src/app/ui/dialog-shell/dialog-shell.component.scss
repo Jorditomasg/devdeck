@@ -9,6 +9,15 @@
   justify-content: center;
   background-color: rgb(0 0 0 / 50%); // v1 _OVERLAY_DARKEN = 0.5 (§13.3)
   animation: dialog-fade-in 120ms ease-out;
+
+  // Window mode: the OS window is the surface — no overlay, panel fills it.
+  &--windowed {
+    position: static;
+    inset: auto;
+    display: block;
+    background-color: transparent;
+    animation: none;
+  }
 }
 
 .dialog__panel {
@@ -25,6 +34,17 @@
   // Blocked-click "knock": subtle shake + border flash (§13.7).
   &--knock {
     animation: dialog-knock 360ms ease-out;
+  }
+
+  // Window mode: fill the OS window, drop the floating-card chrome.
+  &--windowed {
+    width: 100%;
+    height: 100vh;
+    max-width: none;
+    max-height: 100vh;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
   }
 }
 

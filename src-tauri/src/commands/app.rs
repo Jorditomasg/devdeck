@@ -9,11 +9,6 @@ use crate::state::AppState;
 /// #1 `frontend_ready` — shows the (initially hidden, `"visible": false`)
 /// main window after the frontend's first paint, fixing the v1 white-flash
 /// hack (architecture-v2.md §7.9).
-///
-/// The v1-migration probe already ran during `lib.rs` setup (BEFORE the
-/// frontend's initial `get_app_config`, so the handshake always reads
-/// migrated data); its report is delivered by `migrate_from_v1`
-/// (ipc-contract.md §2.5 #36).
 #[tauri::command]
 pub async fn frontend_ready(
     app: tauri::AppHandle,

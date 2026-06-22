@@ -112,6 +112,9 @@ export class SettingsStore {
   /** Subscribe events + initial config load. Called from the app initializer. */
   async init(): Promise<void> {
     await this.events.onAppSingleInstance((e) => this._singleInstance.set(e));
+    // Re-sync whenever ANY window persists a config change (config dialogs run
+    // in their own windows — docs/migration/dialogs-as-windows.md Phase 3).
+    await this.events.onConfigChanged((config) => this._config.set(config));
     await this.load();
   }
 

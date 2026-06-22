@@ -11,6 +11,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { TooltipDirective } from '../tooltip/tooltip.directive';
+import { DIALOG_WINDOW_MODE } from './dialog-window-mode';
 
 const CASCADE_OFFSET_PX = 20; // v1 _CASCADE_OFFSET_PX (§13.4)
 const KNOCK_DURATION_MS = 360;
@@ -70,6 +71,12 @@ export class DialogShellComponent {
   readonly showClose = input(true);
   /** User requested close (ESC / ✕ / backdrop). Container removes the dialog. */
   readonly closed = output<void>();
+
+  /**
+   * Rendered inside its own OS window (no backdrop/cascade, OS provides the ✕).
+   * Provided by `app-dialog-window-host`; default false (in-app stack).
+   */
+  protected readonly windowed = inject(DIALOG_WINDOW_MODE);
 
   protected readonly knocking = signal(false);
   protected readonly offset = (): number => this.cascadeLevel() * CASCADE_OFFSET_PX;

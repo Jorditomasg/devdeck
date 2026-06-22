@@ -2,7 +2,7 @@
 
 - **Fecha:** 2026-06-14
 - **Estado:** Aprobado (pendiente de plan de implementación)
-- **Producto:** DevDeck / DevOps Manager (Tauri 2 + Angular 22)
+- **Producto:** DevDeck / DevDeck (Tauri 2 + Angular 22)
 
 ## Objetivo
 
@@ -130,7 +130,7 @@ Todo en el mismo cambio:
 - **Shell por defecto** (configurable, con fallback):
   - Unix: `$SHELL` → `/bin/bash` → `/bin/sh`.
   - Windows: `pwsh` → `powershell` → `cmd`.
-  - Override opcional en config global (`dirs::config_dir()/devops-manager/`). **No** en
+  - Override opcional en config global (`dirs::config_dir()/devdeck/`). **No** en
     los YAML de repo-types (esos son para detección). Per-repo queda fuera de scope (YAGNI).
 - **N terminales:** cada `openTerminalWindow` genera un `TermId` `<repoId>::term::<n>`
   (contador monótono por repo, ver sección IPC). `TerminalManager` =

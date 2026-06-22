@@ -127,3 +127,38 @@
   font-size: var(--font-size-sm);
   white-space: pre-line;
 }
+
+/// Compact management table (branch/stash lists) — header row + hover rows,
+/// bordered surface supplied by the wrapping element.
+@mixin data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-base);
+
+  th {
+    padding: 6px 10px;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+    font-weight: 700;
+    text-align: left;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background-color: var(--color-section-alt);
+    border-bottom: var(--geo-border-width) solid var(--color-border-subtle);
+  }
+
+  td {
+    padding: 6px 10px;
+    color: var(--color-text-primary);
+    border-bottom: var(--geo-border-width) solid var(--color-border-subtle);
+    vertical-align: middle;
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  tbody tr:hover td {
+    background-color: var(--color-card-hover);
+  }
+}

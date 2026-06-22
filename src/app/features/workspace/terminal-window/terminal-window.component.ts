@@ -8,9 +8,13 @@
  * - binds its output `Channel` via `attach` (raw PTY bytes, ANSI intact →
  *   `xterm.write`); the pre-attach backlog arrives as the first message;
  * - forwards keystrokes (`xterm.onData`) to the PTY (`terminal_write`);
- * - keeps the PTY viewport in sync with the window (fit addon + resize);
- * - kills the PTY when the window closes (`close_terminal`, no confirmation —
- *   closing a terminal window kills its shell).
+ * - keeps the PTY viewport in sync with the window (fit addon + resize).
+ *
+ * The PTY is killed Rust-side when the OS window closes (`on_window_event`,
+ * design decision: closing a terminal window kills its shell). The webview must
+ * NOT drive this via `onCloseRequested`: that wrapper calls `window.destroy()`,
+ * which the term-* capability denies (no `core:window:*` perms), so the window
+ * would never close.
  */
 import {
   ChangeDetectionStrategy,
@@ -25,7 +29,6 @@ import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
 
 import { IpcCommands } from '../../../core/ipc/commands';
-import { IpcEvents } from '../../../core/ipc/events';
 
 @Component({
   selector: 'terminal-window',
@@ -35,7 +38,6 @@ import { IpcEvents } from '../../../core/ipc/events';
 })
 export class TerminalWindowComponent implements OnInit, OnDestroy {
   private readonly commands = inject(IpcCommands);
-  private readonly events = inject(IpcEvents);
   private readonly host = viewChild.required<ElementRef<HTMLElement>>('host');
 
   /** Terminal id from the `?terminal=` query param (set by app.component). */
@@ -46,7 +48,6 @@ export class TerminalWindowComponent implements OnInit, OnDestroy {
   private term: Terminal | null = null;
   private fit: FitAddon | null = null;
   private resizeObserver: ResizeObserver | null = null;
-  private unlistenClose: (() => void) | null = null;
 
   async ngOnInit(): Promise<void> {
     document.title = `${this.id} — DevDeck`;
@@ -80,16 +81,10 @@ export class TerminalWindowComponent implements OnInit, OnDestroy {
     this.resizeObserver.observe(this.host().nativeElement);
 
     term.focus();
-
-    // Kill the PTY when the window closes (design: no confirmation).
-    this.unlistenClose = await this.events.onWindowCloseRequested(() =>
-      this.commands.terminal.close(this.id),
-    );
   }
 
   ngOnDestroy(): void {
     this.resizeObserver?.disconnect();
-    this.unlistenClose?.();
     this.term?.dispose();
   }
 

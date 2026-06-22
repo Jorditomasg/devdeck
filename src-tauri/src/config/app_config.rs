@@ -1,10 +1,10 @@
 //! Typed serde model of the application config (`config.json`).
 //!
-//! Field-for-field port of the v1 `devops_manager_config.json` schema
+//! Field-for-field port of the v1 config schema
 //! (inventory-backend.md §8.3, inventory-config-ci.md §4.1) plus the v2
-//! additions (window state, recent workspaces, migration markers —
-//! architecture-v2.md §6). Unknown keys are preserved through the flattened
-//! `extra` map so v1 files and future versions round-trip losslessly.
+//! additions (window state, recent workspaces). Unknown keys are preserved
+//! through the flattened `extra` map so v1 files and future versions
+//! round-trip losslessly.
 
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -23,6 +23,10 @@ pub const SENTINEL_SYSTEM_DEFAULT: &str = "Sistema (Por Defecto)";
 /// in the repo root.
 pub const ROOT_MODULE_KEY: &str = "root";
 
+/// The default workspace group, used as the `last_profile_by_group` key when
+/// no group is active.
+pub const DEFAULT_GROUP_NAME: &str = "Default";
+
 /// Saved environments: `repo → module-dir → env-name → full file content`.
 pub type RepoConfigsMap = BTreeMap<String, BTreeMap<String, BTreeMap<String, String>>>;
 
@@ -30,8 +34,8 @@ pub type RepoConfigsMap = BTreeMap<String, BTreeMap<String, BTreeMap<String, Str
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct AppConfig {
-    /// Legacy single workspace root (pre-groups); kept in sync, used to
-    /// synthesize the migration `Default` group.
+    /// Legacy single workspace root (pre-groups); kept in sync for
+    /// backward compatibility.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub workspace_dir: Option<String>,
     /// UI language code (`en_EN`, `es_ES`). Applied on next start.
@@ -87,13 +91,6 @@ pub struct AppConfig {
     /// (fixed 1300x900 — §8.3 backend note); v2 decides to persist it.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub window: Option<WindowState>,
-    /// v2 migration marker: absolute path of the v1 install the data was
-    /// imported from (architecture-v2.md §6 step 4).
-    #[serde(rename = "migratedFrom", skip_serializing_if = "Option::is_none")]
-    pub migrated_from: Option<String>,
-    /// v2 migration marker: ISO-8601 timestamp of the import.
-    #[serde(rename = "migratedAt", skip_serializing_if = "Option::is_none")]
-    pub migrated_at: Option<String>,
 
     /// Lossless passthrough of unknown keys (forward/backward compat).
     #[serde(flatten)]

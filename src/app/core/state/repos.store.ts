@@ -55,6 +55,17 @@ export class ReposStore {
       this.events.onRepoScanProgress((e) => this.applyScanProgress(e)),
       this.events.onGitBadge((e) => this.applyBadge(e)),
     ]);
+    // Hydrate from the last scan cached Rust-side. The main window re-scans
+    // right after (overwriting this); dialog windows — which never scan — rely
+    // on it so `repoByName` works (docs/migration/dialogs-as-windows.md P3).
+    try {
+      const repos = await this.commands.detection.listRepos();
+      if (repos.length > 0 && this._repos().length === 0) {
+        this._repos.set(repos);
+      }
+    } catch {
+      // No Tauri host (ng serve) or no scan yet — leave empty.
+    }
   }
 
   /**

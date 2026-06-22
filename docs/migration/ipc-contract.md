@@ -1,4 +1,4 @@
-# IPC Contract — DevOps Manager v2
+# IPC Contract — DevDeck v2
 
 Status: **authoritative**. This document is the contract between the Angular frontend
 (`v2/src/app/core/ipc/`) and the Rust commands layer (`v2/src-tauri/src/commands/`). The Rust
@@ -28,14 +28,14 @@ Companion docs: `architecture-v2.md` (§3 IPC design), `inventory-backend.md`,
 All IPC payload structs MUST serialize **camelCase** via `#[serde(rename_all = "camelCase")]`
 — already done for `RepoInfo`, `RepoModule`, event payloads, `OpOutput`, `StatusSummary`,
 `OrderedBranches`, `MergeRequest`, `MergeOutcome`, `RevertOutcome`, `MissingRepo`,
-`ServiceSnapshot`, `ComposeService`, `ContainerInfo`, `WindowState`, `MigrationReport`.
+`ServiceSnapshot`, `ComposeService`, `ContainerInfo`, `WindowState`.
 
 **Deliberate exceptions — persisted v1-compatible documents keep their v1 snake_case keys
 verbatim** (they are user files that must round-trip byte-compatibly, architecture-v2.md §6):
 
 | Type | Wire keys | Why |
 |---|---|---|
-| `AppConfig`, `RepoState`, `WorkspaceGroup` | v1 snake_case (`workspace_dir`, `java_versions`, `custom_command`, …) | `config.json` schema is the migrated v1 schema (inventory-backend.md §8.3) |
+| `AppConfig`, `RepoState`, `WorkspaceGroup` | v1 snake_case (`workspace_dir`, `java_versions`, `custom_command`, …) | `config.json` schema is the v1 schema (inventory-backend.md §8.3) |
 | `ProfileDocument`, `RepoProfile` | v1 snake_case + `"type"` for `repo_type` | profile `.json` files are shared/imported across versions (inventory-backend.md §15.3) |
 | `RevertPoint` | v1 dict keys (`original_branch`, `dest_head_before`, …) | documented v1 payload (inventory-backend.md §10.5) |
 | `UiConfig` / `UiSelector` (nested in `RepoInfo.uiConfig`) | snake_case (`install_check_dirs`, `actions`, `selectors`, `icon`, `color`) | passthrough of the repo-type YAML `ui:` block — the Rust `Ui` struct (`domain/repo_type.rs`) has `#[serde(default)]` but NO `rename_all`, so its fields keep their snake_case names on the wire; only the enclosing `RepoInfo.ui_config` field is camelCased (→ `uiConfig`) by `RepoInfo`'s own `rename_all`. Unknown YAML keys round-trip via the struct's `#[serde(flatten)] extra` map. (v2 flattened the v1 nested `ui.install.check_dirs` to a top-level `install_check_dirs`; there is no `UiInstall` type anymore.) |
@@ -55,7 +55,7 @@ A failed `invoke` rejects the promise with this object. The frontend maps `kind`
 
 | kind | Source |
 |---|---|
-| `configuration`, `detection`, `io`, `yaml_parse`, `json_parse`, `migration`, `no_os_directory` | `domain::DomainError::kind()` |
+| `configuration`, `detection`, `io`, `yaml_parse`, `json_parse`, `no_os_directory` | `domain::DomainError::kind()` |
 | `git` | `git::GitError` (spawn/timeout) surfaced from pipeline-level failures |
 | `docker` | `docker::DockerError` |
 | `process` | process layer (spawn failure, unknown service id, already-running conflict) |
@@ -139,7 +139,7 @@ Closing a single terminal window does NOT confirm — it kills that PTY only.
 
 **Tray** (inventory-gui.md §25, Rust-side only): show/hide toggle + quit menu
 (labels localized from the config `language`), tooltip
-`"DevOps Manager — {running}/{total} running|corriendo"` refreshed on every
+`"DevDeck — {running}/{total} running|corriendo"` refreshed on every
 `service://status-changed` transition, left-click restores the window.
 
 ### 2.2 Detection (`detection/`)
@@ -147,6 +147,7 @@ Closing a single terminal window does NOT confirm — it kills that PTY only.
 | # | Command | Args | Returns | Backing |
 |---|---|---|---|---|
 | 2 | `scan_workspace` | `{ paths: string[] }` | `RepoInfo[]` | `detection::detect_repos_for_group` |
+| — | `list_repos` | — | `RepoInfo[]` | the last `scan_workspace` result cached in `AppState` (empty before the first scan). Lets dialog **windows** — which never scan — hydrate `ReposStore` so `repoByName` works (docs/migration/dialogs-as-windows.md Phase 3) |
 
 Notes:
 - `paths` are the active workspace group's roots (the frontend resolves the group from
@@ -249,7 +250,6 @@ Operation logs flow through `service://log-line` with `stream: "git"` and `name`
 | 33 | `read_config_file` | `{ path: string }` | `string` | `config::read_config_file_raw` |
 | 34 | `write_config_file` | `{ path: string, content: string }` | `void` | `config::write_config_file_raw` |
 | 35 | `apply_environment` | `{ writerType: string, targetFile: string, profile: string, content: string }` | `void` | `config::write_active_environment` (`spring` validates YAML + targets profile file; `angular`/`raw` write verbatim, inventory-config-ci.md §1.5) |
-| 36 | `migrate_from_v1` | `{ v1Root?: string }` | `MigrationReport \| null` | `config::migrate_from_v1` — `null` = nothing to migrate / already migrated; omitted `v1Root` lets Rust probe `find_v1_install` candidates (architecture-v2.md §6). `MigrationReport` needs `#[derive(Serialize)]` + `rename_all = "camelCase"` added by the commands task |
 | 58 | `set_last_profile` | `{ group: string \| null, name: string \| null }` | `void` | `ConfigStore::update` — persists `last_profile_by_group[group or "Default"] = name`; `name: null` clears the entry (inventory-backend.md §8.3) |
 
 ### 2.6 Java (`java/`)
@@ -309,9 +309,26 @@ directly) and serves the bundled `CHANGELOG.md`. Configured via
 
 ---
 
+#### Native dialog windows (design doc `docs/migration/dialogs-as-windows.md`)
+
+In-app modals are migrating to real OS windows (`dlg-<kind>-<n>`, capability
+`windows: […, "dlg-*"]`), non-resizable, one webview each. The opener calls
+`open_dialog_window`; the dialog window fetches its inputs with
+`get_dialog_args` and returns its outcome with `resolve_dialog`, which emits
+`dialog://resolved` and closes the window Rust-side (the dialog webview holds no
+`core:window:*` permissions, like the log/terminal windows). The window label
+doubles as the result token. See the design doc for the full contract and the
+migration phases.
+
+| Command | Args | Returns | Backing |
+|---|---|---|---|
+| `open_dialog_window` | `{ kind: string, title: string, args: Json, parentLabel?: string \| null }` | `string` (the result token = window label) | allocates `dlg-<kind>-<n>`, stores `args`, opens the non-resizable webview loading `?dialog=<kind>&token=<t>`, parented + centered on `parentLabel` |
+| `get_dialog_args` | `{ token: string }` | `Json` | the dialog window's stored inputs (`null` once resolved) |
+| `resolve_dialog` | `{ token: string, result: Json }` | `void` | records the outcome, emits `dialog://resolved { token, result }`, closes the window; `result: null` = cancel (opener applies its fallback) |
+
 ## 3. Events
 
-8 events. Only Rust emits; the frontend only listens (`core/ipc/events.ts`). Names and payload
+10 events. Only Rust emits; the frontend only listens (`core/ipc/events.ts`). Names and payload
 structs live in `src-tauri/src/events.rs`.
 
 | Event | Payload (TS mirror) | Cadence / source |
@@ -324,6 +341,8 @@ structs live in `src-tauri/src/events.rs`.
 | `app://single-instance` | `SingleInstanceEvent { argv, cwd }` | second launch (tauri-plugin-single-instance callback) |
 | `app://close-requested` | `{}` (empty object) | close/quit attempted while services run; Rust prevented the close — the frontend shows the confirm-running dialog and answers with `app_exit { force }` (§2.1 extensions) |
 | `update://progress` | `UpdateProgressEvent { downloaded, contentLength: number \| null }` | download progress while `install_update` runs (updater chunk callback) |
+| `config://changed` | `AppConfig` (full, v1 snake_case keys) | the persisted config changed — emitted from the single `ConfigStore::save` choke point so every window's `SettingsStore` re-syncs (docs/migration/dialogs-as-windows.md Phase 3) |
+| `dialog://resolved` | `DialogResolvedEvent { token, result: unknown }` | a native dialog window settled (`resolve_dialog` or `dlg-*` close); `result: null` = cancelled → opener applies its fallback (design doc `dialogs-as-windows.md`) |
 
 `name` in `git://badge` / `docker://status` / service events is the repo name / service id
 (`"repo"` or `"repo::module"`).
@@ -340,6 +359,6 @@ service ring buffer, 1000 lines global — enforced in `core/state/services.stor
 | `ReposStore` | `scan_workspace`, `git_refresh_badge` | `repo://scan-progress`, `git://badge` |
 | `ServicesStore` | `start_service`, `stop_service`, `restart_service`, `install_dependencies`, `list_services`, `stop_all_services` | `service://status-changed`, `service://log-line` |
 | `ProfilesStore` | `list_profiles`, `load_profile`, `save_profile`, `delete_profile`, `export_profile`, `import_profile`, `get_missing_repos`, `apply_profile_environments` | — |
-| `SettingsStore` | `get_app_config`, `set_language`, `set_minimize_to_tray`, `set_active_group`, `save_workspace_groups`, `set_repo_state`, `save_java_versions`, `detect_jdks`, `migrate_from_v1` | `app://single-instance` |
+| `SettingsStore` | `get_app_config`, `set_language`, `set_minimize_to_tray`, `set_active_group`, `save_workspace_groups`, `set_repo_state`, `save_java_versions`, `detect_jdks` | `app://single-instance` |
 | feature tasks (dialogs/cards) | git group, docker group, config env group (29–35) | via stores |
 | app shell (root component) | `frontend_ready`, `app_exit`, `app_hide_to_tray` | `app://close-requested` |

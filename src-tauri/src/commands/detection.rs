@@ -69,6 +69,15 @@ pub async fn scan_workspace(
     Ok(repos)
 }
 
+/// `list_repos` → the last `scan_workspace` result cached in `AppState`
+/// (empty before the first scan). Lets dialog windows — separate webviews that
+/// never run a scan — hydrate their `ReposStore` so `repoByName` works
+/// (docs/migration/dialogs-as-windows.md Phase 3).
+#[tauri::command]
+pub async fn list_repos(state: State<'_, AppState>) -> CmdResult<Vec<RepoInfo>> {
+    Ok(state.repos_snapshot())
+}
+
 fn emit_progress(app: &tauri::AppHandle, phase: &str, detected: u32, total: u32) {
     match serde_json::to_value(ScanProgressPayload {
         phase: phase.to_owned(),

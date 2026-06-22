@@ -61,6 +61,20 @@ pub const APP_CLOSE_REQUESTED: &str = "app://close-requested";
 /// the updater command's `download_and_install` chunk callback.
 pub const UPDATE_PROGRESS: &str = "update://progress";
 
+/// A native dialog window resolved (or was cancelled). Payload:
+/// `{ token, result }` where `result` is the dialog's JSON result, or `null`
+/// when cancelled (the opener then applies its registered fallback). Emitted
+/// by `commands::dialog::resolve_dialog` and the `dlg-*` close handler in
+/// `lib.rs`. See docs/migration/dialogs-as-windows.md.
+pub const DIALOG_RESOLVED: &str = "dialog://resolved";
+
+/// The persisted app config changed. Payload: the full new `AppConfig` (v1
+/// snake_case keys, same shape as `get_app_config`). Emitted from the single
+/// `ConfigStore::save` choke point so EVERY window's `SettingsStore` stays in
+/// sync — needed now that config-mutating dialogs run in their own windows
+/// (docs/migration/dialogs-as-windows.md, Phase 3 cross-window sync).
+pub const CONFIG_CHANGED: &str = "config://changed";
+
 // ---------------------------------------------------------------------------
 // Shared enums
 // ---------------------------------------------------------------------------

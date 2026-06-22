@@ -18,7 +18,6 @@ import type {
   GitBadge,
   MergeOutcome,
   MergeRequest,
-  MigrationReport,
   MissingRepo,
   OpOutput,
   OrderedBranches,
@@ -53,8 +52,13 @@ export const CMD = {
   terminalWrite: 'terminal_write',
   terminalResize: 'terminal_resize',
   closeTerminal: 'close_terminal',
+  // native dialog windows (docs/migration/dialogs-as-windows.md)
+  openDialogWindow: 'open_dialog_window',
+  getDialogArgs: 'get_dialog_args',
+  resolveDialog: 'resolve_dialog',
   // detection
   scanWorkspace: 'scan_workspace',
+  listRepos: 'list_repos',
   // process
   startService: 'start_service',
   stopService: 'stop_service',
@@ -105,7 +109,6 @@ export const CMD = {
   readConfigFile: 'read_config_file',
   writeConfigFile: 'write_config_file',
   applyEnvironment: 'apply_environment',
-  migrateFromV1: 'migrate_from_v1',
   // java
   detectJdks: 'detect_jdks',
   saveJavaVersions: 'save_java_versions',
@@ -181,6 +184,41 @@ export class IpcCommands {
     return this.bridge.invoke<string[]>(CMD.getLogBacklog, { serviceId });
   }
 
+  // -- native dialog windows (docs/migration/dialogs-as-windows.md) ----------
+
+  readonly dialog = {
+    /**
+     * Open a non-resizable dialog window of `kind`, storing `args` for it to
+     * fetch. Returns the result token; await `dialog://resolved` for it.
+     * `parentLabel` parents + centers the window (sub-dialogs pass their own
+     * window label).
+     */
+    openWindow: (
+      kind: string,
+      title: string,
+      args: unknown,
+      parentLabel?: string,
+    ): Promise<string> =>
+      this.bridge.invoke<string>(CMD.openDialogWindow, {
+        kind,
+        title,
+        args,
+        parentLabel: parentLabel ?? null,
+      }),
+
+    /** Fetch THIS dialog window's inputs (by token). */
+    getArgs: <T>(token: string): Promise<T> =>
+      this.bridge.invoke<T>(CMD.getDialogArgs, { token }),
+
+    /**
+     * Resolve a dialog window: emits `dialog://resolved { token, result }` and
+     * closes the window. Pass `result: null` to cancel (opener applies its
+     * fallback).
+     */
+    resolve: (token: string, result: unknown): Promise<void> =>
+      this.bridge.invoke<void>(CMD.resolveDialog, { token, result }),
+  };
+
   // -- detection (§2.2) -----------------------------------------------------
 
   readonly detection = {
@@ -191,6 +229,12 @@ export class IpcCommands {
      */
     scanWorkspace: (paths: readonly string[]): Promise<RepoInfo[]> =>
       this.bridge.invoke<RepoInfo[]>(CMD.scanWorkspace, { paths }),
+
+    /**
+     * The last scan result cached Rust-side (empty before the first scan).
+     * Lets dialog windows hydrate their `ReposStore` (they never scan).
+     */
+    listRepos: (): Promise<RepoInfo[]> => this.bridge.invoke<RepoInfo[]>(CMD.listRepos),
   };
 
   // -- process supervision (§2.3) -------------------------------------------
@@ -453,10 +497,6 @@ export class IpcCommands {
       profile: string;
       content: string;
     }): Promise<void> => this.bridge.invoke<void>(CMD.applyEnvironment, args),
-
-    /** One-shot v1 migrator; `null` = nothing to migrate. */
-    migrateFromV1: (v1Root?: string): Promise<MigrationReport | null> =>
-      this.bridge.invoke<MigrationReport | null>(CMD.migrateFromV1, { v1Root }),
   };
 
   // -- java (§2.6) ------------------------------------------------------------

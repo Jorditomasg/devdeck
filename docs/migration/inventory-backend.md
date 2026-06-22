@@ -1,6 +1,6 @@
-# Backend Feature Inventory — DevOps Manager (Python → Rust/Tauri 2 migration contract)
+# Backend Feature Inventory — DevDeck (Python → Rust/Tauri 2 migration contract)
 
-This document is the EXHAUSTIVE contract for reimplementing the non-GUI layers of DevOps Manager.
+This document is the EXHAUSTIVE contract for reimplementing the non-GUI layers of DevDeck.
 It is self-contained: implementers must NOT need the Python source. All references are
 `relative/path.py:line` against the Python codebase at the time of writing.
 
@@ -19,7 +19,7 @@ GUI internals are excluded, EXCEPT where the GUI is a direct party to a backend 
 5. [domain/exceptions.py](#5-domainexceptionspy)
 6. [application/services/project_analyzer.py — repo detection](#6-applicationservicesproject_analyzerpy--projectanalyzerservice)
 7. [application/use_cases/manage_services_use_case.py](#7-applicationuse_casesmanage_services_use_casepy)
-8. [core/config_manager.py + full devops_manager_config.json schema](#8-coreconfig_managerpy)
+8. [core/config_manager.py + full devdeck_config.json schema](#8-coreconfig_managerpy)
 9. [core/db_manager.py — Docker / MySQL / Flyway](#9-coredb_managerpy--docker--mysql--flyway)
 10. [core/git_manager.py — every git operation](#10-coregit_managerpy)
 11. [core/i18n.py — internationalisation](#11-corei18npy--internationalisation)
@@ -49,7 +49,7 @@ Startup sequence (`main()` at main.py:39):
    The language code comes from the JSON config (key `language`); MUST happen before any
    widget/window is created.
 3. **Windows AppUserModelID** — on `win32` only, calls
-   `ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('devops_manager.app.1.0')`
+   `ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('devdeck.app.1.0')`
    (main.py:50-56) so the taskbar uses the custom icon. Failures swallowed.
 4. **Global exception hook** — `sys.excepthook = handle_exception` (main.py:59).
    `handle_exception` (main.py:17-36):
@@ -322,10 +322,10 @@ Single most-touched backend module. Handles the JSON app config AND Spring/Angul
 
 ### 8.2 Config path
 
-`get_config_path()` (:60-65) → `<project_root>/devops_manager_config.json` (sibling of `core/`).
+`get_config_path()` (:60-65) → `<project_root>/devdeck_config.json` (sibling of `core/`).
 The config lives in the INSTALL directory, not in a user-profile dir.
 
-### 8.3 FULL schema of devops_manager_config.json
+### 8.3 FULL schema of devdeck_config.json
 
 All keys observed in code + the real file at the project root. Everything optional;
 readers always default.
@@ -596,7 +596,7 @@ en_EN), both flat `dict[str,str]`; `_TRANSLATIONS_DIR = <project_root>/config/tr
 NOT a lockfile mutex — a **registry + loopback control socket** design allowing graceful
 takeover (instance_manager.py module docstring :1-13).
 
-Constants (:22-28): registry dir = `<tempdir>/devops_manager_instances/`; host `127.0.0.1`;
+Constants (:22-28): registry dir = `<tempdir>/devdeck_instances/`; host `127.0.0.1`;
 wire tokens `PING`/`PONG`/`SHUTDOWN`/`OK` (raw ASCII bytes, ≤16-byte reads); socket timeout
 **1.0 s** per round-trip.
 

@@ -1,7 +1,7 @@
 //! Config persistence: OS config dir, atomic writes, in-memory cache.
 //!
-//! Replaces v1's install-dir `devops_manager_config.json` + module-level
-//! mtime cache (`core/config_manager.py` §8.1-8.2 backend). v2 differences:
+//! Replaces v1's install-dir config file + module-level mtime cache
+//! (`core/config_manager.py` §8.1-8.2 backend). v2 differences:
 //! - the file lives in `dirs::config_dir()/devdeck/config.json`
 //!   (architecture-v2.md §7 fix 5 — writable under Program Files installs);
 //! - writes are atomic (temp file + rename) instead of in-place `json.dump`;
@@ -11,9 +11,10 @@
 
 use crate::config::app_config::AppConfig;
 use crate::domain::{DomainError, DomainResult};
+use crate::events::{EventEmitter, CONFIG_CHANGED};
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::{Mutex, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 use std::time::SystemTime;
 
 /// Directory name under the OS config dir.
@@ -28,12 +29,23 @@ struct Cached {
 }
 
 /// Thread-safe store for the application config file.
-#[derive(Debug)]
 pub struct ConfigStore {
     path: PathBuf,
     cache: RwLock<Option<Cached>>,
     /// Serializes read-modify-write cycles in [`ConfigStore::update`].
     write_lock: Mutex<()>,
+    /// Optional `config://changed` sink — wired once in `lib.rs` setup so EVERY
+    /// window's `SettingsStore` re-syncs after any config write (config dialogs
+    /// now run in their own windows, docs/migration/dialogs-as-windows.md
+    /// Phase 3). `None` in tests / before wiring.
+    emitter: RwLock<Option<Arc<dyn EventEmitter>>>,
+}
+
+// Manual `Debug` (the trait-object emitter is not `Debug`).
+impl std::fmt::Debug for ConfigStore {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ConfigStore").field("path", &self.path).finish_non_exhaustive()
+    }
 }
 
 impl ConfigStore {
@@ -54,6 +66,15 @@ impl ConfigStore {
             path,
             cache: RwLock::new(None),
             write_lock: Mutex::new(()),
+            emitter: RwLock::new(None),
+        }
+    }
+
+    /// Wire the `config://changed` event sink (called once in `lib.rs` setup,
+    /// after the app emitter exists). Idempotent; safe to skip in tests.
+    pub fn set_emitter(&self, emitter: Arc<dyn EventEmitter>) {
+        if let Ok(mut guard) = self.emitter.write() {
+            *guard = Some(emitter);
         }
     }
 
@@ -137,6 +158,17 @@ impl ConfigStore {
                 config: config.clone(),
                 mtime,
             });
+        }
+
+        // Broadcast the new config so every window's SettingsStore re-syncs
+        // (config dialogs run in their own windows). Clone the Arc out of the
+        // lock before emitting so emission never holds the guard.
+        let emitter = self.emitter.read().ok().and_then(|g| g.clone());
+        if let Some(emitter) = emitter {
+            match serde_json::to_value(config) {
+                Ok(value) => emitter.emit(CONFIG_CHANGED, value),
+                Err(err) => log::error!("failed to serialize config for broadcast: {err}"),
+            }
         }
         Ok(())
     }

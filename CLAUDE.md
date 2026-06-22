@@ -41,7 +41,7 @@ Cross-compiling the Windows exe from WSL works via `cargo-xwin` (see the engram 
 ## Key implementation notes
 
 - Processes spawn in their OWN process group (Unix `process_group(0)`, Windows `CREATE_NO_WINDOW` + job-style `taskkill /F /T`); stop escalates stop_cmd → SIGTERM (10 s) → SIGKILL (5 s). This deliberately fixes a v1 bug — do not "simplify" it.
-- Config lives in the OS config dir (`dirs::config_dir()/devops-manager/`), profiles in `dirs::data_dir()/devops-manager/profiles/`. First run migrates v1's `devops_manager_config.json` (including Spanish sentinel values like `"- Sin Seleccionar -"`).
+- Config lives in the OS config dir (`dirs::config_dir()/devdeck/`), profiles in `dirs::data_dir()/devdeck/profiles/`. Config readers stay tolerant of v1 Spanish sentinel values (like `"- Sin Seleccionar -"`) forever via `AppConfig::normalize_sentinels`.
 - Detached log windows: `open_log_window` creates a `log-<id>` webview loading `?log=<serviceId>`; backlog comes from the Rust `LogCache` (fed by the event emitter), live lines from `service://log-line`. Capability `windows` includes `"log-*"`.
 - `Cargo.lock` pins `time 0.3.47` — 0.3.48 breaks `cookie 0.18.1` (E0119). Do not blindly `cargo update`.
 

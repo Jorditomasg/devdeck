@@ -40,10 +40,6 @@ pub enum DomainError {
     #[error("JSON parse error in '{path}': {message}")]
     JsonParse { path: String, message: String },
 
-    /// v1 → v2 data migration failure (architecture-v2.md §6).
-    #[error("migration error: {0}")]
-    Migration(String),
-
     /// The OS did not expose a standard config/data directory.
     #[error("no OS {0} directory available")]
     NoOsDirectory(&'static str),
@@ -60,7 +56,6 @@ impl DomainError {
             DomainError::Io { .. } => "io",
             DomainError::YamlParse { .. } => "yaml_parse",
             DomainError::JsonParse { .. } => "json_parse",
-            DomainError::Migration(_) => "migration",
             DomainError::NoOsDirectory(_) => "no_os_directory",
         }
     }
@@ -87,7 +82,6 @@ mod tests {
                 .kind(),
             "io"
         );
-        assert_eq!(DomainError::Migration("x".into()).kind(), "migration");
     }
 
     #[test]

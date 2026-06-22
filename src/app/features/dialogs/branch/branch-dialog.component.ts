@@ -7,6 +7,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  afterNextRender,
   computed,
   inject,
   input,
@@ -18,94 +19,182 @@ import { TranslationService } from '../../../core/i18n/translation.service';
 import { IpcCommands } from '../../../core/ipc/commands';
 import type { OpOutput } from '../../../core/ipc/tauri.types';
 import { ReposStore } from '../../../core/state/repos.store';
-import { ButtonComponent, DialogShellComponent, SearchableSelectComponent } from '../../../ui';
+import {
+  ButtonComponent,
+  DialogShellComponent,
+  PaginationComponent,
+  SearchableSelectComponent,
+  type TabDef,
+  TabsComponent,
+  TooltipDirective,
+  clampPage,
+  pageSlice,
+} from '../../../ui';
 import { DialogBase } from '../dialog-base';
 import { validateBranchName } from './branch.logic';
+
+/** Rows shown per page in the branch table (design: 12). */
+const PAGE_SIZE = 12;
 
 @Component({
   selector: 'app-branch-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ButtonComponent, DialogShellComponent, SearchableSelectComponent, TPipe],
+  styleUrl: './branch-dialog.component.scss',
+  imports: [
+    ButtonComponent,
+    DialogShellComponent,
+    PaginationComponent,
+    SearchableSelectComponent,
+    TabsComponent,
+    TooltipDirective,
+    TPipe,
+  ],
   template: `
     <ui-dialog-shell
       [dialogTitle]="'dialog.branch.title' | t: { name: repoName() }"
-      width="600px"
+      width="680px"
       [cascadeLevel]="cascadeLevel()"
       (closed)="closeSelf()"
     >
       <div class="branch">
-        <section class="branch__section">
-          <h3 class="branch__section-title">{{ 'dialog.branch.create_section' | t }}</h3>
-          <div class="branch__row">
-            <input
-              #nameInput
-              class="branch__input"
-              type="text"
-              [placeholder]="'dialog.branch.name_placeholder' | t"
-              [value]="newName()"
-              [disabled]="busy()"
-              (input)="newName.set(nameInput.value)"
-            />
-            <span class="branch__sublabel">{{ 'dialog.branch.base_label' | t }}</span>
-            <ui-searchable-select
-              class="branch__combo"
-              [options]="branches()"
-              [recentCount]="recentCount()"
-              [value]="base()"
-              [disabled]="busy()"
-              [searchPlaceholder]="'placeholder.search' | t"
-              [noResultsText]="'placeholder.no_results' | t"
-              (selectionChange)="base.set($event)"
-            />
-            <label class="branch__check">
-              <input
-                type="checkbox"
-                [checked]="checkoutAfter()"
-                [disabled]="busy()"
-                (change)="checkoutAfter.set(!checkoutAfter())"
-              />
-              {{ 'dialog.branch.checkout_after' | t }}
-            </label>
-            <ui-button variant="blue" [loading]="busy()" (clicked)="create()">
-              {{ 'dialog.branch.btn_create' | t }}
-            </ui-button>
-          </div>
-          @if (createError()) {
-            <p class="branch__error">{{ createError() }}</p>
-          }
-        </section>
+        <ui-tabs [tabs]="tabs()" [(active)]="activeTab" />
 
-        <section class="branch__section">
-          <h3 class="branch__section-title">{{ 'dialog.branch.list_section' | t }}</h3>
-          @for (b of branches(); track b) {
-            <div class="branch__entry">
-              <span class="branch__entry-label">
-                {{ b }}
-                @if (b === current()) {
-                  <span class="branch__current">({{ 'dialog.branch.current_tag' | t }})</span>
+        @switch (activeTab()) {
+          @case ('manage') {
+            <div class="branch__panel">
+              <section class="branch__section">
+                <h3 class="branch__section-title">{{ 'dialog.branch.create_section' | t }}</h3>
+                <div class="branch__row">
+                  <input
+                    #nameInput
+                    class="branch__input"
+                    type="text"
+                    [placeholder]="'dialog.branch.name_placeholder' | t"
+                    [value]="newName()"
+                    [disabled]="busy()"
+                    (input)="newName.set(nameInput.value)"
+                  />
+                  <span class="branch__sublabel">{{ 'dialog.branch.base_label' | t }}</span>
+                  <ui-searchable-select
+                    class="branch__combo"
+                    [options]="branches()"
+                    [recentCount]="recentCount()"
+                    [value]="base()"
+                    [disabled]="busy()"
+                    [searchPlaceholder]="'placeholder.search' | t"
+                    [noResultsText]="'placeholder.no_results' | t"
+                    (selectionChange)="base.set($event)"
+                  />
+                  <label class="branch__check">
+                    <input
+                      type="checkbox"
+                      [checked]="checkoutAfter()"
+                      [disabled]="busy()"
+                      (change)="checkoutAfter.set(!checkoutAfter())"
+                    />
+                    {{ 'dialog.branch.checkout_after' | t }}
+                  </label>
+                  <ui-button variant="blue" [loading]="busy()" (clicked)="create()">
+                    {{ 'dialog.branch.btn_create' | t }}
+                  </ui-button>
+                </div>
+                @if (createError()) {
+                  <p class="branch__error">{{ createError() }}</p>
                 }
-              </span>
-              <ui-button size="sm" variant="success" [disabled]="busy() || b === current()" (clicked)="checkout(b)">
-                {{ 'dialog.branch.btn_checkout' | t }}
-              </ui-button>
-              <ui-button size="sm" variant="neutral" [disabled]="busy()" (clicked)="rename(b)">
-                {{ 'dialog.branch.btn_rename' | t }}
-              </ui-button>
-              <ui-button size="sm" variant="blue" [disabled]="busy()" (clicked)="publish(b)">
-                {{ 'dialog.branch.btn_publish' | t }}
-              </ui-button>
-              <ui-button size="sm" variant="purple" [disabled]="busy()" (clicked)="deleteRemote(b)">
-                {{ 'dialog.branch.btn_delete_remote' | t }}
-              </ui-button>
-              <ui-button size="sm" variant="danger-deep" [disabled]="busy() || b === current()" (clicked)="deleteLocal(b)">
-                {{ 'dialog.branch.btn_delete_local' | t }}
-              </ui-button>
+              </section>
+
+              @if (branches().length === 0) {
+                <p class="branch__empty">{{ 'dialog.branch.empty' | t }}</p>
+              } @else {
+                <div class="branch__table-wrap">
+                  <table class="branch__table">
+                    <thead>
+                      <tr>
+                        <th>{{ 'dialog.branch.col_branch' | t }}</th>
+                        <th class="branch__actions-head">{{ 'dialog.branch.col_actions' | t }}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (b of visible(); track b) {
+                        <tr>
+                          <td>
+                            <span class="branch__name">{{ b }}</span>
+                            @if (b === current()) {
+                              <span class="branch__current">{{ 'dialog.branch.current_tag' | t }}</span>
+                            }
+                          </td>
+                          <td>
+                            <div class="branch__actions">
+                              <ui-button
+                                size="sm"
+                                variant="success"
+                                [uiTooltip]="'dialog.branch.tip_checkout' | t"
+                                [disabled]="busy() || b === current()"
+                                (clicked)="checkout(b)"
+                              >
+                                ⏎ {{ 'dialog.branch.btn_checkout' | t }}
+                              </ui-button>
+                              <ui-button
+                                size="sm"
+                                variant="neutral"
+                                [uiTooltip]="'dialog.branch.tip_rename' | t"
+                                [disabled]="busy()"
+                                (clicked)="rename(b)"
+                              >
+                                ✎ {{ 'dialog.branch.btn_rename' | t }}
+                              </ui-button>
+                              <ui-button
+                                size="sm"
+                                variant="blue"
+                                [uiTooltip]="'dialog.branch.tip_publish' | t"
+                                [disabled]="busy()"
+                                (clicked)="publish(b)"
+                              >
+                                ⬆ {{ 'dialog.branch.btn_publish' | t }}
+                              </ui-button>
+                              <ui-button
+                                size="sm"
+                                variant="purple"
+                                [uiTooltip]="'dialog.branch.tip_delete_remote' | t"
+                                [disabled]="busy()"
+                                (clicked)="deleteRemote(b)"
+                              >
+                                ☁ {{ 'dialog.branch.btn_delete_remote' | t }}
+                              </ui-button>
+                              <ui-button
+                                size="sm"
+                                variant="danger-deep"
+                                [uiTooltip]="'dialog.branch.tip_delete_local' | t"
+                                [disabled]="busy() || b === current()"
+                                (clicked)="deleteLocal(b)"
+                              >
+                                🗑 {{ 'dialog.branch.btn_delete_local' | t }}
+                              </ui-button>
+                            </div>
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+                <ui-pagination
+                  [(page)]="page"
+                  [total]="branches().length"
+                  [pageSize]="pageSize"
+                  [prevLabel]="'pagination.prev' | t"
+                  [nextLabel]="'pagination.next' | t"
+                />
+              }
             </div>
           }
-        </section>
-
-        <p class="branch__log-label">{{ 'dialog.branch.log_label' | t }}</p>
-        <pre class="branch__log">{{ logText() }}</pre>
+          @case ('logs') {
+            @if (logLines().length === 0) {
+              <p class="branch__log-empty">{{ 'dialog.branch.logs_empty' | t }}</p>
+            } @else {
+              <pre class="branch__log">{{ logText() }}</pre>
+            }
+          }
+        }
       </div>
 
       <div uiDialogFooter>
@@ -129,13 +218,33 @@ export class BranchDialogComponent extends DialogBase {
   protected readonly checkoutAfter = signal(true);
   protected readonly busy = signal(false);
   protected readonly createError = signal('');
-  private readonly logLines = signal<readonly string[]>([]);
+  protected readonly logLines = signal<readonly string[]>([]);
+
+  protected readonly pageSize = PAGE_SIZE;
+  protected readonly activeTab = signal('manage');
+  protected readonly page = signal(1);
+
+  /** Branches on the current page (clamped). */
+  protected readonly visible = computed(() => pageSlice(this.branches(), this.page(), PAGE_SIZE));
 
   protected readonly logText = computed(() => this.logLines().join('\n'));
 
+  /** Tab bar — the Logs label carries the message count once there are any. */
+  protected readonly tabs = computed<readonly TabDef[]>(() => {
+    const count = this.logLines().length;
+    const logs = this.i18n.t('dialog.branch.tab_logs');
+    return [
+      { id: 'manage', label: this.i18n.t('dialog.branch.tab_manage') },
+      { id: 'logs', label: count ? `${logs} (${count})` : logs },
+    ];
+  });
+
   constructor() {
     super();
-    void this.reload();
+    // Inputs (repoName) are bound by the host AFTER construction, so defer the
+    // first load to after the first render — otherwise repoPath() is empty and
+    // the list comes back blank until a mutation triggers a second reload.
+    afterNextRender(() => void this.reload());
   }
 
   protected async create(): Promise<void> {
@@ -290,6 +399,8 @@ export class BranchDialogComponent extends DialogBase {
     this.branches.set(ordered.branches);
     this.recentCount.set(ordered.recentCount);
     this.current.set(current);
+    // Keep the page valid when the list shrinks (e.g. after a delete).
+    this.page.set(clampPage(this.page(), ordered.branches.length, PAGE_SIZE));
     if (this.base() === '') {
       this.base.set(current);
     }

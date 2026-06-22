@@ -11,13 +11,12 @@
 //! must not be reproduced. Guards are never held across an `.await`.
 
 use std::collections::HashMap;
-use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 
 use tokio::sync::Semaphore;
 
-use crate::config::{ConfigStore, MigrationReport};
+use crate::config::ConfigStore;
 use crate::docker::StatusPoller;
 use crate::domain::{RepoInfo, RepoTypeDef, ServiceStatus};
 use crate::git::BadgePoller;
@@ -62,10 +61,6 @@ pub struct AppState {
     pub badge_semaphore: Arc<Semaphore>,
     /// `git_fetch` cap (2 concurrent fetches).
     pub fetch_semaphore: Arc<Semaphore>,
-    /// Report of the v1 migration probe run during setup, handed to the
-    /// frontend by the first no-argument `migrate_from_v1` call
-    /// (ipc-contract.md §2.5 #36).
-    pub pending_migration: Mutex<Option<MigrationReport>>,
     /// Shared running-count tracker behind the tray tooltip/icon.
     pub tray: Arc<TrayStatus>,
     /// Rust-side log backlog for detached log windows (`open_log_window`):
@@ -76,6 +71,52 @@ pub struct AppState {
     /// detached `term-*` window. Isolated from `process` (no status machine);
     /// `any_open()` gates the app-close confirmation alongside `tray`.
     pub terminals: Arc<TerminalManager>,
+    /// Pending native-dialog windows (`commands::dialog`), keyed by each
+    /// window's label (which doubles as its result token). See
+    /// docs/migration/dialogs-as-windows.md.
+    pub dialogs: Arc<DialogManager>,
+}
+
+/// Registry of open native-dialog windows (`commands::dialog`). Maps a dialog
+/// window's label (= its result token) to the JSON args it was opened with. A
+/// slot lives from `open_dialog_window` until the window resolves
+/// (`resolve_dialog`) or is closed (`lib.rs` `on_window_event`).
+#[derive(Default)]
+pub struct DialogManager {
+    counter: AtomicUsize,
+    slots: Mutex<HashMap<String, serde_json::Value>>,
+}
+
+impl DialogManager {
+    /// Allocate a unique `dlg-<kind>-<n>` label/token and store its args.
+    pub fn allocate(&self, kind: &str, args: serde_json::Value) -> String {
+        let n = self.counter.fetch_add(1, Ordering::Relaxed) + 1;
+        let token = format!("dlg-{kind}-{n}");
+        self.slots
+            .lock()
+            .expect("dialog registry poisoned")
+            .insert(token.clone(), args);
+        token
+    }
+
+    /// The args a dialog window was opened with (`None` once resolved/closed).
+    pub fn args(&self, token: &str) -> Option<serde_json::Value> {
+        self.slots
+            .lock()
+            .expect("dialog registry poisoned")
+            .get(token)
+            .cloned()
+    }
+
+    /// Remove a pending slot; returns `true` when it was still pending, so the
+    /// caller emits `dialog://resolved` exactly once.
+    pub fn take(&self, token: &str) -> bool {
+        self.slots
+            .lock()
+            .expect("dialog registry poisoned")
+            .remove(token)
+            .is_some()
+    }
 }
 
 /// Per-service ring buffer of recent log lines, fed by the event emitter on
@@ -145,7 +186,6 @@ impl AppState {
         badge_poller: BadgePoller,
         docker_poller: StatusPoller,
         badge_semaphore: Arc<Semaphore>,
-        pending_migration: Option<MigrationReport>,
         tray: Arc<TrayStatus>,
         logs: Arc<LogCache>,
         terminals: Arc<TerminalManager>,
@@ -160,10 +200,10 @@ impl AppState {
             docker_poller,
             badge_semaphore,
             fetch_semaphore: Arc::new(Semaphore::new(GIT_FETCH_SEMAPHORE_COUNT)),
-            pending_migration: Mutex::new(pending_migration),
             tray,
             logs,
             terminals,
+            dialogs: Arc::new(DialogManager::default()),
         }
     }
 
@@ -295,34 +335,6 @@ pub fn tray_menu_labels(spanish: bool) -> (&'static str, &'static str) {
     } else {
         ("Show / Hide", "Quit")
     }
-}
-
-/// Default v1-install probe candidates for the migration
-/// (architecture-v2.md §6 step 1): CLI-arg paths (and their parents — the
-/// v1 `main.py` workspace-parent convention), the current working directory
-/// and the executable's directory. The folder-picker fallback arrives via
-/// the explicit `v1Root` argument of `migrate_from_v1`.
-pub fn default_v1_candidates() -> Vec<PathBuf> {
-    let mut candidates: Vec<PathBuf> = Vec::new();
-    for arg in std::env::args().skip(1) {
-        let p = PathBuf::from(&arg);
-        if p.is_dir() {
-            if let Some(parent) = p.parent() {
-                candidates.push(parent.to_path_buf());
-            }
-            candidates.push(p);
-        }
-    }
-    if let Ok(cwd) = std::env::current_dir() {
-        candidates.push(cwd);
-    }
-    if let Ok(exe) = std::env::current_exe() {
-        if let Some(dir) = exe.parent() {
-            candidates.push(dir.to_path_buf());
-        }
-    }
-    candidates.dedup();
-    candidates
 }
 
 #[cfg(test)]

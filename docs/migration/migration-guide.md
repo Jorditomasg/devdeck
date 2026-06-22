@@ -1,6 +1,6 @@
 # Guía de migración v1 → v2 / Migration Guide v1 → v2
 
-DevOps Manager v2 es la reescritura en **Tauri 2 + Angular** de la aplicación Python
+DevDeck v2 es la reescritura en **Tauri 2 + Angular** de la aplicación Python
 (`customtkinter`) que vive en la raíz del repositorio. Esta guía resume qué cambia para el
 usuario. Documentación técnica: [`architecture-v2.md`](architecture-v2.md),
 [`ipc-contract.md`](ipc-contract.md), [`ci-v2.md`](ci-v2.md), [`STATUS.md`](STATUS.md).
@@ -13,10 +13,10 @@ usuario. Documentación técnica: [`architecture-v2.md`](architecture-v2.md),
 
 | Aspecto | v1 (Python) | v2 (Tauri) |
 |---|---|---|
-| **Instalación** | Scripts (`install.bat` / `install.sh`) + `uv` + venv | **Instalador NSIS firmado** (`DevOps Manager_<versión>_x64-setup.exe`) desde GitHub Releases. Sin Python, sin venv, sin scripts |
+| **Instalación** | Scripts (`install.bat` / `install.sh`) + `uv` + venv | **Instalador NSIS firmado** (`DevDeck_<versión>_x64-setup.exe`) desde GitHub Releases. Sin Python, sin venv, sin scripts |
 | **Arranque** | `run.vbs` / `run.bat` / `run.sh` | Acceso directo normal de aplicación instalada |
-| **Configuración** | `devops_manager_config.json` junto al código (irrescribible bajo Program Files) | Directorios estándar del SO: `%APPDATA%\devops-manager\` (Windows), `~/.config/devops-manager/` (Linux). Perfiles en el directorio de datos del SO |
-| **Tipos de repo personalizados** | Editar YAML dentro de la carpeta de instalación | Carpeta de overrides del usuario: `<config>/devops-manager/repo-types/` — se fusiona sobre los YAML incluidos, sobrevive a actualizaciones |
+| **Configuración** | `devdeck_config.json` junto al código (irrescribible bajo Program Files) | Directorios estándar del SO: `%APPDATA%\devdeck\` (Windows), `~/.config/devdeck/` (Linux). Perfiles en el directorio de datos del SO |
+| **Tipos de repo personalizados** | Editar YAML dentro de la carpeta de instalación | Carpeta de overrides del usuario: `<config>/devdeck/repo-types/` — se fusiona sobre los YAML incluidos, sobrevive a actualizaciones |
 | **Instancia única** | Protocolo propio PING/PONG por sockets, por workspace | Plugin oficial de Tauri, global: un segundo arranque enfoca la ventana existente |
 | **Rendimiento** | Tk en un solo hilo; la GUI lanzaba sus propios subprocesos | Núcleo Rust async (tokio): supervisión de procesos, git y docker fuera del hilo de UI. La UI puede reiniciarse sin perder servicios en ejecución. Logs por lotes (sin saturar la UI en builds de Maven) |
 | **Cerrar con servicios activos** | Diálogo de confirmación | Igual — el cierre se bloquea hasta confirmar; el icono de bandeja se mantiene |
@@ -60,7 +60,7 @@ Resumen de la tabla completa en [`architecture-v2.md` §7](architecture-v2.md):
 Al arrancar v2 por primera vez (si no existe `config.json` de v2), el núcleo Rust migra
 automáticamente tus datos de v1:
 
-- `devops_manager_config.json` → `config.json` en el directorio de configuración del SO.
+- `devdeck_config.json` → `config.json` en el directorio de configuración del SO.
 - `.devops-profiles/` → carpeta de perfiles del SO, conservando los subdirectorios por grupo.
 - Los valores centinela en español que v1 guardaba como texto se normalizan:
   `"- Sin Seleccionar -"` → clave eliminada (= nada seleccionado) y
@@ -85,10 +85,10 @@ su configuración en un sitio distinto y los cambios no se sincronizan entre ell
 
 | Area | v1 (Python) | v2 (Tauri) |
 |---|---|---|
-| **Install** | Scripts (`install.bat` / `install.sh`) + `uv` + venv | **Signed NSIS installer** (`DevOps Manager_<version>_x64-setup.exe`) from GitHub Releases. No Python, no venv, no scripts |
+| **Install** | Scripts (`install.bat` / `install.sh`) + `uv` + venv | **Signed NSIS installer** (`DevDeck_<version>_x64-setup.exe`) from GitHub Releases. No Python, no venv, no scripts |
 | **Launch** | `run.vbs` / `run.bat` / `run.sh` | Regular installed-app shortcut |
-| **Configuration** | `devops_manager_config.json` next to the code (unwritable under Program Files) | OS-standard dirs: `%APPDATA%\devops-manager\` (Windows), `~/.config/devops-manager/` (Linux). Profiles in the OS data dir |
-| **Custom repo types** | Edit YAML inside the install folder | User override folder: `<config>/devops-manager/repo-types/` — merged over the bundled set, survives updates |
+| **Configuration** | `devdeck_config.json` next to the code (unwritable under Program Files) | OS-standard dirs: `%APPDATA%\devdeck\` (Windows), `~/.config/devdeck/` (Linux). Profiles in the OS data dir |
+| **Custom repo types** | Edit YAML inside the install folder | User override folder: `<config>/devdeck/repo-types/` — merged over the bundled set, survives updates |
 | **Single instance** | Hand-rolled per-workspace PING/PONG sockets | Official Tauri plugin, app-global: a second launch focuses the existing window |
 | **Performance** | Single-threaded Tk; the GUI spawned its own subprocesses | Async Rust core (tokio): process supervision, git and docker run off the UI thread. The UI can be restarted without losing running services. Log lines are batched (no UI flooding on chatty Maven builds) |
 | **Closing with running services** | Confirmation dialog | Same — close is blocked until confirmed; tray icon preserved |
@@ -132,7 +132,7 @@ Summary of the full table in [`architecture-v2.md` §7](architecture-v2.md):
 On first v2 launch (when no v2 `config.json` exists), the Rust core automatically migrates
 your v1 data:
 
-- `devops_manager_config.json` → `config.json` in the OS config dir.
+- `devdeck_config.json` → `config.json` in the OS config dir.
 - `.devops-profiles/` → the OS profiles dir, preserving per-group subdirectories.
 - The Spanish sentinel strings v1 persisted are normalized:
   `"- Sin Seleccionar -"` → key dropped (= nothing selected) and

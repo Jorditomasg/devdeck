@@ -1,6 +1,9 @@
-<!-- 50% darken backdrop — replaces the v1 PIL screenshot overlay (§13.3). -->
+<!-- 50% darken backdrop — replaces the v1 PIL screenshot overlay (§13.3).
+     In window mode the OS window IS the backdrop, so it goes transparent and
+     the panel fills the window. -->
 <div
   class="dialog__backdrop"
+  [class.dialog__backdrop--windowed]="windowed"
   [style.z-index]="2000 + cascadeLevel()"
   (mousedown)="onBackdropMousedown($event)"
   (keydown)="onKeydown($event)"
@@ -9,16 +12,17 @@
     #panel
     class="dialog__panel"
     [class.dialog__panel--knock]="knocking()"
+    [class.dialog__panel--windowed]="windowed"
     role="dialog"
     aria-modal="true"
     [attr.aria-label]="dialogTitle() || null"
     tabindex="-1"
-    [style.width]="width()"
-    [style.transform]="'translate(' + offset() + 'px, ' + offset() + 'px)'"
+    [style.width]="windowed ? '100%' : width()"
+    [style.transform]="windowed ? 'none' : 'translate(' + offset() + 'px, ' + offset() + 'px)'"
   >
     <header class="dialog__header">
       <h2 class="dialog__title">{{ dialogTitle() }}</h2>
-      @if (showClose()) {
+      @if (showClose() && !windowed) {
         <button type="button" class="dialog__close" aria-label="close" (click)="closed.emit()">
           ✕
         </button>

@@ -42,7 +42,7 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 use tauri::{Manager, RunEvent, WindowEvent};
 
 use crate::domain::ServiceStatus;
-use crate::events::{EventEmitter, APP_CLOSE_REQUESTED, SERVICE_STATUS_CHANGED};
+use crate::events::{EventEmitter, APP_CLOSE_REQUESTED, DIALOG_RESOLVED, SERVICE_STATUS_CHANGED};
 use crate::state::{AppState, TrayStatus};
 
 /// Label of the (single) main window — `tauri.conf.json` `app.windows[0]`.
@@ -88,6 +88,43 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(setup)
         .on_window_event(|window, event| {
+            // Detached terminal windows ("term-*") own a PTY. When the OS
+            // closes one, reap its shell HERE (Rust-side) and let the native
+            // close proceed. We must NOT rely on the webview's JS
+            // `onCloseRequested`: its wrapper calls `window.destroy()` when the
+            // handler doesn't preventDefault, but the term-* capability grants
+            // no `core:window:*` permissions, so that call is denied and the
+            // window would never actually close.
+            if let Some(id) = window.label().strip_prefix("term-") {
+                if matches!(event, WindowEvent::CloseRequested { .. }) {
+                    let app = window.app_handle().clone();
+                    let id = id.to_string();
+                    tauri::async_runtime::spawn(async move {
+                        app.state::<AppState>().terminals.close(&id).await;
+                    });
+                }
+                return;
+            }
+            // Native dialog windows ("dlg-*"): if the OS closes one before it
+            // resolved (the user hit ✕), emit a cancel so the opener's awaiting
+            // promise settles with its fallback. `take()` is false when
+            // `resolve_dialog` already consumed the slot (it triggers the close
+            // itself), so there is no double emit. Closing is native — the
+            // webview holds no `core:window:*` perms by design.
+            if window.label().starts_with("dlg-") {
+                if matches!(event, WindowEvent::CloseRequested { .. }) {
+                    let app = window.app_handle();
+                    let token = window.label().to_string();
+                    if app.state::<AppState>().dialogs.take(&token) {
+                        EventEmitter::emit(
+                            app,
+                            DIALOG_RESOLVED,
+                            serde_json::json!({ "token": token, "result": serde_json::Value::Null }),
+                        );
+                    }
+                }
+                return;
+            }
             // Main-window-only behaviors: detached log windows ("log-*")
             // close and minimize like plain windows.
             if window.label() != "main" {
@@ -142,8 +179,13 @@ pub fn run() {
             commands::terminal::terminal_write,
             commands::terminal::terminal_resize,
             commands::terminal::close_terminal,
+            // native dialog windows (docs/migration/dialogs-as-windows.md)
+            commands::dialog::open_dialog_window,
+            commands::dialog::get_dialog_args,
+            commands::dialog::resolve_dialog,
             // §2.2 detection
             commands::detection::scan_workspace,
+            commands::detection::list_repos,
             // §2.3 process supervision
             commands::process::start_service,
             commands::process::stop_service,
@@ -194,7 +236,6 @@ pub fn run() {
             commands::config::read_config_file,
             commands::config::write_config_file,
             commands::config::apply_environment,
-            commands::config::migrate_from_v1,
             // §2.6 java
             commands::java::detect_jdks,
             commands::java::save_java_versions,
@@ -240,11 +281,8 @@ pub fn run() {
         });
 }
 
-/// Builder setup: stores, v1-migration probe, event emitter, process
-/// manager, poll loops, repo-type definitions, managed state and tray.
-///
-/// Runs BEFORE the webview loads, so the migration probe always completes
-/// before the frontend's first `get_app_config` (commands/app.rs).
+/// Builder setup: stores, event emitter, process manager, poll loops,
+/// repo-type definitions, managed state and tray.
 fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let handle = app.handle().clone();
 
@@ -252,25 +290,8 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let config_store = config::ConfigStore::new()?;
     let profile_store = profiles::ProfileStore::new()?;
 
-    // One-shot v1 migration probe (architecture-v2.md §6). A failed probe
-    // must not block startup — warn and start fresh; the user can retry
-    // with an explicit folder via `migrate_from_v1 { v1Root }`.
-    let pending_migration = if config_store.exists() {
-        None
-    } else {
-        let profiles_dest = config::default_profiles_dir()?;
-        config::find_v1_install(&state::default_v1_candidates())
-            .and_then(|root| {
-                config::migrate_from_v1(&config_store, &root, &profiles_dest)
-                    .unwrap_or_else(|err| {
-                        log::warn!("v1 migration failed (starting fresh): {err}");
-                        None
-                    })
-            })
-    };
-
     // Tray status tracker — language for the Rust-side tray strings comes
-    // from the (possibly just migrated) config.
+    // from the config.
     let tray_status = Arc::new(TrayStatus::default());
     match config_store.load() {
         Ok(cfg) => tray_status.set_language(cfg.language),
@@ -292,6 +313,11 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         tray_green: std::sync::atomic::AtomicBool::new(false),
         logs: log_cache.clone(),
     });
+
+    // Broadcast `config://changed` from the single ConfigStore.save choke point
+    // so every window's SettingsStore stays in sync (config dialogs run in
+    // their own windows — docs/migration/dialogs-as-windows.md Phase 3).
+    config_store.set_emitter(emitter.clone());
 
     let process = Arc::new(process::ProcessManager::new(emitter.clone()));
 
@@ -335,7 +361,6 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         badge_poller,
         docker_poller,
         badge_semaphore,
-        pending_migration,
         tray_status.clone(),
         log_cache,
         terminals,
