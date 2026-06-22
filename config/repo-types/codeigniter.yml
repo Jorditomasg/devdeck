@@ -1,0 +1,21 @@
+schema_version: 2
+type: "codeigniter"
+priority: 35
+detect:
+  files:
+    required: ["spark", "composer.json"]
+run:
+  install: { default: "composer install" }
+  start: { default: "php spark serve" }
+logs:
+  ready: "CodeIgniter development server started|Press Control-C to stop"
+  error: "Error|Exception"
+  ports:
+    - "http://(?:localhost|127\\.0\\.0\\.1):(\\d+)"
+config:
+  writer: "raw"
+  dir: "."
+  patterns: [".env"]
+ui:
+  icon: "🔥"
+  color: "#dd4814"

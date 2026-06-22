@@ -1,0 +1,23 @@
+schema_version: 2
+type: "python"
+priority: 15
+detect:
+  patterns:
+    match: ["requirements.txt", "pyproject.toml", "manage.py", "main.py", "app.py"]
+run:
+  install: { default: "pip install -r requirements.txt" }
+  start: { default: "python main.py" }
+logs:
+  ready: "Running on|Uvicorn running|Starting development server|Listening on"
+  error: "Traceback \\(most recent call last\\)"
+  ports:
+    - "Running on.*?:(\\d+)"
+    - "Uvicorn running on.*?:(\\d+)"
+    - "http://(?:localhost|127\\.0\\.0\\.1):(\\d+)"
+config:
+  writer: "raw"
+  dir: "."
+  patterns: [".env", ".env.*"]
+ui:
+  icon: "🐍"
+  color: "#3776ab"

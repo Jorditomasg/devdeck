@@ -1,0 +1,23 @@
+schema_version: 2
+type: "rust"
+priority: 30
+detect:
+  files:
+    required: ["Cargo.toml"]
+run:
+  install: { default: "cargo build" }
+  start: { default: "cargo run" }
+logs:
+  ready: "Listening on|listening on|Server (?:started|running)|Running|Started"
+  error: "^error(\\[|:)|panicked at"
+  ports:
+    - "(?:listening on|bound to|running on).*?:(\\d+)"
+    - "http://(?:localhost|127\\.0\\.0\\.1):(\\d+)"
+config:
+  writer: "raw"
+  dir: "."
+  patterns: [".env", ".env.*"]
+ui:
+  icon: "🦀"
+  color: "#dea584"
+  install_check_dirs: ["target"]

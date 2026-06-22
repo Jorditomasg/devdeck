@@ -1,0 +1,22 @@
+schema_version: 2
+type: "go"
+priority: 30
+detect:
+  files:
+    required: ["go.mod"]
+run:
+  install: { default: "go mod download" }
+  start: { default: "go run ." }
+logs:
+  ready: "Listening on|listening on|Server (?:started|running)|Running on"
+  error: "^\\s*panic:|fatal error:"
+  ports:
+    - "(?:listening on|bound to|running on).*?:(\\d+)"
+    - "http://(?:localhost|127\\.0\\.0\\.1):(\\d+)"
+config:
+  writer: "raw"
+  dir: "."
+  patterns: [".env", ".env.*"]
+ui:
+  icon: "🐹"
+  color: "#00add8"

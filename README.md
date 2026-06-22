@@ -22,7 +22,9 @@ more juggling a dozen terminals.
 - **Profiles** — snapshot your whole setup (selected branches, env files, which services are
   running) and restore or share it later.
 - **Config-driven detection** — repository types are described by YAML. Adding support for a
-  new framework is a new YAML file, not a new build.
+  new framework is a new YAML file, not a new build. Recognised out of the box:
+  Spring Boot, Angular, React, Nx workspace, Maven library, Go, Rust, Python,
+  Laravel, CodeIgniter, and Docker Compose infra.
 - **Bilingual UI** — English and Spanish.
 
 ## Install
