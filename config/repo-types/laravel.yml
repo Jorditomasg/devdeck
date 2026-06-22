@@ -1,0 +1,22 @@
+schema_version: 2
+type: "laravel"
+priority: 35
+detect:
+  files:
+    required: ["artisan", "composer.json"]
+run:
+  install: { default: "composer install" }
+  start: { default: "php artisan serve" }
+logs:
+  ready: "Server running on|Development Server \\(http"
+  error: "Error|Exception"
+  ports:
+    - "Server running on.*?:(\\d+)"
+    - "http://(?:localhost|127\\.0\\.0\\.1):(\\d+)"
+config:
+  writer: "raw"
+  dir: "."
+  patterns: [".env", ".env.*"]
+ui:
+  icon: "🐘"
+  color: "#ff2d20"
