@@ -24,11 +24,18 @@ pub async fn get_app_config(state: State<'_, AppState>) -> CmdResult<AppConfig> 
 }
 
 /// #24 `set_language { language }` — v1 codes (`en_EN`, `es_ES`) persisted.
-/// Also retargets the Rust-side tray strings (state.rs `TrayStatus`).
+/// Also retargets the Rust-side tray strings (state.rs `TrayStatus`) and
+/// retranslates the live tray menu/tooltip (the menu is built once at
+/// startup, so it would otherwise stay in the boot language).
 #[tauri::command]
-pub async fn set_language(state: State<'_, AppState>, language: String) -> CmdResult<()> {
+pub async fn set_language(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    language: String,
+) -> CmdResult<()> {
     state.tray.set_language(Some(language.clone()));
     state.config.update(|c| c.language = Some(language))?;
+    crate::refresh_tray(&app, &state.tray);
     Ok(())
 }
 

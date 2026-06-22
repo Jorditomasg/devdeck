@@ -17,7 +17,7 @@ async function makePipe(): Promise<{ pipe: TPipe; i18n: TranslationService }> {
   });
   const settings = new SettingsStore(new IpcCommands(bridge), new IpcEvents(bridge));
   await settings.load();
-  const i18n = new TranslationService(settings);
+  const i18n = new TranslationService(settings, new IpcEvents(bridge));
   i18n.catalogLoader = (lang: LanguageCode) =>
     Promise.resolve(lang === 'es' ? ES : EN);
   await i18n.init();
