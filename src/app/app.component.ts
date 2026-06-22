@@ -1,6 +1,5 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 
-import { DialogHostComponent } from './features/dialogs/dialog-host.component';
 import { DialogWindowHostComponent } from './features/dialogs/dialog-window-host.component';
 import { LogWindowComponent } from './features/workspace/log-window/log-window.component';
 import { TerminalWindowComponent } from './features/workspace/terminal-window/terminal-window.component';
@@ -11,7 +10,7 @@ import { WorkspacePageComponent } from './features/workspace/workspace-page.comp
  *
  * Render modes, decided once at startup from the URL:
  * - default: the workspace page (topbar / global panel / card list / global
- *   log / status bar) plus the dialog stack host;
+ *   log / status bar); every dialog opens as its own native window;
  * - `?log=<serviceId>`: a detached log window created by the Rust
  *   `open_log_window` command — only the standalone log view, no dialogs;
  * - `?terminal=<id>`: a detached interactive terminal window created by
@@ -25,7 +24,6 @@ import { WorkspacePageComponent } from './features/workspace/workspace-page.comp
   selector: 'app-root',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    DialogHostComponent,
     DialogWindowHostComponent,
     LogWindowComponent,
     TerminalWindowComponent,
@@ -40,7 +38,6 @@ import { WorkspacePageComponent } from './features/workspace/workspace-page.comp
       <app-dialog-window-host />
     } @else {
       <workspace-page />
-      <app-dialog-host />
     }
   `,
 })

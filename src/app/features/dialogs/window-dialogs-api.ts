@@ -87,10 +87,6 @@ export class WindowDialogsApi implements DialogsApi {
     void this.commands.dialog.resolve(this.token, result === undefined ? null : result);
   }
 
-  hasOpenDialogs(): boolean {
-    return false;
-  }
-
   // -- messagebox suite (child windows parented to this one) -------------------
 
   async info(title: string, message: string): Promise<void> {
