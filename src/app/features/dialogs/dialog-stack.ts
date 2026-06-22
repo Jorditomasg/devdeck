@@ -44,7 +44,7 @@ export interface DialogsApi {
   openMergeBranch(repoName: string): void;
   openStash(repoName: string): void;
   openBranches(repoName: string): void;
-  openDockerCompose(repoName: string): void;
+  openDockerCompose(repoName: string, composeFile?: string): void;
   openRepoConfigManager(repoName: string): void;
   openConfigEditor(repoName: string, filePath: string): void;
   openProfileManager(): void;

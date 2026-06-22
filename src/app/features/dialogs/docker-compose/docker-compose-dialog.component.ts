@@ -14,8 +14,10 @@
  *   surface the themed `dialog.docker.unavailable_*` messagebox (§12).
  *
  * Deviations from v1 (documented):
- * - v1 opened one dialog PER compose file; the v2 contract opens per REPO —
- *   a compose-file selector appears when the repo declares several files.
+ * - The dialog is opened per REPO but LOCKED to the compose file the user
+ *   picked on the card (`composeFile` input). Like v1, one window = one compose
+ *   file; the in-dialog selector only appears as a fallback when no file was
+ *   passed AND the repo declares several files.
  * - The per-service "profile" checkboxes (§19) are NOT here: profile
  *   service selection (`docker_profile_services`) is card/profile state owned
  *   by the workspace feature, which has the card callbacks this dialog no
@@ -94,7 +96,7 @@ const FOLLOW_UP_MS = 3000;
           <ui-button
             variant="success"
             [loading]="busyAll() === 'up'"
-            [disabled]="busyAll() !== null"
+            [disabled]="busyAll() !== null || running() === services().length"
             (clicked)="startAll()"
           >
             {{ 'docker.btn_start_all' | t }}
@@ -102,15 +104,15 @@ const FOLLOW_UP_MS = 3000;
           <ui-button
             variant="danger-deep"
             [loading]="busyAll() === 'down'"
-            [disabled]="busyAll() !== null"
+            [disabled]="busyAll() !== null || running() === 0"
             (clicked)="stopAll()"
           >
             {{ 'docker.btn_stop_all' | t }}
           </ui-button>
         </div>
 
-        <!-- Compose file selector (v2 — dialog is per repo, see JSDoc) -->
-        @if (files().length > 1) {
+        <!-- Compose file selector — fallback only when no file was locked in. -->
+        @if (composeFile() === '' && files().length > 1) {
           <div class="docker__file-row">
             <span class="docker__file-label">{{ 'docker.compose_file_label' | t }}</span>
             <ui-searchable-select
@@ -149,24 +151,27 @@ const FOLLOW_UP_MS = 3000;
                   class="docker__state docker__state--{{ stateOf(svc.name) }}"
                   >{{ stateLabel(svc.name) }}</span
                 >
-                <ui-button
-                  variant="success"
-                  size="sm"
-                  [loading]="busy()[svc.name] === 'start'"
-                  [disabled]="busy()[svc.name] !== undefined"
-                  (clicked)="startService(svc.name)"
-                >
-                  {{ 'docker.btn_service_start' | t }}
-                </ui-button>
-                <ui-button
-                  variant="danger-deep"
-                  size="sm"
-                  [loading]="busy()[svc.name] === 'stop'"
-                  [disabled]="busy()[svc.name] !== undefined"
-                  (clicked)="stopService(svc.name)"
-                >
-                  {{ 'docker.btn_service_stop' | t }}
-                </ui-button>
+                @if (stateOf(svc.name) === 'running') {
+                  <ui-button
+                    variant="danger-deep"
+                    size="sm"
+                    [loading]="busy()[svc.name] === 'stop'"
+                    [disabled]="busy()[svc.name] !== undefined"
+                    (clicked)="stopService(svc.name)"
+                  >
+                    {{ 'docker.btn_service_stop' | t }}
+                  </ui-button>
+                } @else {
+                  <ui-button
+                    variant="success"
+                    size="sm"
+                    [loading]="busy()[svc.name] === 'start'"
+                    [disabled]="busy()[svc.name] !== undefined"
+                    (clicked)="startService(svc.name)"
+                  >
+                    {{ 'docker.btn_service_start' | t }}
+                  </ui-button>
+                }
                 <ui-button
                   variant="neutral-alt"
                   size="sm"
@@ -209,6 +214,8 @@ const FOLLOW_UP_MS = 3000;
 })
 export class DockerComposeDialogComponent extends DialogBase {
   readonly repoName = input.required<string>();
+  /** Compose file to lock onto (picked on the card). Empty = selector fallback. */
+  readonly composeFile = input<string>('');
 
   private readonly commands = inject(IpcCommands);
   private readonly events = inject(IpcEvents);
@@ -336,9 +343,10 @@ export class DockerComposeDialogComponent extends DialogBase {
   // -- internals ----------------------------------------------------------------
 
   private async init(): Promise<void> {
-    const first = this.files()[0];
-    if (first !== undefined) {
-      this.file.set(first);
+    const locked = this.composeFile();
+    const initial = locked !== '' ? locked : this.files()[0];
+    if (initial !== undefined) {
+      this.file.set(initial);
       await this.loadServices();
     }
     // Live status: fold every docker://status payload for this repo.

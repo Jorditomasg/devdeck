@@ -99,9 +99,9 @@ export class DialogService implements DialogsApi {
     this.openKind('branch', { repoName });
   }
 
-  /** Docker Compose manager for a repo's compose files (§19). */
-  openDockerCompose(repoName: string): void {
-    this.openKind('docker-compose', { repoName });
+  /** Docker Compose manager, locked to the picked compose file (§19). */
+  openDockerCompose(repoName: string, composeFile?: string): void {
+    this.openKind('docker-compose', { repoName, composeFile: composeFile ?? '' });
   }
 
   /** Per-repo saved environments / app configs manager (§23). */
