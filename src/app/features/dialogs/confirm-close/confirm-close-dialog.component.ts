@@ -28,8 +28,6 @@ import { DialogBase } from '../dialog-base';
   template: `
     <ui-dialog-shell
       [dialogTitle]="'dialog.confirm_close.title' | t"
-      width="420px"
-      [cascadeLevel]="cascadeLevel()"
       (closed)="closeSelf(false)"
     >
       <p class="confirm-close__msg">{{ message() }}</p>

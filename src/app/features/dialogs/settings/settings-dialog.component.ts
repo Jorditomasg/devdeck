@@ -62,8 +62,6 @@ const LANGUAGE_CODES: readonly LanguageCode[] = ['en', 'es'];
   template: `
     <ui-dialog-shell
       [dialogTitle]="'dialog.settings.title' | t"
-      width="580px"
-      [cascadeLevel]="cascadeLevel()"
       (closed)="closeSelf()"
     >
       <div class="settings">

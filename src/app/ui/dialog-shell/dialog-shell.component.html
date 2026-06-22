@@ -4,7 +4,6 @@
 <div
   class="dialog__backdrop"
   [class.dialog__backdrop--windowed]="windowed"
-  [style.z-index]="2000 + cascadeLevel()"
   (mousedown)="onBackdropMousedown($event)"
   (keydown)="onKeydown($event)"
 >
@@ -17,16 +16,9 @@
     aria-modal="true"
     [attr.aria-label]="dialogTitle() || null"
     tabindex="-1"
-    [style.width]="windowed ? '100%' : width()"
-    [style.transform]="windowed ? 'none' : 'translate(' + offset() + 'px, ' + offset() + 'px)'"
   >
     <header class="dialog__header">
       <h2 class="dialog__title">{{ dialogTitle() }}</h2>
-      @if (showClose() && !windowed) {
-        <button type="button" class="dialog__close" aria-label="close" (click)="closed.emit()">
-          ✕
-        </button>
-      }
     </header>
 
     <div class="dialog__content">

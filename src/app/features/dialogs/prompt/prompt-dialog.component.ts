@@ -25,8 +25,6 @@ import { DialogBase } from '../dialog-base';
   template: `
     <ui-dialog-shell
       [dialogTitle]="title()"
-      width="420px"
-      [cascadeLevel]="cascadeLevel()"
       (closed)="closeSelf()"
     >
       <div class="prompt">

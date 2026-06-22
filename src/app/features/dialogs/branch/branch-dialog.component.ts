@@ -52,8 +52,6 @@ const PAGE_SIZE = 12;
   template: `
     <ui-dialog-shell
       [dialogTitle]="'dialog.branch.title' | t: { name: repoName() }"
-      width="680px"
-      [cascadeLevel]="cascadeLevel()"
       (closed)="closeSelf()"
     >
       <div class="branch">

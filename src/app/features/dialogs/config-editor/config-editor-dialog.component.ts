@@ -39,8 +39,6 @@ import { detectFormat, validateConfigContent } from './config-validation';
     <ui-dialog-shell
       #shell
       [dialogTitle]="title()"
-      width="700px"
-      [cascadeLevel]="cascadeLevel()"
       (closed)="requestClose()"
     >
       <div class="editor">

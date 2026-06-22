@@ -75,8 +75,6 @@ interface RevertEntry {
     <ui-dialog-shell
       #shell
       [dialogTitle]="'dialog.merge.title' | t"
-      width="580px"
-      [cascadeLevel]="cascadeLevel()"
       (closed)="requestClose()"
     >
       <div class="merge">
