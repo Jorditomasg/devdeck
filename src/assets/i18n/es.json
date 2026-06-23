@@ -206,10 +206,13 @@
       "palette_rose": "Rosa",
       "palette_light": "Claro",
       "pattern_none": "Ninguno",
-      "pattern_triangular": "Triangular",
       "pattern_grid": "Rejilla",
-      "pattern_diagonal": "Diagonal",
-      "pattern_dots": "Puntos"
+      "pattern_dots": "Puntos",
+      "pattern_arcs": "Zig-zag (esquina)",
+      "pattern_hexagons": "Hexágonos",
+      "pattern_cubes": "Cubos isométricos",
+      "pattern_scales": "Escamas",
+      "pattern_moroccan": "Árabe"
     },
     "changelog": {
       "title": "Cambios",
@@ -253,7 +256,8 @@
       "success_msg": "Repositorio clonado: {name}",
       "error_clone_msg": "Error al clonar:\n{msg}",
       "destination": "Destino:",
-      "error_invalid_url": "Introducí una URL válida de repositorio Git"
+      "error_invalid_url": "Introducí una URL válida de repositorio Git",
+      "log_label": "Progreso"
     },
     "profile": {
       "title": "Configuraciones Guardadas",
@@ -390,8 +394,9 @@
     },
     "command_profiles": {
       "window_title": "Perfiles de comando — {name}",
+      "title": "Perfiles de comando",
       "editing": "Editando: {name}",
-      "empty": "Aún no hay perfiles de comando. Escribe un nombre arriba y pulsa Nuevo.",
+      "empty": "Aún no hay perfiles de comando. Pulsa Nuevo para añadir uno.",
       "select_hint": "Selecciona un perfil",
       "new_title": "Nuevo perfil",
       "new_prompt": "Nombre del perfil:",
@@ -501,8 +506,7 @@
       "tip_delete_local": "Borrar esta rama local"
     },
     "merge": {
-      "title": "Mergear ramas",
-      "repo_label": "Repositorio: {name}",
+      "title": "Mergear — {name}",
       "target_section": "Destino (dónde caen los cambios)",
       "target_branch": "Rama:",
       "target_new": "Crear rama nueva",

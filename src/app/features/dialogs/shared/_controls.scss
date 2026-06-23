@@ -80,8 +80,8 @@
   }
 
   &.selected {
-    background-color: #172554; // 'blue' variant fg (selected list item, v1)
-    color: var(--color-text-white);
+    background-color: var(--color-selected-bg);
+    color: var(--color-selected-fg);
   }
 }
 

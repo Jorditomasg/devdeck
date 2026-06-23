@@ -206,10 +206,13 @@
       "palette_rose": "Rose",
       "palette_light": "Light",
       "pattern_none": "None",
-      "pattern_triangular": "Triangular",
       "pattern_grid": "Grid",
-      "pattern_diagonal": "Diagonal",
-      "pattern_dots": "Dots"
+      "pattern_dots": "Dots",
+      "pattern_arcs": "Corner zig-zag",
+      "pattern_hexagons": "Hexagons",
+      "pattern_cubes": "Isometric cubes",
+      "pattern_scales": "Scales",
+      "pattern_moroccan": "Moroccan"
     },
     "changelog": {
       "title": "Changelog",
@@ -253,7 +256,8 @@
       "success_msg": "Repository cloned: {name}",
       "error_clone_msg": "Error cloning:\n{msg}",
       "destination": "Destination:",
-      "error_invalid_url": "Enter a valid Git repository URL"
+      "error_invalid_url": "Enter a valid Git repository URL",
+      "log_label": "Progress"
     },
     "profile": {
       "title": "Saved Configurations",
@@ -390,8 +394,9 @@
     },
     "command_profiles": {
       "window_title": "Command profiles — {name}",
+      "title": "Command Profiles",
       "editing": "Editing: {name}",
-      "empty": "No command profiles yet. Type a name above and press New.",
+      "empty": "No command profiles yet. Press New to add one.",
       "select_hint": "Select a profile",
       "new_title": "New profile",
       "new_prompt": "Profile name:",
@@ -501,8 +506,7 @@
       "tip_delete_local": "Delete this local branch"
     },
     "merge": {
-      "title": "Merge branches",
-      "repo_label": "Repository: {name}",
+      "title": "Merge — {name}",
       "target_section": "Destination (where changes land)",
       "target_branch": "Branch:",
       "target_new": "Create a new branch",

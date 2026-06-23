@@ -4,7 +4,11 @@
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: var(--color-app-bg);
+  // Transparent on purpose: `body` paints --color-app + the geometric pattern
+  // (body::before). Header and log viewer are solid surfaces, so the pattern
+  // shows through the gutter around the viewer — the framed look reused by the
+  // tray panel and windowed dialogs.
+  background: transparent;
 }
 
 .logwin__header {

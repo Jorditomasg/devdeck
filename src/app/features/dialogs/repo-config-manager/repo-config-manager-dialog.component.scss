@@ -106,8 +106,8 @@
   cursor: pointer;
 
   &.active {
-    background-color: var(--color-text-warning-badge);
-    border-color: var(--color-text-warning-badge);
+    background-color: var(--color-active-highlight);
+    border-color: var(--color-active-highlight);
     color: #1a1a1a;
   }
 
