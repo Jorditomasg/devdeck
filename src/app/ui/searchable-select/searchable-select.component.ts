@@ -12,6 +12,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { IconComponent } from '../icon/icon.component';
 import {
   FILTER_DEBOUNCE_MS,
   PAGE_SIZE,
@@ -52,6 +53,7 @@ import {
 @Component({
   selector: 'ui-searchable-select',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [IconComponent],
   templateUrl: './searchable-select.component.html',
   styleUrl: './searchable-select.component.scss',
 })

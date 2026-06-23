@@ -20,7 +20,12 @@ import {
 import { TPipe } from '../../../core/i18n/t.pipe';
 import { TranslationService } from '../../../core/i18n/translation.service';
 import { SettingsStore } from '../../../core/state/settings.store';
-import { ButtonComponent, DialogShellComponent, IconButtonComponent } from '../../../ui';
+import {
+  ButtonComponent,
+  DialogShellComponent,
+  IconButtonComponent,
+  IconComponent,
+} from '../../../ui';
 import { DialogBase } from '../dialog-base';
 import {
   JavaEditorDialogComponent,
@@ -30,7 +35,7 @@ import {
 @Component({
   selector: 'app-java-manager-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ButtonComponent, DialogShellComponent, IconButtonComponent, TPipe],
+  imports: [ButtonComponent, DialogShellComponent, IconButtonComponent, IconComponent, TPipe],
   styleUrl: './java-manager-dialog.component.scss',
   template: `
     <ui-dialog-shell
@@ -44,21 +49,21 @@ import {
           <div class="java-mgr__list">
             @for (entry of entries(); track entry.name) {
               <div class="java-mgr__row">
-                <span class="java-mgr__name">☕ {{ entry.name }}</span>
+                <span class="java-mgr__name"><ui-icon name="coffee" [size]="14" /> {{ entry.name }}</span>
                 <span class="java-mgr__path" [title]="entry.path">{{ entry.path }}</span>
                 <ui-icon-button
                   variant="warning"
                   size="sm"
                   [title]="'dialog.settings.java_edit_title' | t"
                   (clicked)="edit(entry)"
-                  >✏</ui-icon-button
+                  ><ui-icon name="pencil" /></ui-icon-button
                 >
                 <ui-icon-button
                   variant="danger-deep"
                   size="sm"
                   [title]="'dialog.settings.java_delete_title' | t"
                   (clicked)="remove(entry.name)"
-                  >🗑</ui-icon-button
+                  ><ui-icon name="trash" /></ui-icon-button
                 >
               </div>
             }

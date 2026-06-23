@@ -7,11 +7,12 @@
  * backend command in `CMD` and the `repo.action.<key>` i18n key).
  */
 import { CMD, type CommandName } from '../../../core/ipc/commands';
+import type { IconName } from '../../../ui';
 
 /** Metadata for one declarable repo-card action button. */
 export interface RepoCardAction {
   readonly key: string;
-  readonly icon: string;
+  readonly icon: IconName;
   /** i18n key for the button label/tooltip. */
   readonly labelKey: string;
   readonly command: CommandName;
@@ -21,7 +22,7 @@ export interface RepoCardAction {
 export const REPO_CARD_ACTIONS: Readonly<Record<string, RepoCardAction>> = {
   seed: {
     key: 'seed',
-    icon: '🌱',
+    icon: 'sprout',
     labelKey: 'repo.action.seed',
     command: CMD.runFlywaySeeds,
   },

@@ -10,6 +10,8 @@
 export { BUTTON_VARIANTS, ButtonComponent } from './button/button.component';
 export type { ButtonSize, ButtonVariant } from './button/button.component';
 export { IconButtonComponent } from './icon-button/icon-button.component';
+export { IconComponent } from './icon/icon.component';
+export type { IconName } from './icon/icon.component';
 export { BadgeComponent } from './badge/badge.component';
 export type { BadgeTone } from './badge/badge.component';
 export { LOG_FLASH_MS, StatusDotComponent } from './status-dot/status-dot.component';

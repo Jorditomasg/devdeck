@@ -9,7 +9,7 @@ describe('repo-card action registry', () => {
     expect(seed).toBeDefined();
     expect(seed.command).toBe(CMD.runFlywaySeeds);
     expect(seed.command).toBe('run_flyway_seeds');
-    expect(seed.icon).toBe('🌱');
+    expect(seed.icon).toBe('sprout');
     expect(seed.labelKey).toBe('repo.action.seed');
   });
 

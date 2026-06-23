@@ -21,17 +21,28 @@ import {
   ServicesStore,
   type GlobalLogLine,
 } from '../../../core/state/services.store';
-import { ButtonComponent, LogViewerComponent, TooltipDirective } from '../../../ui';
+import {
+  ButtonComponent,
+  IconComponent,
+  LogViewerComponent,
+  TooltipDirective,
+} from '../../../ui';
 import { formatGlobalLine, linesAfterMarker } from './global-log.logic';
 
 @Component({
   selector: 'app-global-log-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ButtonComponent, LogViewerComponent, TooltipDirective],
+  imports: [ButtonComponent, IconComponent, LogViewerComponent, TooltipDirective],
   styleUrl: './global-log-panel.component.scss',
   template: `
     <div class="glog__header" (click)="open.set(!open())">
-      <span class="glog__chevron">{{ open() ? '▼' : '▲' }}</span>
+      <span class="glog__chevron">
+        @if (open()) {
+          <ui-icon name="chevron-down" />
+        } @else {
+          <ui-icon name="chevron-up" />
+        }
+      </span>
       <span class="glog__title" [uiTooltip]="i18n.t('tooltip.expand')">
         {{ i18n.t('label.global_log_section') }}
       </span>

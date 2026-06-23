@@ -13,6 +13,8 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
 import {
   ButtonComponent,
   IconButtonComponent,
+  IconComponent,
+  type IconName,
   SearchableSelectComponent,
   TooltipDirective,
 } from '../../../ui';
@@ -25,7 +27,7 @@ import type { DockerBtnState } from './card-logic';
  */
 export interface ActionBtnVm {
   readonly key: string;
-  readonly icon: string;
+  readonly icon: IconName;
   readonly label: string;
   readonly command: string;
 }
@@ -139,6 +141,7 @@ export interface CardExpandText {
   imports: [
     ButtonComponent,
     IconButtonComponent,
+    IconComponent,
     SearchableSelectComponent,
     TooltipDirective,
   ],
@@ -161,7 +164,7 @@ export interface CardExpandText {
         variant="log-action"
         [uiTooltip]="text().reloadTip"
         (clicked)="reload.emit()"
-      >🔄</ui-icon-button>
+      ><ui-icon name="refresh" /></ui-icon-button>
       <label class="row__check" [uiTooltip]="text().branchInProfileTip">
         <input
           type="checkbox"
@@ -197,7 +200,7 @@ export interface CardExpandText {
           [uiTooltip]="action.label"
           (clicked)="runAction.emit(action.command)"
         >
-          {{ action.icon }} {{ action.label }}
+          <ui-icon [name]="action.icon" [size]="14" /> {{ action.label }}
         </ui-button>
       }
       <span class="row__spacer"></span>
@@ -228,7 +231,7 @@ export interface CardExpandText {
           variant="neutral"
           [uiTooltip]="module.managerTip"
           (clicked)="openConfigManager.emit(module.key)"
-        >⚙</ui-icon-button>
+        ><ui-icon name="settings" /></ui-icon-button>
         <label class="row__check" [uiTooltip]="text().envInProfileTip">
           <input
             type="checkbox"
@@ -331,7 +334,7 @@ export interface CardExpandText {
             [uiTooltip]="btn.tip"
             (click)="dockerFileClicked.emit(btn.file)"
           >
-            🐳 {{ btn.name }} {{ btn.counts }}
+            <ui-icon name="box" [size]="14" /> {{ btn.name }} {{ btn.counts }}
           </button>
         }
       </div>

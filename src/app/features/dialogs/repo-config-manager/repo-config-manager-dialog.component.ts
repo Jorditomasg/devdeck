@@ -34,6 +34,7 @@ import { ReposStore } from '../../../core/state/repos.store';
 import {
   ButtonComponent,
   DialogShellComponent,
+  IconComponent,
   SearchableSelectComponent,
 } from '../../../ui';
 import { DialogBase } from '../dialog-base';
@@ -48,7 +49,7 @@ import {
 @Component({
   selector: 'app-repo-config-manager-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ButtonComponent, DialogShellComponent, SearchableSelectComponent, TPipe],
+  imports: [ButtonComponent, DialogShellComponent, IconComponent, SearchableSelectComponent, TPipe],
   styleUrl: './repo-config-manager-dialog.component.scss',
   template: `
     <ui-dialog-shell
@@ -87,7 +88,7 @@ import {
                 (click)="select(name)"
               >
                 @if (isDanger(name)) {
-                  <span class="envmgr__danger-mark">⚠</span>
+                  <span class="envmgr__danger-mark"><ui-icon name="alert-triangle" [size]="16" /></span>
                 }
                 {{ name }}
               </button>
@@ -148,7 +149,7 @@ import {
               [title]="dangerTooltip()"
               (click)="toggleDanger()"
             >
-              ⚠
+              <ui-icon name="alert-triangle" />
             </button>
           </div>
 

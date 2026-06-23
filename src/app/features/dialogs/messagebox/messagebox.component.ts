@@ -13,23 +13,28 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 
 import { TPipe } from '../../../core/i18n/t.pipe';
-import { ButtonComponent, DialogShellComponent } from '../../../ui';
+import {
+  ButtonComponent,
+  DialogShellComponent,
+  IconComponent,
+  type IconName,
+} from '../../../ui';
 import { DialogBase } from '../dialog-base';
 
 /** v1 messagebox kinds (§14 table). */
 export type MessageboxKind = 'info' | 'warning' | 'error' | 'confirm';
 
-const ICONS: Record<MessageboxKind, string> = {
-  info: 'ℹ',
-  warning: '⚠',
-  error: '✕',
-  confirm: '?',
+const ICONS: Record<MessageboxKind, IconName> = {
+  info: 'info',
+  warning: 'alert-triangle',
+  error: 'x-circle',
+  confirm: 'help-circle',
 };
 
 @Component({
   selector: 'app-messagebox',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ButtonComponent, DialogShellComponent, TPipe],
+  imports: [ButtonComponent, DialogShellComponent, IconComponent, TPipe],
   styleUrl: './messagebox.component.scss',
   template: `
     <ui-dialog-shell
@@ -37,7 +42,7 @@ const ICONS: Record<MessageboxKind, string> = {
       (closed)="closeSelf()"
     >
       <div class="msg msg--{{ kind() }}">
-        <span class="msg__icon" aria-hidden="true">{{ icon }}</span>
+        <span class="msg__icon" aria-hidden="true"><ui-icon [name]="icon" [size]="28" /></span>
         <p class="msg__text">{{ message() }}</p>
       </div>
 
@@ -65,7 +70,7 @@ export class MessageboxComponent extends DialogBase {
   /** Already-translated message body. */
   readonly message = input('');
 
-  protected get icon(): string {
+  protected get icon(): IconName {
     return ICONS[this.kind()];
   }
 

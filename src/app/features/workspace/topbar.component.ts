@@ -23,6 +23,7 @@ import { UpdatesStore } from '../../core/state/updates.store';
 import {
   ButtonComponent,
   IconButtonComponent,
+  IconComponent,
   SearchableSelectComponent,
   TooltipDirective,
 } from '../../ui';
@@ -47,12 +48,13 @@ export function profileGroupArg(groupName: string | undefined): string | undefin
   imports: [
     ButtonComponent,
     IconButtonComponent,
+    IconComponent,
     SearchableSelectComponent,
     TooltipDirective,
   ],
   styleUrl: './topbar.component.scss',
   template: `
-    <span class="topbar__logo">🚀 {{ i18n.t('label.app_title') }}</span>
+    <span class="topbar__logo">{{ i18n.t('label.app_title') }}</span>
 
     <!-- §2 swap rule: group selector replaces the path label -->
     @if (showGroups()) {
@@ -70,7 +72,7 @@ export function profileGroupArg(groupName: string | undefined): string | undefin
           variant="neutral"
           [uiTooltip]="i18n.t('tooltip.manage_groups')"
           (clicked)="dialogs.openWorkspaceGroups()"
-        >⚙</ui-icon-button>
+        ><ui-icon name="settings" /></ui-icon-button>
       </div>
     } @else {
       <button
@@ -98,13 +100,13 @@ export function profileGroupArg(groupName: string | undefined): string | undefin
         size="lg"
         [uiTooltip]="i18n.t('tooltip.save_profile')"
         (clicked)="onQuickSave()"
-      >💾</ui-icon-button>
+      ><ui-icon name="save" /></ui-icon-button>
       <ui-icon-button
         variant="neutral"
         size="lg"
         [uiTooltip]="i18n.t('tooltip.manage_profiles')"
         (clicked)="dialogs.openProfileManager()"
-      >👤</ui-icon-button>
+      ><ui-icon name="user" /></ui-icon-button>
       <ui-button
         variant="blue"
         size="lg"
@@ -123,7 +125,7 @@ export function profileGroupArg(groupName: string | undefined): string | undefin
           size="lg"
           [uiTooltip]="updateAvailable() ? i18n.t('tooltip.settings_btn_update') : i18n.t('tooltip.settings_btn')"
           (clicked)="dialogs.openSettings()"
-        >⚙</ui-icon-button>
+        ><ui-icon name="settings" /></ui-icon-button>
         @if (updateAvailable()) {
           <span class="topbar__update-dot" aria-hidden="true"></span>
         }

@@ -69,7 +69,6 @@ export function formatCardLine(entry: LogLine): string {
   template: `
     <app-card-header
       [name]="repo().name"
-      [icon]="icon()"
       [typeLabel]="typeLabel()"
       [typeColor]="typeColor()"
       [selected]="state().selected"
@@ -213,7 +212,6 @@ export class RepoCardComponent {
     this.services.droppedFor(this.repo().name)(),
   );
 
-  protected readonly icon = computed(() => this.repo().uiConfig.icon ?? '📁');
   protected readonly typeLabel = computed(() => repoTypeLabel(this.repo().repoType));
   protected readonly typeColor = computed(
     () => this.repo().uiConfig.color ?? 'var(--color-section)',
