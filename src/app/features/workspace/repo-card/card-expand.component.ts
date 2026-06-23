@@ -168,17 +168,17 @@ export interface CardExpandText {
         [uiTooltip]="text().pullTip"
         (clicked)="pull.emit()"
       ><ui-icon name="arrow-down" [size]="14" /> {{ vm().branch.pullText }}</ui-button>
+      <ui-button variant="purple-alt" [uiTooltip]="text().branchesTip" (clicked)="branches.emit()">
+        <ui-icon name="git-branch" [size]="14" /> {{ text().branchesText }}
+      </ui-button>
+      <ui-button variant="purple-alt" [uiTooltip]="text().stashTip" (clicked)="stash.emit()">
+        <ui-icon name="archive" [size]="14" /> {{ text().stashText }}
+      </ui-button>
       <ui-button variant="purple-alt" [uiTooltip]="text().mergeTip" (clicked)="merge.emit()">
         <ui-icon name="git-merge" [size]="14" /> {{ text().mergeText }}
       </ui-button>
       <ui-button variant="purple" [uiTooltip]="text().cleanTip" (clicked)="clean.emit()">
         <ui-icon name="eraser" [size]="14" /> {{ text().cleanText }}
-      </ui-button>
-      <ui-button variant="purple-alt" [uiTooltip]="text().stashTip" (clicked)="stash.emit()">
-        <ui-icon name="archive" [size]="14" /> {{ text().stashText }}
-      </ui-button>
-      <ui-button variant="purple-alt" [uiTooltip]="text().branchesTip" (clicked)="branches.emit()">
-        <ui-icon name="git-branch" [size]="14" /> {{ text().branchesText }}
       </ui-button>
       @if (vm().branch.showConfigBtn) {
         <ui-button variant="neutral" [uiTooltip]="text().configTip" (clicked)="openConfig.emit()">
