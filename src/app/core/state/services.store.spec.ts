@@ -103,12 +103,12 @@ describe('ServicesStore', () => {
     const store = makeStore(bridge);
     await store.init();
 
-    await store.start('api', { customCommand: 'mvn spring-boot:run' });
+    await store.start('api', { javaLabel: 'Java 17 (jdk-17)' });
 
     expect(store.statusFor('api')).toBe('starting');
     expect(bridge.invokesOf(CMD.startService)[0]?.args).toEqual({
       serviceId: 'api',
-      customCommand: 'mvn spring-boot:run',
+      javaLabel: 'Java 17 (jdk-17)',
     });
   });
 

@@ -81,6 +81,9 @@ pub struct AppConfig {
     /// removed when the set is empty).
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub repo_config_danger: BTreeMap<String, Vec<String>>,
+    /// Named start-command profiles per repo: `command_profiles[repo][name] = full command line`.
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub command_profiles: BTreeMap<String, BTreeMap<String, String>>,
 
     // ---- v2 additions -------------------------------------------------
     /// v2: recently used workspace roots (most recent first). v1 had no
@@ -117,14 +120,10 @@ pub struct RepoState {
     /// Card checkbox.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub selected: Option<bool>,
-    /// Start-command override (`""` = none).
+    /// Active command-profile name; `None` = repo-type default command.
+    /// (Profile lines live in `AppConfig::command_profiles`.)
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub custom_command: Option<String>,
-    /// Extra arguments appended to the resolved start command (`""`/`None` =
-    /// none). Unlike [`custom_command`], this keeps the repo-type's OS-aware and
-    /// `{main_app}` resolution and only appends — e.g. Spring Batch job params.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub start_args: Option<String>,
+    pub command_profile: Option<String>,
     /// Selected JDK display label; `None` = system default. v1 persisted the
     /// [`SENTINEL_SYSTEM_DEFAULT`] string instead (normalized on load).
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -240,6 +239,20 @@ impl AppConfig {
             .entry(repo.to_string())
             .or_default()
             .insert(module.to_string(), configs);
+    }
+
+    /// Command profiles for one repo (`{name: command_line}`).
+    pub fn command_profiles_for(&self, repo: &str) -> BTreeMap<String, String> {
+        self.command_profiles.get(repo).cloned().unwrap_or_default()
+    }
+
+    /// Replace a repo's command profiles wholesale; an empty map removes the entry.
+    pub fn set_command_profiles_for(&mut self, repo: &str, profiles: BTreeMap<String, String>) {
+        if profiles.is_empty() {
+            self.command_profiles.remove(repo);
+        } else {
+            self.command_profiles.insert(repo.to_string(), profiles);
+        }
     }
 
     /// Smart merge used by profile import (v1 `merge_repo_configs`,
@@ -484,5 +497,25 @@ mod tests {
     #[test]
     fn minimize_to_tray_defaults_true() {
         assert!(AppConfig::default().minimize_to_tray_or_default());
+    }
+
+    #[test]
+    fn command_profiles_roundtrip_per_repo() {
+        let mut c = AppConfig::default();
+        assert!(c.command_profiles_for("repoA").is_empty());
+        let mut m = BTreeMap::new();
+        m.insert("import".to_string(), "mvn spring-boot:run -Dargs=--job=import".to_string());
+        c.set_command_profiles_for("repoA", m.clone());
+        assert_eq!(c.command_profiles_for("repoA"), m);
+    }
+
+    #[test]
+    fn empty_map_removes_repo_command_profiles_entry() {
+        let mut c = AppConfig::default();
+        let mut m = BTreeMap::new();
+        m.insert("x".to_string(), "cmd".to_string());
+        c.set_command_profiles_for("repoA", m);
+        c.set_command_profiles_for("repoA", BTreeMap::new());
+        assert!(!c.command_profiles.contains_key("repoA"));
     }
 }

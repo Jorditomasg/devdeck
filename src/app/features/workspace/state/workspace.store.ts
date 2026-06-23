@@ -47,10 +47,8 @@ export interface CardState {
   readonly configValues: Readonly<Record<string, string>>;
   /** Per-module profile tracking (absent key = tracked, v1 default — §7). */
   readonly trackedModules: Readonly<Record<string, boolean>>;
-  /** Custom start command (`''` = use the repo default — §7 row 3). */
-  readonly customCommand: string;
-  /** Extra args appended to the resolved start command (`''` = none — §7 row 3b). */
-  readonly startArgs: string;
+  /** Active command-profile name (`''` = repo default — §7 row 3). */
+  readonly selectedCommandProfile: string;
   /** Selected JDK label (`''` = system default sentinel — §7 row 2b). */
   readonly javaLabel: string;
   /** Active compose files (basenames, profile-managed — §11). */
@@ -69,8 +67,7 @@ export const DEFAULT_CARD_STATE: CardState = {
   branchInProfile: false,
   configValues: {},
   trackedModules: {},
-  customCommand: '',
-  startArgs: '',
+  selectedCommandProfile: '',
   javaLabel: '',
   dockerActive: [],
   dockerServices: {},
@@ -104,8 +101,7 @@ export function buildRepoProfile(repo: RepoInfo, state: CardState): RepoProfile 
     type: repo.repoType,
     profile: firstValue || null,
     profile_tracked: moduleKeys.filter((k) => state.trackedModules[k] !== false),
-    custom_command: state.customCommand,
-    start_args: state.startArgs,
+    command_profile: state.selectedCommandProfile || null,
     java_version: normalizeJavaVersion(state.javaLabel),
     selected: state.selected,
     docker_compose_active: state.dockerActive,
@@ -280,8 +276,7 @@ export class WorkspaceStore {
             ...(rp.branch !== null ? { branch: rp.branch } : {}),
             configValues,
             trackedModules,
-            customCommand: rp.custom_command ?? '',
-            startArgs: rp.start_args ?? '',
+            selectedCommandProfile: rp.command_profile ?? '',
             javaLabel: normalizeJavaVersion(rp.java_version) ?? '',
             dockerActive: rp.docker_compose_active ?? [],
             dockerServices: rp.docker_profile_services ?? {},

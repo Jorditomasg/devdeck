@@ -8,7 +8,7 @@
 //!
 //! Owns:
 //! - Profile document build/apply per the §15.3 schema (git_url, branch,
-//!   env profile, custom_command, java_version, selection, docker state,
+//!   env profile, command_profile, java_version, selection, docker state,
 //!   optional config_files + saved_environments snapshots).
 //! - Import/export as plain JSON (`repos` key required), missing-repo clone
 //!   planning, saved-environment merge with `repetidoN` renames and

@@ -164,8 +164,7 @@ export class WorkspacePageComponent {
           repo.name,
           {
             selected: persisted.selected ?? true,
-            customCommand: persisted.custom_command ?? '',
-            startArgs: persisted.start_args ?? '',
+            selectedCommandProfile: persisted.command_profile ?? '',
             javaLabel: normalizeJavaVersion(persisted.java_version) ?? '',
             expanded: persisted.expanded ?? false,
           },

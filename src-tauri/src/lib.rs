@@ -1,9 +1,10 @@
 //! DevDeck — Rust core.
 //!
 //! Composition root: registers plugins, managed state, the tray icon and
-//! every command handler (ipc-contract.md §2 — 59 commands: 55 core + the
+//! every command handler (ipc-contract.md §2 — 61 commands: 55 core + the
 //! 2 app-lifecycle extensions + `set_last_profile` #58 / `is_installed`
-//! #59). Module responsibilities are documented in
+//! #59 / `get_command_profiles` #60 / `save_command_profiles` #61). Module
+//! responsibilities are documented in
 //! each module's `//!` header; the overall layering contract lives in
 //! `docs/migration/architecture-v2.md` §4 (commands → adapters → domain).
 //!
@@ -232,6 +233,8 @@ pub fn run() {
             commands::config::set_repo_state,
             commands::config::get_saved_environments,
             commands::config::save_saved_environments,
+            commands::config::get_command_profiles,
+            commands::config::save_command_profiles,
             commands::config::set_active_config,
             commands::config::set_danger_flags,
             commands::config::set_last_profile,
