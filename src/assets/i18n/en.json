@@ -371,6 +371,7 @@
     "command_profiles": {
       "window_title": "Command profiles — {name}",
       "editing": "Editing: {name}",
+      "empty": "No command profiles yet. Type a name above and press New.",
       "select_hint": "Select a profile",
       "new_title": "New profile",
       "new_prompt": "Profile name:",
