@@ -112,6 +112,23 @@ describe('ServicesStore', () => {
     });
   });
 
+  it('reverts the optimistic status when the command rejects', async () => {
+    const bridge = new FakeTauriBridge()
+      .whenInvoked(CMD.listServices, [])
+      .whenInvoked(CMD.startService, () => {
+        throw { kind: 'process', message: 'spawn failed' };
+      });
+    const store = makeStore(bridge);
+    await store.init();
+
+    // Prior known status the card should fall back to, not a stuck "starting".
+    bridge.emit(EVT.serviceStatusChanged, statusEvent({ name: 'api', status: 'stopped' }));
+
+    await expect(store.start('api')).rejects.toMatchObject({ message: 'spawn failed' });
+    expect(store.statusFor('api')).toBe('stopped');
+    expect(store.activeCount()).toBe(0);
+  });
+
   it('install() marks installing (the v2 status replacing v1 string reuse)', async () => {
     const bridge = new FakeTauriBridge().whenInvoked(CMD.listServices, []);
     const store = makeStore(bridge);

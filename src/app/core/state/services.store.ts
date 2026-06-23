@@ -190,21 +190,24 @@ export class ServicesStore {
     id: ServiceId,
     opts?: { customCommand?: string; startArgs?: string; javaLabel?: string },
   ): Promise<void> {
-    this.patchService(id, { status: 'starting' });
-    await this.commands.process.startService(id, opts);
+    await this.dispatch(id, 'starting', () =>
+      this.commands.process.startService(id, opts),
+    );
   }
 
   async stop(id: ServiceId): Promise<void> {
-    this.patchService(id, { status: 'stopping' });
-    await this.commands.process.stopService(id);
+    await this.dispatch(id, 'stopping', () =>
+      this.commands.process.stopService(id),
+    );
   }
 
   async restart(
     id: ServiceId,
     opts?: { customCommand?: string; startArgs?: string; javaLabel?: string },
   ): Promise<void> {
-    this.patchService(id, { status: 'stopping' });
-    await this.commands.process.restartService(id, opts);
+    await this.dispatch(id, 'stopping', () =>
+      this.commands.process.restartService(id, opts),
+    );
   }
 
   async install(
@@ -212,8 +215,32 @@ export class ServicesStore {
     reinstall: boolean,
     javaLabel?: string,
   ): Promise<void> {
-    this.patchService(id, { status: 'installing' });
-    await this.commands.process.installDependencies(id, reinstall, javaLabel);
+    await this.dispatch(id, 'installing', () =>
+      this.commands.process.installDependencies(id, reinstall, javaLabel),
+    );
+  }
+
+  /**
+   * Flip the status optimistically, run the IPC call, and — crucially — revert
+   * to the prior status if the call REJECTS. Without the revert a failed
+   * start/stop left the card pinned on `starting`/`stopping` forever, because
+   * no `service://status-changed` event arrives when the command itself fails
+   * (the truth only flows from a process that actually spawned). The rejection
+   * is re-thrown so the caller (RepoActionsService) can surface a dialog.
+   */
+  private async dispatch(
+    id: ServiceId,
+    optimistic: ServiceStatus,
+    run: () => Promise<unknown>,
+  ): Promise<void> {
+    const prior = this.statusFor(id);
+    this.patchService(id, { status: optimistic });
+    try {
+      await run();
+    } catch (err) {
+      this.patchService(id, { status: prior });
+      throw err;
+    }
   }
 
   async stopAll(): Promise<void> {

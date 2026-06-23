@@ -595,6 +595,7 @@
   },
   "misc": {
     "error_title": "Error",
+    "action_failed": "No se pudo completar la acción en '{name}':\n{msg}",
     "warning_title": "Aviso",
     "enter_branch": "Introduce un nombre de rama",
     "no_repos_selected": "No hay repos seleccionados",
