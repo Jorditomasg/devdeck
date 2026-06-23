@@ -99,6 +99,13 @@ pub struct AppConfig {
     /// Settings; one of the detected shells or a custom path.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub terminal_shell: Option<String>,
+    /// v2: last app version the user saw the "What's new" popup for. `None`
+    /// on a fresh install (suppresses the popup until the FIRST update).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub whats_new_seen_version: Option<String>,
+    /// v2: user opted out of the "What's new" popup permanently.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub whats_new_disabled: Option<bool>,
 
     /// Lossless passthrough of unknown keys (forward/backward compat).
     #[serde(flatten)]

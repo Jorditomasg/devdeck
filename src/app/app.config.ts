@@ -12,6 +12,7 @@ import { ProfilesStore } from './core/state/profiles.store';
 import { ReposStore } from './core/state/repos.store';
 import { ServicesStore } from './core/state/services.store';
 import { SettingsStore } from './core/state/settings.store';
+import { ThemeService } from './core/state/theme.service';
 import { UpdatesStore } from './core/state/updates.store';
 import { DIALOGS } from './features/dialogs/dialog-stack';
 import { DialogService } from './features/dialogs/dialog.service';
@@ -50,9 +51,11 @@ export const appConfig: ApplicationConfig = {
       const services = inject(ServicesStore);
       const profiles = inject(ProfilesStore);
       const settings = inject(SettingsStore);
+      const theme = inject(ThemeService);
       const i18n = inject(TranslationService);
       const updates = inject(UpdatesStore);
       const commands = inject(IpcCommands);
+      const dialogs = inject(DialogService);
       // Detached log/terminal/dialog windows and the tray panel run the same
       // SPA bootstrap; the update check + changelog are main-window-only.
       const search = new URLSearchParams(window.location.search);
@@ -69,6 +72,9 @@ export const appConfig: ApplicationConfig = {
         }
       };
       try {
+        // FIRST: apply the persisted palette/pattern before the window is shown
+        // (frontend_ready, below) so there is no flash of the default theme.
+        await step('theme', () => Promise.resolve(theme.init()));
         await step('event subscriptions + hydration', () =>
           Promise.all([repos.init(), services.init(), profiles.init()]),
         );
@@ -86,6 +92,18 @@ export const appConfig: ApplicationConfig = {
         await commands
           .frontendReady()
           .catch((err: unknown) => console.error('frontend_ready failed', err));
+      }
+      if (isMainWindow) {
+        // After the window is shown: if the app was just updated, pop the
+        // "What's new" dialog (fire-and-forget — never blocks bootstrap).
+        void commands.updates
+          .whatsNewOnStartup()
+          .then((version) => {
+            if (version) {
+              dialogs.openKind('whats-new', { version });
+            }
+          })
+          .catch((err: unknown) => console.error('whats-new check failed', err));
       }
     }),
   ],

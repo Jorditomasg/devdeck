@@ -194,7 +194,22 @@
       "view_changelog": "View changelog",
       "current_version": "Current version {version}",
       "checking": "Checking…",
-      "installing": "Installing…"
+      "installing": "Installing…",
+      "appearance_title": "Appearance",
+      "appearance_desc": "Color palette and background pattern. Applies instantly and is remembered across windows.",
+      "appearance_palette": "Palette",
+      "appearance_pattern": "Pattern",
+      "palette_indigo": "Midnight Indigo",
+      "palette_slate": "Slate",
+      "palette_emerald": "Emerald",
+      "palette_crimson": "Crimson",
+      "palette_rose": "Rose",
+      "palette_light": "Light",
+      "pattern_none": "None",
+      "pattern_triangular": "Triangular",
+      "pattern_grid": "Grid",
+      "pattern_diagonal": "Diagonal",
+      "pattern_dots": "Dots"
     },
     "changelog": {
       "title": "Changelog",
@@ -203,6 +218,11 @@
       "changed": "Changed",
       "fixed": "Fixed",
       "removed": "Removed"
+    },
+    "whats_new": {
+      "title": "What's new in {version}",
+      "unavailable": "No release notes available for this version.",
+      "dont_show_again": "Don't show this again"
     },
     "workspace_groups": {
       "title": "Workspace Groups",

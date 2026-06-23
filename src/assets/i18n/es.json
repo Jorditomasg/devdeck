@@ -194,7 +194,22 @@
       "view_changelog": "Ver cambios",
       "current_version": "Versión actual {version}",
       "checking": "Comprobando…",
-      "installing": "Instalando…"
+      "installing": "Instalando…",
+      "appearance_title": "Apariencia",
+      "appearance_desc": "Paleta de colores y patrón de fondo. Se aplica al instante y se recuerda entre ventanas.",
+      "appearance_palette": "Paleta",
+      "appearance_pattern": "Patrón",
+      "palette_indigo": "Índigo Medianoche",
+      "palette_slate": "Pizarra",
+      "palette_emerald": "Esmeralda",
+      "palette_crimson": "Carmesí",
+      "palette_rose": "Rosa",
+      "palette_light": "Claro",
+      "pattern_none": "Ninguno",
+      "pattern_triangular": "Triangular",
+      "pattern_grid": "Rejilla",
+      "pattern_diagonal": "Diagonal",
+      "pattern_dots": "Puntos"
     },
     "changelog": {
       "title": "Cambios",
@@ -203,6 +218,11 @@
       "changed": "Cambiado",
       "fixed": "Corregido",
       "removed": "Eliminado"
+    },
+    "whats_new": {
+      "title": "Novedades de {version}",
+      "unavailable": "No hay notas de la versión disponibles.",
+      "dont_show_again": "No volver a mostrar"
     },
     "workspace_groups": {
       "title": "Grupos de Workspace",

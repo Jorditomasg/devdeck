@@ -6,12 +6,13 @@
 //! `CHANGELOG.md` resource and returns the parsed structure.
 
 use serde::Serialize;
-use tauri::Manager;
+use tauri::{Manager, State};
 use tauri_plugin_updater::UpdaterExt;
 
 use super::error::{AppError, CmdResult};
 use crate::changelog::{self, ChangelogRelease};
 use crate::events::{EventEmitter, UPDATE_PROGRESS};
+use crate::state::AppState;
 
 /// Result of an update check (`available: false` ⇒ other fields `None`).
 #[derive(Debug, Clone, Serialize)]
@@ -97,4 +98,39 @@ pub async fn get_changelog(app: tauri::AppHandle) -> CmdResult<Vec<ChangelogRele
     let text = std::fs::read_to_string(&path)
         .map_err(|e| AppError { kind: "io".into(), message: format!("read changelog: {e}") })?;
     Ok(changelog::parse(&text))
+}
+
+/// §2.9 `whats_new_on_startup` — decide whether to show the post-update
+/// "What's new" popup, and mark the running version as seen.
+///
+/// Returns `Some(version)` only when the app was UPDATED (a different version
+/// was seen before) and the user has not opted out. A fresh install (no prior
+/// seen version) is silently marked seen and returns `None` — the popup is for
+/// updates, not first launches. Marking-seen happens here so the popup shows at
+/// most once per version even if the window is force-closed.
+#[tauri::command]
+pub async fn whats_new_on_startup(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> CmdResult<Option<String>> {
+    let current = app.package_info().version.to_string();
+    let cfg = state.config.load()?;
+    let disabled = cfg.whats_new_disabled.unwrap_or(false);
+    let previous = cfg.whats_new_seen_version;
+
+    state
+        .config
+        .update(|c| c.whats_new_seen_version = Some(current.clone()))?;
+
+    let show = !disabled
+        && previous.as_deref().is_some_and(|p| p != current.as_str());
+    Ok(show.then_some(current))
+}
+
+/// §2.9 `disable_whats_new` — user ticked "don't show again"; suppress the
+/// post-update popup permanently.
+#[tauri::command]
+pub async fn disable_whats_new(state: State<'_, AppState>) -> CmdResult<()> {
+    state.config.update(|c| c.whats_new_disabled = Some(true))?;
+    Ok(())
 }

@@ -312,6 +312,8 @@ directly) and serves the bundled `CHANGELOG.md`. Configured via
 | 77 | `check_for_update` | — | `UpdateInfo { available, version?, notes?, date? }` | queries the updater endpoint; `available: false` when up to date. Called silently on startup + via the manual button |
 | 78 | `install_update` | — | `void` | downloads + installs the update (emits `update://progress`), then restarts the app |
 | 79 | `get_changelog` | — | `ChangelogRelease[] { version, date?, added[], changed[], fixed[], removed[] }` | parses the bundled `CHANGELOG.md` (newest first) |
+| 80 | `whats_new_on_startup` | — | `string \| null` | marks the running version as seen; returns it when the app was just updated (so the "What's new" popup shows), else `null` (fresh install / same version / opted out) |
+| 81 | `disable_whats_new` | — | `void` | user ticked "don't show again": suppresses the post-update popup permanently (`AppConfig.whats_new_disabled`) |
 
 ---
 
