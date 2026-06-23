@@ -1,8 +1,8 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Default capability for the main window, detached log windows (log-*), detached terminal windows (term-*) and native dialog windows (dlg-*): core APIs, tray, dialogs, opener (incl. open_path for folders/log files) and logging. Window manipulation (show/hide/focus/minimize/close) happens Rust-side only, so no core:window:allow-* permissions are granted to the webview; core:event (part of core:default) covers the dialog windows' own listeners.",
-  "windows": ["main", "log-*", "term-*", "dlg-*"],
+  "description": "Default capability for the main window, detached log windows (log-*), detached terminal windows (term-*), native dialog windows (dlg-*) and the custom tray quick-control panel (tray-panel): core APIs, tray, dialogs, opener (incl. open_path for folders/log files and open_url for the panel's clickable port) and logging. Window manipulation (show/hide/focus/minimize/close) happens Rust-side only, so no core:window:allow-* permissions are granted to the webview; core:event (part of core:default) covers the dialog windows' own listeners.",
+  "windows": ["main", "log-*", "term-*", "dlg-*", "tray-panel"],
   "permissions": [
     "core:default",
     "core:tray:default",

@@ -100,7 +100,9 @@ in §2.3).
 | # | Command | Args | Returns | Backing |
 |---|---|---|---|---|
 | 56 | `app_exit` | `{ force: boolean }` | `void` | the frontend's answer to `app://close-requested`. `force: true` → `ProcessManager::shutdown_all` (the v1 atexit contract, inventory-backend.md §21.4) + poller stop + `app.exit(0)`. `force: false` → no-op acknowledgement (the close was already prevented Rust-side) |
-| 57 | `app_hide_to_tray` | — | `void` | hides the main window; the app keeps running behind the tray icon (inventory-gui.md §25). Restore happens Rust-side via the tray menu / icon left-click |
+| 57 | `app_hide_to_tray` | — | `void` | hides the main window; the app keeps running behind the tray icon (inventory-gui.md §25). Restore happens Rust-side via the tray panel "Open DevDeck" or the right-click tray menu |
+| 57a | `show_main_window` | — | `void` | restores + focuses the main window and hides the tray quick-control panel — the panel's "Open DevDeck" action (tray-panel design doc 2026-06-23). Exposed because the panel webview holds no `core:window:*` perms |
+| 57b | `request_quit` | — | `void` | tray-panel "Close DevDeck": same confirm-running flow as the tray Quit menu — with active services it restores the main window + emits `app://close-requested`, else `app.exit(0)` |
 | 60 | `open_log_window` | `{ serviceId: string, title: string }` | `void` | opens (or focuses, when already open) the detached log window for a service — the v1 detached log Toplevel (inventory-gui.md §5/§8) as a real OS window. Loads the SPA with `?log=<serviceId>`; `serviceId` may be the `__global__` aggregate. Window label: `log-<sanitized id>` (capability `windows: ["main", "log-*"]`) |
 | 61 | `get_log_backlog` | `{ serviceId: string }` | `string[]` | recent lines from the Rust-side `LogCache` (500/service, 1000 for `__global__` with `[name] ` prefixes) — seeds detached log windows, which then follow live `service://log-line` events |
 

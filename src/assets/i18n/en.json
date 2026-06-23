@@ -547,7 +547,16 @@
     "quit": "Quit",
     "start_selected": "Start selected ({count})",
     "stop_running": "Stop all running ({count})",
-    "tooltip_running": "DevDeck — {running}/{total} running"
+    "tooltip_running": "DevDeck — {running}/{total} running",
+    "panel": {
+      "summary": "{running}/{total} running",
+      "start_all": "Start all",
+      "stop_all": "Stop all",
+      "logs_btn": "Open logs",
+      "open_devdeck": "Open DevDeck",
+      "close_devdeck": "Close DevDeck",
+      "empty": "No services selected"
+    }
   },
   "log": {
     "scanning": "Scanning workspace...",

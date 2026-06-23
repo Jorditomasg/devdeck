@@ -45,6 +45,8 @@ export const CMD = {
   frontendReady: 'frontend_ready',
   appExit: 'app_exit',
   appHideToTray: 'app_hide_to_tray',
+  showMainWindow: 'show_main_window',
+  requestQuit: 'request_quit',
   openLogWindow: 'open_log_window',
   getLogBacklog: 'get_log_backlog',
   // interactive terminals (design doc 2026-06-14)
@@ -173,6 +175,23 @@ export class IpcCommands {
   /** Hide the main window to the tray (minimize-to-tray behavior, §2.1). */
   appHideToTray(): Promise<void> {
     return this.bridge.invoke<void>(CMD.appHideToTray);
+  }
+
+  /**
+   * Restore + focus the main window and hide the tray quick-control panel —
+   * the panel's "Open DevDeck" action (tray-panel design doc 2026-06-23).
+   */
+  showMainWindow(): Promise<void> {
+    return this.bridge.invoke<void>(CMD.showMainWindow);
+  }
+
+  /**
+   * Tray-panel "Close DevDeck": routes through the same confirm-running flow
+   * as the tray Quit menu (restores the main window + emits
+   * `app://close-requested` when services run, else exits).
+   */
+  requestQuit(): Promise<void> {
+    return this.bridge.invoke<void>(CMD.requestQuit);
   }
 
   /**

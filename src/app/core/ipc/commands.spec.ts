@@ -5,10 +5,10 @@ import { CMD, IpcCommands } from './commands';
 import { FakeTauriBridge } from './tauri-bridge.fake';
 
 describe('CMD registry', () => {
-  it('contains the 86 contract commands, all snake_case and unique', () => {
-    // 84 prior + get_command_profiles / save_command_profiles (command profiles feature).
+  it('contains the 88 contract commands, all snake_case and unique', () => {
+    // 86 prior + show_main_window / request_quit (tray quick-control panel).
     const names = Object.values(CMD);
-    expect(names.length).toBe(86);
+    expect(names.length).toBe(88);
     expect(new Set(names).size).toBe(names.length);
     for (const name of names) {
       expect(name).toMatch(/^[a-z][a-z0-9_]*$/);

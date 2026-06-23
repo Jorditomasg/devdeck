@@ -38,7 +38,6 @@ pub mod terminal;
 
 use std::sync::Arc;
 
-use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{Manager, RunEvent, WindowEvent};
 
@@ -52,9 +51,10 @@ const MAIN_WINDOW: &str = "main";
 /// Tray icon id (`Manager::tray_by_id` lookups from the tooltip refresher).
 const TRAY_ID: &str = "main-tray";
 
-/// Tray menu item ids.
-const MENU_TOGGLE_ID: &str = "toggle-window";
-const MENU_QUIT_ID: &str = "quit";
+/// Label of the custom tray quick-control popup window (loaded with
+/// `?panel=1`; created lazily on the first tray left-click).
+const TRAY_PANEL_WINDOW: &str = "tray-panel";
+
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -126,6 +126,19 @@ pub fn run() {
                 }
                 return;
             }
+            // Custom tray panel ("tray-panel"): a frameless popup that hides
+            // itself when it loses focus (click-away), the standard tray-popup
+            // UX. Closing/minimizing otherwise behave like a plain window.
+            if window.label() == TRAY_PANEL_WINDOW {
+                if let WindowEvent::Focused(false) = event {
+                    // Ignore the transient blur right after a show (the popup
+                    // is still settling) — otherwise it self-closes on open.
+                    if !tray_panel_show_is_recent() {
+                        let _ = window.hide();
+                    }
+                }
+                return;
+            }
             // Main-window-only behaviors: detached log windows ("log-*")
             // close and minimize like plain windows.
             if window.label() != "main" {
@@ -172,6 +185,8 @@ pub fn run() {
             commands::app::frontend_ready,
             commands::app::app_exit,
             commands::app::app_hide_to_tray,
+            commands::app::show_main_window,
+            commands::app::request_quit,
             commands::app::open_log_window,
             commands::app::get_log_backlog,
             // interactive terminals (design doc 2026-06-14)
@@ -382,6 +397,9 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     ));
 
     build_tray(&handle, &tray_status)?;
+    // Pre-load the tray panel (hidden) so the first right-click shows a fully
+    // rendered window, not a blank one.
+    precreate_tray_panel(&handle);
     Ok(())
 }
 
@@ -389,39 +407,35 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 // Tray (inventory-gui.md §25 — Tauri-native replacement of pystray)
 // ---------------------------------------------------------------------------
 
-/// Build the tray icon: localized show/hide + quit menu, running-count
-/// tooltip, left-click restores the window (v1 default-item semantics).
+/// Build the tray icon: running-count tooltip + the custom quick-control panel
+/// on ANY click (left or right). There is NO native menu — the panel itself
+/// carries Open/Close DevDeck, replacing the v1 dynamic pystray menu
+/// (inventory-gui.md §25; docs/superpowers/specs/2026-06-23-tray-panel-design.md).
 fn build_tray(
     app: &tauri::AppHandle,
     tray: &Arc<TrayStatus>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let spanish = tray.is_spanish();
-    let (toggle_label, quit_label) = state::tray_menu_labels(spanish);
-    let toggle = MenuItem::with_id(app, MENU_TOGGLE_ID, toggle_label, true, None::<&str>)?;
-    let quit = MenuItem::with_id(app, MENU_QUIT_ID, quit_label, true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&toggle, &quit])?;
-
     let mut builder = TrayIconBuilder::with_id(TRAY_ID)
-        .menu(&menu)
-        .show_menu_on_left_click(false)
         .tooltip(tray.tooltip())
-        .on_menu_event(|app, event| match event.id().as_ref() {
-            MENU_TOGGLE_ID => toggle_main_window(app),
-            MENU_QUIT_ID => request_quit(app),
-            _ => {}
-        })
-        .on_tray_icon_event(|tray_icon, event| {
-            // Left click restores the window (v1: tray default item).
-            if let TrayIconEvent::Click {
-                button: MouseButton::Left,
+        .on_tray_icon_event(|tray_icon, event| match event {
+            // Right click → open the quick-control panel.
+            TrayIconEvent::Click {
+                button: MouseButton::Right,
                 button_state: MouseButtonState::Up,
+                position,
                 ..
-            } = event
-            {
+            } => show_tray_panel(tray_icon.app_handle(), position),
+            // Double left click → open DevDeck (restore the main window).
+            // A single left click does nothing (user request).
+            TrayIconEvent::DoubleClick {
+                button: MouseButton::Left,
+                ..
+            } => {
                 if let Some(window) = tray_icon.app_handle().get_webview_window(MAIN_WINDOW) {
                     show_window(&window);
                 }
             }
+            _ => {}
         });
     if let Some(icon) = app.default_window_icon() {
         builder = builder.icon(icon.clone());
@@ -430,29 +444,16 @@ fn build_tray(
     Ok(())
 }
 
-/// Retranslate the tray menu + tooltip after a live language change.
-///
-/// The menu is built once at startup (`build_tray`); only the tooltip
-/// auto-refreshes via the status emitter. `set_language` calls this so the
-/// menu items ("Show / Hide", "Quit") follow the language too. We rebuild the
-/// menu on the EXISTING tray icon (`set_menu`) rather than rebuilding the tray
-/// — the icon's `on_menu_event` handler keys off the (unchanged) item ids, so
-/// it keeps working. No-ops when the tray was never built (non-desktop/tests).
+/// Refresh the tray tooltip after a live language change. There is no native
+/// menu to retranslate any more — the quick-control panel is a webview that
+/// re-translates itself via the frontend i18n runtime. No-ops when the tray was
+/// never built (non-desktop/tests).
 pub(crate) fn refresh_tray(app: &tauri::AppHandle, tray: &TrayStatus) {
     let Some(tray_icon) = app.tray_by_id(TRAY_ID) else {
         return;
     };
-    let (toggle_label, quit_label) = state::tray_menu_labels(tray.is_spanish());
-    let result = (|| -> tauri::Result<()> {
-        let toggle = MenuItem::with_id(app, MENU_TOGGLE_ID, toggle_label, true, None::<&str>)?;
-        let quit = MenuItem::with_id(app, MENU_QUIT_ID, quit_label, true, None::<&str>)?;
-        let menu = Menu::with_items(app, &[&toggle, &quit])?;
-        tray_icon.set_menu(Some(menu))?;
-        tray_icon.set_tooltip(Some(tray.tooltip()))?;
-        Ok(())
-    })();
-    if let Err(err) = result {
-        log::warn!("failed to retranslate tray after language change: {err}");
+    if let Err(err) = tray_icon.set_tooltip(Some(tray.tooltip())) {
+        log::warn!("failed to refresh tray tooltip after language change: {err}");
     }
 }
 
@@ -463,23 +464,99 @@ fn show_window(window: &tauri::WebviewWindow) {
     let _ = window.set_focus();
 }
 
-/// Tray "Show / Hide": hide when visible, restore otherwise.
-fn toggle_main_window(app: &tauri::AppHandle) {
-    let Some(window) = app.get_webview_window(MAIN_WINDOW) else {
+/// Inner size of the tray quick-control panel, in logical pixels.
+const TRAY_PANEL_SIZE: (f64, f64) = (360.0, 440.0);
+
+/// Instant of the last panel show — used to ignore the transient focus-loss
+/// that fires while the popup settles, so it does not self-hide on open.
+static TRAY_PANEL_SHOWN_AT: std::sync::Mutex<Option<std::time::Instant>> =
+    std::sync::Mutex::new(None);
+
+/// Build the frameless tray panel webview, hidden (`?panel=1`). Shared by the
+/// startup pre-create and the lazy fallback in `show_tray_panel`.
+fn build_tray_panel_window(app: &tauri::AppHandle) -> tauri::Result<tauri::WebviewWindow> {
+    let (w, h) = TRAY_PANEL_SIZE;
+    tauri::WebviewWindowBuilder::new(
+        app,
+        TRAY_PANEL_WINDOW,
+        tauri::WebviewUrl::App("index.html?panel=1".into()),
+    )
+    .title("DevDeck")
+    .inner_size(w, h)
+    .resizable(false)
+    .decorations(false)
+    .always_on_top(true)
+    .skip_taskbar(true)
+    .visible(false)
+    .build()
+}
+
+/// Pre-create the (hidden) panel at startup so it is fully loaded before the
+/// first show — kills the blank-on-first-open and the focus race. No-op if it
+/// already exists.
+fn precreate_tray_panel(app: &tauri::AppHandle) {
+    if app.get_webview_window(TRAY_PANEL_WINDOW).is_some() {
         return;
-    };
-    if window.is_visible().unwrap_or(false) {
-        let _ = window.hide();
-    } else {
-        show_window(&window);
     }
+    if let Err(err) = build_tray_panel_window(app) {
+        log::warn!("failed to pre-create tray panel: {err}");
+    }
+}
+
+/// Reposition + show + focus the panel (created lazily if pre-create failed).
+/// Auto-hides on blur (see `on_window_event`).
+fn show_tray_panel(app: &tauri::AppHandle, click: tauri::PhysicalPosition<f64>) {
+    let (w, h) = TRAY_PANEL_SIZE;
+    let window = match app.get_webview_window(TRAY_PANEL_WINDOW) {
+        Some(window) => window,
+        None => match build_tray_panel_window(app) {
+            Ok(window) => window,
+            Err(err) => {
+                log::warn!("failed to open tray panel: {err}");
+                return;
+            }
+        },
+    };
+    position_tray_panel(&window, click, w, h);
+    if let Ok(mut guard) = TRAY_PANEL_SHOWN_AT.lock() {
+        *guard = Some(std::time::Instant::now());
+    }
+    let _ = window.show();
+    let _ = window.set_focus();
+}
+
+/// True within the grace window after a show — the blur handler skips hiding
+/// while this holds, so the popup does not self-close as it settles on open.
+fn tray_panel_show_is_recent() -> bool {
+    TRAY_PANEL_SHOWN_AT
+        .lock()
+        .ok()
+        .and_then(|guard| *guard)
+        .map(|shown| shown.elapsed() < std::time::Duration::from_millis(700))
+        .unwrap_or(false)
+}
+
+/// Anchor the panel so its bottom-right corner sits near `click`, clamped to
+/// `≥0`. The click position is physical, the inner size logical — convert via
+/// the window scale factor. ponytail: single-monitor anchor; multi-monitor edge
+/// math deferred until someone reports a clipped panel.
+fn position_tray_panel(
+    window: &tauri::WebviewWindow,
+    click: tauri::PhysicalPosition<f64>,
+    logical_w: f64,
+    logical_h: f64,
+) {
+    let scale = window.scale_factor().unwrap_or(1.0);
+    let x = (click.x - logical_w * scale).max(0.0);
+    let y = (click.y - logical_h * scale).max(0.0);
+    let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
 }
 
 /// Tray "Quit" — same protocol as the window close (inventory-gui.md §25:
 /// quit routes through the confirm-running flow): with active services the
 /// window is restored and `app://close-requested` emitted (the frontend
 /// answers via `app_exit { force }`); otherwise exit directly.
-fn request_quit(app: &tauri::AppHandle) {
+pub(crate) fn request_quit(app: &tauri::AppHandle) {
     let state = app.state::<AppState>();
     if state.tray.any_active() || state.terminals.any_open() {
         if let Some(window) = app.get_webview_window(MAIN_WINDOW) {

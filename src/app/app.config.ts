@@ -53,11 +53,14 @@ export const appConfig: ApplicationConfig = {
       const i18n = inject(TranslationService);
       const updates = inject(UpdatesStore);
       const commands = inject(IpcCommands);
-      // Detached log/terminal/dialog windows run the same SPA bootstrap; the
-      // update check + changelog are main-window-only concerns.
+      // Detached log/terminal/dialog windows and the tray panel run the same
+      // SPA bootstrap; the update check + changelog are main-window-only.
       const search = new URLSearchParams(window.location.search);
       const isMainWindow =
-        !search.has('log') && !search.has('terminal') && !search.has('dialog');
+        !search.has('log') &&
+        !search.has('terminal') &&
+        !search.has('dialog') &&
+        !search.has('panel');
       const step = async (name: string, run: () => Promise<unknown>): Promise<void> => {
         try {
           await run();
