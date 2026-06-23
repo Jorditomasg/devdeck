@@ -52,6 +52,13 @@ portable-pty = "0.8"
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
 
+# Windows-only: force WS_EX_APPWINDOW on detached log windows so they get a
+# taskbar button and minimize to the taskbar — without it tao's secondary
+# windows minimize to the legacy bottom-left desktop stub (tauri#10422).
+# Reuses the `windows` crate Tauri already pulls in (0.61.x).
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }
+
 # Desktop-only plugins (single-instance has no mobile support).
 [target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
 tauri-plugin-single-instance = "2.4"
