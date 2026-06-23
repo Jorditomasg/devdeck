@@ -145,12 +145,35 @@ export class ProfilesStore {
    * initializer. The profile manager runs in its own window with its own
    * store instance, so a save/delete there must re-list HERE (the main
    * window's dropdown) — Rust broadcasts `profiles://changed` and we reload
-   * the group this store is currently showing.
+   * the group this store is currently showing, then reconcile the active
+   * selection (adopt a profile created elsewhere, deselect one deleted
+   * out from under us).
    */
   async init(): Promise<void> {
-    await this.events.onProfilesChanged(() => {
-      void this.refresh(this._group()).catch(() => undefined);
+    await this.events.onProfilesChanged((payload) => {
+      void this.refresh(this._group())
+        .then((names) => this.reconcileActive(names, payload.saved))
+        .catch(() => undefined);
     });
+  }
+
+  /**
+   * Cross-window selection sync after a re-list. `saved` (the name a save in
+   * another window just wrote, present in this group) is adopted as the active
+   * profile; otherwise an active profile that vanished from the list was
+   * deleted elsewhere and is deselected. Pure list-membership — no group of
+   * the payload is trusted, so a save in a DIFFERENT group never steals focus.
+   */
+  private reconcileActive(names: readonly string[], saved: string | null): void {
+    if (saved !== null && names.includes(saved)) {
+      void this.load(saved, this._group()).catch(() => undefined);
+      return;
+    }
+    const active = this._activeProfileName();
+    if (active !== null && !names.includes(active)) {
+      this._activeProfileName.set(null);
+      this._snapshot.set(null);
+    }
   }
 
   /**

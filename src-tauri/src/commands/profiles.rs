@@ -25,8 +25,11 @@ use crate::state::AppState;
 
 /// Broadcast a profile-list change so every window's `ProfilesStore` re-lists
 /// (the profile manager runs in its own window — see [`PROFILES_CHANGED`]).
-fn emit_profiles_changed(app: &tauri::AppHandle, group: Option<&str>) {
-    app.emit(PROFILES_CHANGED, serde_json::json!({ "group": group }));
+/// `saved` carries the saved profile name (so other windows adopt it as the
+/// active selection) or `None` for a delete (so the deleted profile is
+/// deselected wherever it was active).
+fn emit_profiles_changed(app: &tauri::AppHandle, group: Option<&str>, saved: Option<&str>) {
+    app.emit(PROFILES_CHANGED, serde_json::json!({ "group": group, "saved": saved }));
 }
 
 /// Result of `apply_profile_environments` (§2.7 #46) — the `repetidoN`
@@ -107,7 +110,7 @@ pub async fn save_profile(
     let path = state
         .profiles
         .save_profile(&name, group.as_deref(), &mut doc)?;
-    emit_profiles_changed(&app, group.as_deref());
+    emit_profiles_changed(&app, group.as_deref(), Some(&name));
     Ok(path.display().to_string())
 }
 
@@ -121,7 +124,7 @@ pub async fn delete_profile(
 ) -> CmdResult<bool> {
     let deleted = state.profiles.delete_profile(&name, group.as_deref());
     if deleted {
-        emit_profiles_changed(&app, group.as_deref());
+        emit_profiles_changed(&app, group.as_deref(), None);
     }
     Ok(deleted)
 }

@@ -346,7 +346,7 @@ structs live in `src-tauri/src/events.rs`.
 | `app://close-requested` | `{}` (empty object) | close/quit attempted while services run; Rust prevented the close — the frontend shows the confirm-running dialog and answers with `app_exit { force }` (§2.1 extensions) |
 | `update://progress` | `UpdateProgressEvent { downloaded, contentLength: number \| null }` | download progress while `install_update` runs (updater chunk callback) |
 | `config://changed` | `AppConfig` (full, v1 snake_case keys) | the persisted config changed — emitted from the single `ConfigStore::save` choke point so every window's `SettingsStore` re-syncs (docs/migration/dialogs-as-windows.md Phase 3) |
-| `profiles://changed` | `{ group: string \| null }` | a profile was saved/deleted — emitted from `save_profile` / `delete_profile` so every window's `ProfilesStore` re-lists (the profile manager runs in its own window; the main window's dropdown would otherwise miss new profiles) |
+| `profiles://changed` | `{ group: string \| null, saved: string \| null }` | a profile was saved/deleted — emitted from `save_profile` / `delete_profile` so every window's `ProfilesStore` re-lists and reconciles its active selection (adopts `saved`, or deselects a deleted profile). The profile manager runs in its own window; the main window's dropdown would otherwise miss new profiles |
 | `dialog://resolved` | `DialogResolvedEvent { token, result: unknown }` | a native dialog window settled (`resolve_dialog` or `dlg-*` close); `result: null` = cancelled → opener applies its fallback (design doc `dialogs-as-windows.md`) |
 
 `name` in `git://badge` / `docker://status` / service events is the repo name / service id

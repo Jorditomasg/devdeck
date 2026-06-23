@@ -152,6 +152,38 @@ describe('ProfilesStore', () => {
     });
   });
 
+  it('a profiles://changed delete elsewhere deselects a vanished active profile', async () => {
+    const bridge = new FakeTauriBridge()
+      .whenInvoked(CMD.loadProfile, doc({ api: repoProfile() }))
+      .whenInvoked(CMD.listProfiles, []); // re-list returns it gone
+    const store = makeStore(bridge);
+    await store.init();
+    await store.load('KLK2');
+
+    bridge.emit('profiles://changed', { group: null, saved: null });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(store.activeProfileName()).toBeNull();
+    expect(store.hasSnapshot()).toBe(false);
+  });
+
+  it('a profiles://changed save elsewhere adopts the saved profile as active', async () => {
+    const bridge = new FakeTauriBridge()
+      .whenInvoked(CMD.listProfiles, ['KLK2'])
+      .whenInvoked(CMD.loadProfile, doc({ api: repoProfile() }));
+    const store = makeStore(bridge);
+    await store.init();
+
+    bridge.emit('profiles://changed', { group: null, saved: 'KLK2' });
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(store.activeProfileName()).toBe('KLK2');
+    expect(store.hasSnapshot()).toBe(true);
+  });
+
   it('delete() of the active profile clears name + snapshot', async () => {
     const bridge = new FakeTauriBridge()
       .whenInvoked(CMD.loadProfile, doc({ api: repoProfile() }))

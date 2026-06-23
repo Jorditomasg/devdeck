@@ -142,11 +142,13 @@ export class IpcEvents {
 
   /**
    * A profile was saved or deleted in ANY window. Payload carries the affected
-   * `group` (`null` = Default/root); `ProfilesStore` re-lists so the main
-   * window's profile dropdown picks up profiles created in the manager window.
+   * `group` (`null` = Default/root) and `saved` (the saved profile name, or
+   * `null` for a delete); `ProfilesStore` re-lists so the main window's
+   * dropdown picks up profiles created in the manager window, and reconciles
+   * its active selection (adopt the saved one, deselect a deleted one).
    */
   onProfilesChanged(
-    handler: (payload: { group: string | null }) => void,
+    handler: (payload: { group: string | null; saved: string | null }) => void,
   ): Promise<UnlistenFn> {
     return this.bridge.listen(EVT.profilesChanged, handler);
   }
