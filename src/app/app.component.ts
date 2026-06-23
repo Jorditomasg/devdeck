@@ -35,7 +35,9 @@ import { WorkspacePageComponent } from './features/workspace/workspace-page.comp
   ],
   template: `
     @if (isTerminalWindow) {
-      <terminal-window />
+      @defer (on immediate) {
+        <terminal-window />
+      }
     } @else if (isLogWindow) {
       <log-window />
     } @else if (isDialogWindow) {

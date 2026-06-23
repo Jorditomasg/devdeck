@@ -22,6 +22,7 @@
             "index": "src/index.html",
             "browser": "src/main.ts",
             "tsConfig": "tsconfig.app.json",
+            "allowedCommonJsDependencies": ["@xterm/xterm", "@xterm/addon-fit"],
             "inlineStyleLanguage": "scss",
             "styles": [
               "node_modules/@xterm/xterm/css/xterm.css",
