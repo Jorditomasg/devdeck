@@ -12,6 +12,7 @@
 import { Injectable } from '@angular/core';
 
 import { IpcCommands } from '../../../core/ipc/commands';
+import { isAppError } from '../../../core/ipc/tauri.types';
 import type { ProfileDocument, RepoInfo } from '../../../core/ipc/tauri.types';
 import { ReposStore } from '../../../core/state/repos.store';
 import { ServicesStore } from '../../../core/state/services.store';
@@ -65,7 +66,7 @@ export class RepoActionsService {
       );
       return;
     }
-    await this.services.start(repo.name, opts);
+    await this.runLifecycle(repo, () => this.services.start(repo.name, opts));
   }
 
   async stop(repo: RepoInfo): Promise<void> {
@@ -73,7 +74,7 @@ export class RepoActionsService {
       await this.stopDocker(repo);
       return;
     }
-    await this.services.stop(repo.name);
+    await this.runLifecycle(repo, () => this.services.stop(repo.name));
   }
 
   /**
@@ -87,7 +88,9 @@ export class RepoActionsService {
       setTimeout(() => void this.startDocker(repo), DOCKER_RESTART_DELAY_MS);
       return;
     }
-    await this.services.restart(repo.name, this.startOverrides(repo));
+    await this.runLifecycle(repo, () =>
+      this.services.restart(repo.name, this.startOverrides(repo)),
+    );
   }
 
   /**
@@ -111,8 +114,33 @@ export class RepoActionsService {
       }
     }
     const java = this.startOverrides(repo).javaLabel;
-    await this.services.install(repo.name, reinstall, java);
-    return true;
+    const ok = await this.runLifecycle(repo, () =>
+      this.services.install(repo.name, reinstall, java),
+    );
+    return ok;
+  }
+
+  /**
+   * Run a process lifecycle dispatch (start/stop/restart/install) and surface a
+   * failure as the standard error dialog instead of letting the rejection vanish
+   * into the card's `void this.actions.x()` call. The store has already reverted
+   * the optimistic status by the time we get here. Returns whether it succeeded.
+   */
+  private async runLifecycle(
+    repo: RepoInfo,
+    run: () => Promise<void>,
+  ): Promise<boolean> {
+    try {
+      await run();
+      return true;
+    } catch (err: unknown) {
+      const msg = isAppError(err) ? err.message : String(err);
+      await this.dialogs.error(
+        this.i18n.t('misc.error_title'),
+        this.i18n.t('misc.action_failed', { name: repo.name, msg }),
+      );
+      return false;
+    }
   }
 
   // -- git (§9, §12) -----------------------------------------------------------

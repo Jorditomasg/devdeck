@@ -595,6 +595,7 @@
   },
   "misc": {
     "error_title": "Error",
+    "action_failed": "Could not complete the action on '{name}':\n{msg}",
     "warning_title": "Warning",
     "enter_branch": "Enter a branch name",
     "no_repos_selected": "No repos selected",
