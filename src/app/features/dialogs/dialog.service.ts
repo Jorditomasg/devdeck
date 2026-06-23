@@ -54,6 +54,7 @@ export class DialogService implements DialogsApi {
   private titleFor(kind: string): string {
     if (kind === 'settings') return this.i18n.t('dialog.settings.title');
     if (kind === 'workspace-groups') return this.i18n.t('dialog.workspace_groups.title');
+    if (kind === 'command-profile-manager') return this.i18n.t('label.command_profile');
     return 'DevDeck';
   }
 
@@ -107,6 +108,11 @@ export class DialogService implements DialogsApi {
   /** Per-repo saved environments / app configs manager (§23). */
   openRepoConfigManager(repoName: string): void {
     this.openKind('repo-config-manager', { repoName });
+  }
+
+  /** Per-repo start-command profiles manager. Resolves when the window closes. */
+  openCommandProfileManager(repoName: string): Promise<unknown> {
+    return this.openKindForResult('command-profile-manager', { repoName }, null);
   }
 
   /** Raw config-file editor (§16). */

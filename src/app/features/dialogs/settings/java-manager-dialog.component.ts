@@ -73,10 +73,10 @@ import {
 
       <div uiDialogFooter>
         <ui-button variant="purple" [loading]="detecting()" (clicked)="autodetect()">
-          {{ 'btn.autodetect_java' | t }}
+          <ui-icon name="search" [size]="14" /> {{ 'btn.autodetect_java' | t }}
         </ui-button>
         <ui-button variant="neutral" (clicked)="add()">
-          {{ 'btn.add_java' | t }}
+          <ui-icon name="plus" [size]="14" /> {{ 'btn.add_java' | t }}
         </ui-button>
         <ui-button variant="success" [loading]="saving()" (clicked)="saveAndClose()">
           {{ 'btn.close' | t }}

@@ -32,7 +32,12 @@ import { TranslationService } from '../../../core/i18n/translation.service';
 import { IpcCommands } from '../../../core/ipc/commands';
 import type { MissingRepo, ProfileDocument } from '../../../core/ipc/tauri.types';
 import { normalizeJavaVersion } from '../../../core/state/profiles.store';
-import { ButtonComponent, DialogShellComponent, SearchableSelectComponent } from '../../../ui';
+import {
+  ButtonComponent,
+  DialogShellComponent,
+  IconComponent,
+  SearchableSelectComponent,
+} from '../../../ui';
 import { DialogBase } from '../dialog-base';
 import {
   IMPORT_CLONE_CONCURRENCY,
@@ -54,7 +59,13 @@ export interface ImportApplyResult {
 @Component({
   selector: 'app-import-options-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ButtonComponent, DialogShellComponent, SearchableSelectComponent, TPipe],
+  imports: [
+    ButtonComponent,
+    DialogShellComponent,
+    IconComponent,
+    SearchableSelectComponent,
+    TPipe,
+  ],
   styleUrl: './import-options-dialog.component.scss',
   template: `
     <ui-dialog-shell
@@ -148,7 +159,7 @@ export interface ImportApplyResult {
             {{ 'btn.cancel' | t }}
           </ui-button>
           <ui-button variant="success" size="lg" (clicked)="accept()">
-            {{ 'dialog.import.btn_accept' | t }}
+<ui-icon name="check" [size]="14" /> {{ 'dialog.import.btn_accept' | t }}
           </ui-button>
         } @else if (working()) {
           <ui-button variant="success" size="lg" [loading]="true" [disabled]="true">
@@ -156,7 +167,7 @@ export interface ImportApplyResult {
           </ui-button>
         } @else {
           <ui-button variant="success" size="lg" (clicked)="finish()">
-            {{ 'dialog.import.btn_close' | t }}
+<ui-icon name="check" [size]="14" /> {{ 'dialog.import.btn_close' | t }}
           </ui-button>
         }
       </div>

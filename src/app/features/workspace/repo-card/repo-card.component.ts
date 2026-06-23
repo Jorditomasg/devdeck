@@ -120,10 +120,8 @@ export function formatCardLine(entry: LogLine): string {
             (openConfigManager)="onOpenConfigManager($event)"
             (moduleTrackedChange)="onModuleTracked($event)"
             (javaSelected)="onJavaSelected($event)"
-            (commandApply)="onCommandApply($event)"
-            (commandReset)="onCommandReset()"
-            (argsApply)="onArgsApply($event)"
-            (argsReset)="onArgsReset()"
+            (commandProfileSelected)="onCommandProfileSelected($event)"
+            (openCommandProfileManager)="onOpenCommandProfileManager()"
             (dockerFileClicked)="onDockerFile($event)"
           />
           <app-card-log
@@ -157,6 +155,8 @@ export class RepoCardComponent {
   protected readonly flashTick = signal(0);
   /** Saved-environment names per module key (loaded on first expand, §7). */
   private readonly envOptions = signal<Readonly<Record<string, readonly string[]>>>({});
+  /** Saved command-profile names (loaded on first expand, §7). */
+  private readonly commandProfileNames = signal<readonly string[]>([]);
   /** Branch combo display value — writable so a failed checkout can revert. */
   protected readonly branchDisplay = signal('');
   /**
@@ -228,7 +228,7 @@ export class RepoCardComponent {
     return headerHint(
       this.branch(),
       firstConfigValue(state.configValues, repo.modules.map((m) => m.key)),
-      state.customCommand || repo.runCommand || '',
+      repo.runCommand || '',
     );
   });
 
@@ -296,14 +296,8 @@ export class RepoCardComponent {
     configText: this.i18n.t('btn.config'),
     configTip: this.i18n.t('tooltip.config_btn'),
     javaLabel: this.i18n.t('label.java'),
-    cmdLabel: this.i18n.t('label.cmd'),
-    applyText: this.i18n.t('btn.apply'),
-    applyTip: this.i18n.t('tooltip.apply_cmd'),
-    resetText: this.i18n.t('btn.reset'),
-    resetTip: this.i18n.t('tooltip.reset_cmd'),
-    argsLabel: this.i18n.t('label.args'),
-    applyArgsTip: this.i18n.t('tooltip.apply_args'),
-    resetArgsTip: this.i18n.t('tooltip.reset_args'),
+    profileLabel: this.i18n.t('label.command_profile'),
+    manageProfilesTip: this.i18n.t('tooltip.manage_command_profiles'),
     searchPlaceholder: this.i18n.t('placeholder.search'),
     noResultsText: this.i18n.t('placeholder.no_results'),
   }));
@@ -398,24 +392,12 @@ export class RepoCardComponent {
                 : '',
           }
         : null,
-      cmd:
-        showCmdRow
-          ? {
-              value: state.customCommand,
-              placeholder: repo.runCommand || this.i18n.t('label.cmd_placeholder'),
-              tip: this.i18n.t('tooltip.cmd_entry', {
-                cmd: repo.runCommand ?? '',
-              }),
-            }
-          : null,
-      args:
-        showCmdRow
-          ? {
-              value: state.startArgs,
-              placeholder: this.i18n.t('label.args_placeholder'),
-              tip: this.i18n.t('tooltip.args_entry'),
-            }
-          : null,
+      commandProfile: showCmdRow
+        ? {
+            options: [noSelection, ...this.commandProfileNames()],
+            value: state.selectedCommandProfile || noSelection,
+          }
+        : null,
       docker: repo.features.includes('docker_checkboxes')
         ? repo.dockerComposeFiles
             .filter((file) => composeDisplayName(file) !== 'all')
@@ -655,24 +637,19 @@ export class RepoCardComponent {
     void this.persistRepoState();
   }
 
-  protected onCommandApply(value: string): void {
-    this.ws.patchCard(this.repo().name, { customCommand: value.trim() });
+  protected onCommandProfileSelected(value: string): void {
+    const name = value === this.i18n.t('label.no_selection') ? '' : value;
+    this.ws.patchCard(this.repo().name, { selectedCommandProfile: name });
     void this.persistRepoState();
   }
 
-  protected onCommandReset(): void {
-    this.ws.patchCard(this.repo().name, { customCommand: '' });
-    void this.persistRepoState();
-  }
-
-  protected onArgsApply(value: string): void {
-    this.ws.patchCard(this.repo().name, { startArgs: value.trim() });
-    void this.persistRepoState();
-  }
-
-  protected onArgsReset(): void {
-    this.ws.patchCard(this.repo().name, { startArgs: '' });
-    void this.persistRepoState();
+  protected async onOpenCommandProfileManager(): Promise<void> {
+    await this.dialogs.openCommandProfileManager(this.repo().name);
+    // Manager closed → refresh the dropdown names (it may have added/renamed/deleted).
+    const m = await this.commands.config
+      .getCommandProfiles(this.repo().name)
+      .catch(() => ({}) as Record<string, string>);
+    this.commandProfileNames.set(Object.keys(m).sort((a, b) => a.localeCompare(b)));
   }
 
   protected onDockerFile(file: string): void {
@@ -716,6 +693,14 @@ export class RepoCardComponent {
           .catch(() => undefined),
       );
     }
+    tasks.push(
+      this.commands.config
+        .getCommandProfiles(repo.name)
+        .then((m) =>
+          this.commandProfileNames.set(Object.keys(m).sort((a, b) => a.localeCompare(b))),
+        )
+        .catch(() => undefined),
+    );
     if (repo.dockerComposeFiles.length > 0) {
       tasks.push(
         this.ws.prefetchComposeServices(repo).then(() => {
@@ -749,14 +734,15 @@ export class RepoCardComponent {
     return this.state().dockerActive.some((a) => composeDisplayName(a) === base);
   }
 
-  /** Persist the v1 `repo_state` quartet + start args (§34). */
+  /** Persist the `repo_state` (§34). */
   private persistRepoState(): Promise<void> {
     const state = this.state();
     return this.settings
       .setRepoState(this.repo().name, {
         selected: state.selected,
-        custom_command: state.customCommand,
-        ...(state.startArgs ? { start_args: state.startArgs } : {}),
+        ...(state.selectedCommandProfile
+          ? { command_profile: state.selectedCommandProfile }
+          : {}),
         ...(state.javaLabel ? { java_version: state.javaLabel } : {}),
         expanded: state.expanded,
       })

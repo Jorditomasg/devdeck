@@ -46,6 +46,7 @@ import { ServicesStore } from '../../../core/state/services.store';
 import {
   ButtonComponent,
   DialogShellComponent,
+  IconComponent,
   SearchableSelectComponent,
 } from '../../../ui';
 import { DialogBase } from '../dialog-base';
@@ -69,7 +70,13 @@ interface RevertEntry {
 @Component({
   selector: 'app-merge-branch-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ButtonComponent, DialogShellComponent, SearchableSelectComponent, TPipe],
+  imports: [
+    ButtonComponent,
+    DialogShellComponent,
+    IconComponent,
+    SearchableSelectComponent,
+    TPipe,
+  ],
   styleUrl: './merge-branch-dialog.component.scss',
   template: `
     <ui-dialog-shell
@@ -252,7 +259,7 @@ interface RevertEntry {
                   [disabled]="merging() || reverting()"
                   (clicked)="revert(entry)"
                 >
-                  {{ 'dialog.merge.btn_revert' | t }}
+                  <ui-icon name="rotate-ccw" [size]="14" /> {{ 'dialog.merge.btn_revert' | t }}
                 </ui-button>
               </div>
             }

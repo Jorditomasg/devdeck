@@ -20,7 +20,7 @@ import { TranslationService } from '../../core/i18n/translation.service';
 import { IpcCommands } from '../../core/ipc/commands';
 import type { RepoInfo } from '../../core/ipc/tauri.types';
 import { ReposStore } from '../../core/state/repos.store';
-import { ButtonComponent, TooltipDirective } from '../../ui';
+import { ButtonComponent, IconComponent, TooltipDirective } from '../../ui';
 import { DialogService } from '../dialogs/dialog.service';
 import { runBatch } from './batch';
 import { RepoActionsService } from './state/repo-actions.service';
@@ -35,12 +35,12 @@ import {
 @Component({
   selector: 'app-global-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ButtonComponent, TooltipDirective],
+  imports: [ButtonComponent, IconComponent, TooltipDirective],
   styleUrl: './global-panel.component.scss',
   template: `
     <!-- Row 1 — title + select-all (§3) -->
     <div class="panel__row">
-      <span class="panel__title">{{ i18n.t('label.global_panel_title') }}</span>
+      <span class="panel__title"><ui-icon name="globe" [size]="16" /> {{ i18n.t('label.global_panel_title') }}</span>
       <span class="panel__spacer"></span>
       <label class="panel__select-all">
         <input
@@ -74,13 +74,13 @@ import {
         [disabled]="busy()"
         [uiTooltip]="i18n.t('tooltip.pull_all')"
         (clicked)="onPullAll()"
-      >{{ i18n.t('btn.pull_all') }}</ui-button>
+      ><ui-icon name="arrow-down" [size]="14" /> {{ i18n.t('btn.pull_all') }}</ui-button>
       <ui-button
         variant="neutral-alt"
         [disabled]="busy()"
         [uiTooltip]="i18n.t('tooltip.install_all')"
         (clicked)="onInstallAll()"
-      >{{ i18n.t('btn.install_all') }}</ui-button>
+      ><ui-icon name="package" [size]="14" /> {{ i18n.t('btn.install_all') }}</ui-button>
 
       <span class="panel__spacer"></span>
 
@@ -88,17 +88,17 @@ import {
         variant="start"
         [uiTooltip]="i18n.t('tooltip.start_selected')"
         (clicked)="onStartSelected()"
-      >{{ i18n.t('btn.start') }}</ui-button>
+      ><ui-icon name="play" [size]="14" /> {{ i18n.t('btn.start') }}</ui-button>
       <ui-button
         variant="danger"
         [uiTooltip]="i18n.t('tooltip.stop_selected')"
         (clicked)="onStopSelected()"
-      >{{ i18n.t('btn.stop') }}</ui-button>
+      ><ui-icon name="square" [size]="14" /> {{ i18n.t('btn.stop') }}</ui-button>
       <ui-button
         variant="warning"
         [uiTooltip]="i18n.t('tooltip.restart_selected')"
         (clicked)="onRestartSelected()"
-      >{{ i18n.t('btn.restart') }}</ui-button>
+      ><ui-icon name="refresh" [size]="14" /> {{ i18n.t('btn.restart') }}</ui-button>
     </div>
   `,
 })

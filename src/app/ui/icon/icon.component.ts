@@ -47,7 +47,22 @@ export type IconName =
   | 'help-circle'
   | 'corner-down-left'
   | 'arrow-down-to-line'
-  | 'sprout';
+  | 'sprout'
+  | 'package'
+  | 'eraser'
+  | 'git-merge'
+  | 'git-branch'
+  | 'archive'
+  | 'external-link'
+  | 'copy'
+  | 'plus'
+  | 'search'
+  | 'rotate-ccw'
+  | 'globe'
+  | 'app-window'
+  | 'terminal'
+  | 'upload'
+  | 'check';
 
 @Component({
   selector: 'ui-icon',
@@ -199,6 +214,77 @@ export type IconName =
           <path
             d="M14.1 6a7 7 0 0 0-1.1 4c1.9-.1 3.3-.6 4.3-1.4 1-1 1.6-2.3 1.7-4.6-2.7.1-4 1-4.9 2z"
           />
+        }
+        @case ('package') {
+          <path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z" />
+          <path d="M12 22V12" />
+          <path d="m3.3 7 8.7 5 8.7-5" />
+          <path d="m7.5 4.27 9 5.15" />
+        }
+        @case ('eraser') {
+          <path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21" />
+          <path d="M22 21H7" />
+          <path d="m5 11 9 9" />
+        }
+        @case ('git-merge') {
+          <circle cx="18" cy="18" r="3" />
+          <circle cx="6" cy="6" r="3" />
+          <path d="M6 21V9a9 9 0 0 0 9 9" />
+        }
+        @case ('git-branch') {
+          <line x1="6" x2="6" y1="3" y2="15" />
+          <circle cx="18" cy="6" r="3" />
+          <circle cx="6" cy="18" r="3" />
+          <path d="M18 9a9 9 0 0 1-9 9" />
+        }
+        @case ('archive') {
+          <rect width="20" height="5" x="2" y="3" rx="1" />
+          <path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" />
+          <path d="M10 12h4" />
+        }
+        @case ('external-link') {
+          <path d="M15 3h6v6" />
+          <path d="M10 14 21 3" />
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+        }
+        @case ('copy') {
+          <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+          <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+        }
+        @case ('plus') {
+          <path d="M5 12h14" />
+          <path d="M12 5v14" />
+        }
+        @case ('search') {
+          <circle cx="11" cy="11" r="8" />
+          <path d="m21 21-4.3-4.3" />
+        }
+        @case ('rotate-ccw') {
+          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+          <path d="M3 3v5h5" />
+        }
+        @case ('globe') {
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
+          <path d="M2 12h20" />
+        }
+        @case ('app-window') {
+          <rect x="2" y="4" width="20" height="16" rx="2" />
+          <path d="M10 4v4" />
+          <path d="M2 8h20" />
+          <path d="M6 4v4" />
+        }
+        @case ('terminal') {
+          <path d="m4 17 6-6-6-6" />
+          <path d="M12 19h8" />
+        }
+        @case ('upload') {
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <path d="m17 8-5-5-5 5" />
+          <path d="M12 3v12" />
+        }
+        @case ('check') {
+          <path d="M20 6 9 17l-5-5" />
         }
       }
     </svg>
