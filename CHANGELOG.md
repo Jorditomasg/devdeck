@@ -5,6 +5,32 @@ All notable changes to DevDeck are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-06-23
+
+### Added
+- Command profiles per repository: save multiple named launch configurations
+  for a service and switch between them, instead of editing a single custom
+  command and start arguments each time. Name a new profile inline without a
+  separate dialog.
+- Redesigned system tray with a custom quick-control panel for starting and
+  stopping services, replacing the plain native menu.
+
+### Changed
+- Refreshed icons across the whole app with crisp inline SVG icons in place of
+  emoji, for a consistent look at every screen scale.
+- Reordered the git action buttons on each repository card by how frequently
+  and how safely they are used, so the common, safe actions come first.
+
+### Fixed
+- Profile changes (saving, deleting, switching the active profile) now sync
+  immediately across all open windows.
+- The app now self-heals a corrupted configuration file instead of failing to
+  start.
+- Service start and stop failures are now surfaced clearly instead of leaving a
+  repository card stuck in a pending state.
+- Dialog windows no longer open duplicates; the same dialog reuses its existing
+  window.
+
 ## [1.1.0] - 2026-06-23
 
 ### Added
