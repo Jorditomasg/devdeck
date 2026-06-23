@@ -17,10 +17,17 @@ use serde::Serialize;
 use tauri::State;
 
 use super::error::{AppError, CmdResult};
+use crate::events::{EventEmitter, PROFILES_CHANGED};
 use crate::profiles::{
     self, MissingRepo, ProfileDocument, RenamesByKey,
 };
 use crate::state::AppState;
+
+/// Broadcast a profile-list change so every window's `ProfilesStore` re-lists
+/// (the profile manager runs in its own window — see [`PROFILES_CHANGED`]).
+fn emit_profiles_changed(app: &tauri::AppHandle, group: Option<&str>) {
+    app.emit(PROFILES_CHANGED, serde_json::json!({ "group": group }));
+}
 
 /// Result of `apply_profile_environments` (§2.7 #46) — the `repetidoN`
 /// rename report (inventory-backend.md §15.4). TS mirror:
@@ -62,6 +69,7 @@ pub async fn load_profile(
 /// repos missing from the scan are written as the frontend sent them.
 #[tauri::command]
 pub async fn save_profile(
+    app: tauri::AppHandle,
     state: State<'_, AppState>,
     name: String,
     group: Option<String>,
@@ -99,17 +107,23 @@ pub async fn save_profile(
     let path = state
         .profiles
         .save_profile(&name, group.as_deref(), &mut doc)?;
+    emit_profiles_changed(&app, group.as_deref());
     Ok(path.display().to_string())
 }
 
 /// #42 `delete_profile { name, group? }` → `boolean`.
 #[tauri::command]
 pub async fn delete_profile(
+    app: tauri::AppHandle,
     state: State<'_, AppState>,
     name: String,
     group: Option<String>,
 ) -> CmdResult<bool> {
-    Ok(state.profiles.delete_profile(&name, group.as_deref()))
+    let deleted = state.profiles.delete_profile(&name, group.as_deref());
+    if deleted {
+        emit_profiles_changed(&app, group.as_deref());
+    }
+    Ok(deleted)
 }
 
 /// #43 `export_profile { doc, destPath }` → `void`.

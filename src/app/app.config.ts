@@ -8,6 +8,7 @@ import {
 
 import { TranslationService } from './core/i18n/translation.service';
 import { IpcCommands } from './core/ipc/commands';
+import { ProfilesStore } from './core/state/profiles.store';
 import { ReposStore } from './core/state/repos.store';
 import { ServicesStore } from './core/state/services.store';
 import { SettingsStore } from './core/state/settings.store';
@@ -47,6 +48,7 @@ export const appConfig: ApplicationConfig = {
     provideAppInitializer(async () => {
       const repos = inject(ReposStore);
       const services = inject(ServicesStore);
+      const profiles = inject(ProfilesStore);
       const settings = inject(SettingsStore);
       const i18n = inject(TranslationService);
       const updates = inject(UpdatesStore);
@@ -65,7 +67,7 @@ export const appConfig: ApplicationConfig = {
       };
       try {
         await step('event subscriptions + hydration', () =>
-          Promise.all([repos.init(), services.init()]),
+          Promise.all([repos.init(), services.init(), profiles.init()]),
         );
         await step('config mirror', () => settings.init());
         await step('i18n', () => i18n.init());

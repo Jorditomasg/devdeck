@@ -75,6 +75,14 @@ pub const DIALOG_RESOLVED: &str = "dialog://resolved";
 /// (docs/migration/dialogs-as-windows.md, Phase 3 cross-window sync).
 pub const CONFIG_CHANGED: &str = "config://changed";
 
+/// A profile was saved or deleted. Payload: `{ group: string | null }` (the
+/// affected group; `null` = the Default/root profiles dir). Emitted from
+/// `save_profile` / `delete_profile` so EVERY window's `ProfilesStore`
+/// re-lists — the profile manager runs in its own window, so the main
+/// window's profile dropdown would otherwise never learn of new profiles
+/// (same cross-window-sync reason as [`CONFIG_CHANGED`]).
+pub const PROFILES_CHANGED: &str = "profiles://changed";
+
 // ---------------------------------------------------------------------------
 // Shared enums
 // ---------------------------------------------------------------------------

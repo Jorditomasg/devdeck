@@ -55,6 +55,8 @@ export const EVT = {
    * `ConfigStore::save` choke point). Every window's `SettingsStore` re-syncs.
    */
   configChanged: 'config://changed',
+  /** events.rs `PROFILES_CHANGED` — a profile was saved/deleted (any window) */
+  profilesChanged: 'profiles://changed',
 } as const;
 
 /** Union of all wire event names. */
@@ -136,6 +138,17 @@ export class IpcEvents {
    */
   onConfigChanged(handler: (config: AppConfig) => void): Promise<UnlistenFn> {
     return this.bridge.listen(EVT.configChanged, handler);
+  }
+
+  /**
+   * A profile was saved or deleted in ANY window. Payload carries the affected
+   * `group` (`null` = Default/root); `ProfilesStore` re-lists so the main
+   * window's profile dropdown picks up profiles created in the manager window.
+   */
+  onProfilesChanged(
+    handler: (payload: { group: string | null }) => void,
+  ): Promise<UnlistenFn> {
+    return this.bridge.listen(EVT.profilesChanged, handler);
   }
 
   /**

@@ -16,6 +16,7 @@
 import { Injectable, computed, signal } from '@angular/core';
 
 import { IpcCommands } from '../ipc/commands';
+import { IpcEvents } from '../ipc/events';
 import type {
   MissingRepo,
   ProfileApplyReport,
@@ -46,7 +47,7 @@ export function repoProfileEquals(a: RepoProfile, b: RepoProfile): boolean {
     a.type === b.type &&
     (a.profile ?? null) === (b.profile ?? null) &&
     sameArray(a.profile_tracked, b.profile_tracked) &&
-    a.custom_command === b.custom_command &&
+    (a.command_profile ?? null) === (b.command_profile ?? null) &&
     normalizeJavaVersion(a.java_version) === normalizeJavaVersion(b.java_version) &&
     a.selected === b.selected &&
     sameArray(a.docker_compose_active ?? [], b.docker_compose_active ?? []) &&
@@ -134,7 +135,23 @@ export class ProfilesStore {
   /** True when a baseline snapshot exists to compare against. */
   readonly hasSnapshot = computed(() => this._snapshot() !== null);
 
-  constructor(private readonly commands: IpcCommands) {}
+  constructor(
+    private readonly commands: IpcCommands,
+    private readonly events: IpcEvents,
+  ) {}
+
+  /**
+   * Subscribe to cross-window profile changes. Called from the app
+   * initializer. The profile manager runs in its own window with its own
+   * store instance, so a save/delete there must re-list HERE (the main
+   * window's dropdown) — Rust broadcasts `profiles://changed` and we reload
+   * the group this store is currently showing.
+   */
+  async init(): Promise<void> {
+    await this.events.onProfilesChanged(() => {
+      void this.refresh(this._group()).catch(() => undefined);
+    });
+  }
 
   /**
    * Compare a live document against the snapshot. `true` when there IS a
