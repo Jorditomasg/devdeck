@@ -5,6 +5,30 @@ All notable changes to DevDeck are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-06-24
+
+### Added
+- Appearance settings: pick a color palette (Indigo, Slate, Emerald, Crimson,
+  Rose or Light) and a background pattern (Isometric cubes, Grid, Dots, Corner
+  zig-zag, Hexagons, Scales, Moroccan, or none). Your choice is remembered and
+  applies instantly across every window.
+
+### Changed
+- The Command Profiles manager now uses a two-column layout — profile list on
+  the left, a multi-line command editor on the right — matching the repository
+  configuration manager.
+- Git operation dialogs (branch, clone, merge, stash and profile import) now
+  share a single, cleaner progress log panel.
+
+### Fixed
+- Detached log windows now get a proper Windows taskbar button and minimize to
+  the taskbar instead of vanishing into the legacy desktop corner.
+- Dialog windows can no longer be minimized or maximized, so fixed-size dialogs
+  can't get lost off-screen.
+- Opening a repository folder or the workspace path in the file explorer now
+  works for every path.
+- Repository card logs no longer show a duplicated `[git]` / `[docker]` prefix.
+
 ## [1.2.1] - 2026-06-23
 
 ### Changed
