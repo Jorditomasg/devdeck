@@ -99,6 +99,22 @@ impl DialogManager {
         token
     }
 
+    /// Token of a still-open dialog window matching `kind` AND `args`, if any.
+    /// Used to keep dialogs singleton per logical identity: a second open of
+    /// the same kind with the same args focuses the existing window instead of
+    /// stacking duplicates. The `dlg-{kind}-` prefix is exact even when `kind`
+    /// itself contains hyphens (e.g. `merge-branch`), and matching args means
+    /// per-repo dialogs for *different* repos still coexist.
+    pub fn existing(&self, kind: &str, args: &serde_json::Value) -> Option<String> {
+        let prefix = format!("dlg-{kind}-");
+        self.slots
+            .lock()
+            .expect("dialog registry poisoned")
+            .iter()
+            .find(|(token, slot_args)| token.starts_with(&prefix) && *slot_args == args)
+            .map(|(token, _)| token.clone())
+    }
+
     /// The args a dialog window was opened with (`None` once resolved/closed).
     pub fn args(&self, token: &str) -> Option<serde_json::Value> {
         self.slots
@@ -340,6 +356,26 @@ pub fn tray_menu_labels(spanish: bool) -> (&'static str, &'static str) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn dialog_existing_matches_kind_and_args_only() {
+        use serde_json::json;
+        let d = DialogManager::default();
+        let a = d.allocate("merge-branch", json!({ "repoName": "api" }));
+        d.allocate("merge-branch", json!({ "repoName": "web" }));
+
+        // Same kind + same args → finds the live window (focus, not duplicate).
+        assert_eq!(d.existing("merge-branch", &json!({ "repoName": "api" })), Some(a));
+        // Same kind, different args (other repo) → no match, opens a new one.
+        assert_eq!(d.existing("merge-branch", &json!({ "repoName": "db" })), None);
+        // `dlg-merge-branch-` prefix must not leak into a different kind.
+        assert_eq!(d.existing("merge", &json!({ "repoName": "api" })), None);
+
+        // Resolving frees the slot, so the next open is allowed again.
+        let token = d.existing("merge-branch", &json!({ "repoName": "web" })).unwrap();
+        assert!(d.take(&token));
+        assert_eq!(d.existing("merge-branch", &json!({ "repoName": "web" })), None);
+    }
 
     #[test]
     fn tooltip_formats_running_over_total() {
