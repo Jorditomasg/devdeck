@@ -148,14 +148,32 @@ pub fn run() {
                 // Close interception (inventory-gui.md §17): prevent the close
                 // while services run OR any PTY terminal is open; the frontend
                 // shows the confirm dialog and answers with `app_exit { force }`.
-                // With nothing running the close proceeds and `RunEvent::Exit`
-                // does the cleanup.
                 WindowEvent::CloseRequested { api, .. } => {
                     let app = window.app_handle();
                     let state = app.state::<AppState>();
                     if state.tray.any_active() || state.terminals.any_open() {
                         api.prevent_close();
                         EventEmitter::emit(app, APP_CLOSE_REQUESTED, serde_json::json!({}));
+                    } else if state
+                        .config
+                        .load()
+                        .map(|c| c.minimize_to_tray_or_default())
+                        .unwrap_or(true)
+                    {
+                        // Close-to-tray: HIDE instead of destroying the window so
+                        // the tray ("Open DevDeck" / double-click) can restore it.
+                        // Destroying it would strand the app — the precreated
+                        // hidden tray-panel window keeps the process alive, but
+                        // `get_webview_window("main")` would then return None and
+                        // every reopen path would silently no-op.
+                        api.prevent_close();
+                        let _ = window.hide();
+                    }
+                    // Close-to-tray OFF: let the close proceed and exit, so we
+                    // don't leave an unreachable tray zombie. `RunEvent::Exit`
+                    // does the service/terminal cleanup.
+                    else {
+                        app.exit(0);
                     }
                 }
                 // Minimize-to-tray (inventory-gui.md §17, config key

@@ -78,7 +78,7 @@
     "java": "Java:",
     "java_default": "Sistema (Por Defecto)",
     "java_recommended": "Recomendado: Java {version}",
-    "command_profile": "Perfil:",
+    "command_profile": "Arranque:",
     "branch_placeholder": "develop",
     "select_file_to_edit": "Seleccionar archivo para editar:",
     "log_empty": "Aún no hay salida de log",

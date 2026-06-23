@@ -5,6 +5,19 @@ All notable changes to DevDeck are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-06-23
+
+### Changed
+- Opening Settings now shows the available update and its version
+  automatically, without having to click "Check for updates" first.
+- Renamed the start-command selector on each repository card from "Profile" to
+  "Launch", to set it apart from workspace profiles.
+
+### Fixed
+- Closing the main window now hides DevDeck to the tray and it can be reopened
+  again from the tray (double-click or "Open DevDeck"); previously it became
+  stuck in the tray and only "Close DevDeck" worked.
+
 ## [1.2.0] - 2026-06-23
 
 ### Added

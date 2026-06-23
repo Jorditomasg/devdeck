@@ -78,7 +78,7 @@
     "java": "Java:",
     "java_default": "System (Default)",
     "java_recommended": "Recommended: Java {version}",
-    "command_profile": "Profile:",
+    "command_profile": "Launch:",
     "branch_placeholder": "develop",
     "select_file_to_edit": "Select file to edit:",
     "log_empty": "No log output yet",
