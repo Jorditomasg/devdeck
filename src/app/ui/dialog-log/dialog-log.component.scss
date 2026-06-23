@@ -1,0 +1,12 @@
+// ui-dialog-log — boxed action log for dialogs (header + ui-log-viewer).
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+
+// Fixed box height — matches the merge dialog log (§20).
+.dialog-log__view {
+  height: 150px;
+}

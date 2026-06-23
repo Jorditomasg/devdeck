@@ -41,13 +41,3 @@
   height: 100%;
   background-color: var(--color-text-accent);
 }
-
-.clone__log {
-  @include c.mono-textarea;
-  max-height: 80px;
-  margin: 0;
-  overflow-y: auto;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-  white-space: pre-wrap;
-}

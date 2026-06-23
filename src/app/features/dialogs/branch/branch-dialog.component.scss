@@ -6,6 +6,9 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  // Wide enough to show ~15 branch rows without crowding the action buttons.
+  width: 720px;
+  max-width: 100%;
 }
 
 .branch__panel {
@@ -102,24 +105,6 @@
 .branch__empty {
   margin: 0;
   padding: 20px;
-  text-align: center;
-  color: var(--color-text-muted);
-}
-
-// -- Logs tab -----------------------------------------------------------------
-
-.branch__log {
-  @include c.mono-textarea;
-  min-height: 260px;
-  max-height: 420px;
-  margin: 0;
-  overflow-y: auto;
-  white-space: pre-wrap;
-}
-
-.branch__log-empty {
-  margin: 0;
-  padding: 32px;
   text-align: center;
   color: var(--color-text-muted);
 }
