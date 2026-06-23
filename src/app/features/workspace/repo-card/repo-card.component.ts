@@ -56,9 +56,13 @@ import {
 import { dotStatusFor, visibilityForStatus } from './card-visibility';
 import { resolveActions } from './repo-card.actions';
 
-/** `[stream]`-prefix non-service lines, v1 card-log style (§8). */
+/** `[stream]`-prefix raw lines, v1 card-log style (§8). git/docker bake
+ * their own `[git]`/`[merge]`/`[docker]`/`[db]` prefix, so skip the stream
+ * prefix when the line already carries one (avoids `[git] [git] …`). */
 export function formatCardLine(entry: LogLine): string {
-  return entry.stream === 'service' ? entry.line : `[${entry.stream}] ${entry.line}`;
+  return entry.stream === 'service' || entry.line.startsWith('[')
+    ? entry.line
+    : `[${entry.stream}] ${entry.line}`;
 }
 
 @Component({
