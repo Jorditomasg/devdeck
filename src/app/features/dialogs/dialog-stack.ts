@@ -46,6 +46,8 @@ export interface DialogsApi {
   openBranches(repoName: string): void;
   openDockerCompose(repoName: string, composeFile?: string): void;
   openRepoConfigManager(repoName: string): void;
+  /** Per-repo start-command profiles manager. Resolves when the window closes. */
+  openCommandProfileManager(repoName: string): Promise<unknown>;
   openConfigEditor(repoName: string, filePath: string): void;
   openProfileManager(): void;
   openWorkspaceGroups(): void;

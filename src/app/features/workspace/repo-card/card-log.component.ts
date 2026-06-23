@@ -59,12 +59,12 @@ export interface CardLogText {
         size="sm"
         [uiTooltip]="text().copyTip"
         (clicked)="copyClicked.emit()"
-      >{{ text().copyText }}</ui-button>
+      ><ui-icon name="copy" [size]="13" /> {{ text().copyText }}</ui-button>
       <ui-button variant="log-action" size="sm" (clicked)="detachToggle.emit()">
-        {{ text().detachText }}
+        <ui-icon name="external-link" [size]="13" /> {{ text().detachText }}
       </ui-button>
       <ui-button variant="log-action" size="sm" (clicked)="clearClicked.emit()">
-        {{ text().clearText }}
+        <ui-icon name="trash" [size]="13" /> {{ text().clearText }}
       </ui-button>
     </ui-section-header>
 

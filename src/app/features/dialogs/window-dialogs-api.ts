@@ -157,6 +157,9 @@ export class WindowDialogsApi implements DialogsApi {
   openRepoConfigManager(repoName: string): void {
     this.openKind('repo-config-manager', { repoName });
   }
+  openCommandProfileManager(repoName: string): Promise<unknown> {
+    return this.openKindForResult('command-profile-manager', { repoName }, null);
+  }
   openConfigEditor(repoName: string, filePath: string): void {
     this.openKind('config-editor', { repoName, filePath });
   }

@@ -45,6 +45,10 @@ export const DIALOG_WINDOW_COMPONENTS: Readonly<Record<string, DialogComponentLo
     import('./repo-config-manager/repo-config-manager-dialog.component').then(
       (m) => m.RepoConfigManagerDialogComponent,
     ),
+  'command-profile-manager': () =>
+    import('./command-profile-manager/command-profile-manager-dialog.component').then(
+      (m) => m.CommandProfileManagerDialogComponent,
+    ),
   'merge-branch': () =>
     import('./merge-branch/merge-branch-dialog.component').then(
       (m) => m.MergeBranchDialogComponent,

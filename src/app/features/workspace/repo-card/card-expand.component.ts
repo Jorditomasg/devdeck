@@ -75,14 +75,12 @@ export interface JavaRowVm {
   readonly recommended: string;
 }
 
-/**
- * Row 3 — custom command (§7 row 3); `null` hides the row (docker-infra).
- * Reused by row 3b (start arguments) — same shape.
- */
-export interface CmdRowVm {
+/** Row 3 — command profile selector (§7 row 3); `null` hides the row. */
+export interface CommandProfileRowVm {
+  /** `[noSelection, ...sorted profile names]`. */
+  readonly options: readonly string[];
+  /** Display value (the no-selection sentinel when nothing active). */
   readonly value: string;
-  readonly placeholder: string;
-  readonly tip: string;
 }
 
 /** One docker compose file button (§7 row 3.5). */
@@ -99,9 +97,8 @@ export interface CardExpandVm {
   readonly branch: BranchRowVm;
   readonly modules: readonly ModuleRowVm[];
   readonly java: JavaRowVm | null;
-  readonly cmd: CmdRowVm | null;
-  /** Row 3b — start arguments; `null` hides the row (same rule as `cmd`). */
-  readonly args: CmdRowVm | null;
+  /** Row 3 — command profile selector; `null` hides the row. */
+  readonly commandProfile: CommandProfileRowVm | null;
   readonly docker: readonly DockerBtnVm[];
 }
 
@@ -123,14 +120,8 @@ export interface CardExpandText {
   readonly configText: string;
   readonly configTip: string;
   readonly javaLabel: string;
-  readonly cmdLabel: string;
-  readonly applyText: string;
-  readonly applyTip: string;
-  readonly resetText: string;
-  readonly resetTip: string;
-  readonly argsLabel: string;
-  readonly applyArgsTip: string;
-  readonly resetArgsTip: string;
+  readonly profileLabel: string;
+  readonly manageProfilesTip: string;
   readonly searchPlaceholder: string;
   readonly noResultsText: string;
 }
@@ -176,22 +167,22 @@ export interface CardExpandText {
         [variant]="vm().branch.pullActive ? 'blue-active' : 'blue'"
         [uiTooltip]="text().pullTip"
         (clicked)="pull.emit()"
-      >{{ vm().branch.pullText }}</ui-button>
+      ><ui-icon name="arrow-down" [size]="14" /> {{ vm().branch.pullText }}</ui-button>
       <ui-button variant="purple-alt" [uiTooltip]="text().mergeTip" (clicked)="merge.emit()">
-        {{ text().mergeText }}
+        <ui-icon name="git-merge" [size]="14" /> {{ text().mergeText }}
       </ui-button>
       <ui-button variant="purple" [uiTooltip]="text().cleanTip" (clicked)="clean.emit()">
-        {{ text().cleanText }}
+        <ui-icon name="eraser" [size]="14" /> {{ text().cleanText }}
       </ui-button>
       <ui-button variant="purple-alt" [uiTooltip]="text().stashTip" (clicked)="stash.emit()">
-        {{ text().stashText }}
+        <ui-icon name="archive" [size]="14" /> {{ text().stashText }}
       </ui-button>
       <ui-button variant="purple-alt" [uiTooltip]="text().branchesTip" (clicked)="branches.emit()">
-        {{ text().branchesText }}
+        <ui-icon name="git-branch" [size]="14" /> {{ text().branchesText }}
       </ui-button>
       @if (vm().branch.showConfigBtn) {
         <ui-button variant="neutral" [uiTooltip]="text().configTip" (clicked)="openConfig.emit()">
-          {{ text().configText }}
+          <ui-icon name="settings" [size]="14" /> {{ text().configText }}
         </ui-button>
       }
       @for (action of vm().branch.actions; track action.key) {
@@ -210,7 +201,7 @@ export interface CardExpandText {
           [disabled]="!vm().branch.installEnabled"
           [uiTooltip]="vm().branch.installTip"
           (clicked)="install.emit()"
-        >{{ vm().branch.installText }}</ui-button>
+        ><ui-icon name="package" [size]="14" /> {{ vm().branch.installText }}</ui-button>
       }
     </div>
 
@@ -268,59 +259,23 @@ export interface CardExpandText {
       </div>
     }
 
-    <!-- Row 3 — custom command (§7 row 3) -->
-    @if (vm().cmd; as cmd) {
+    <!-- Row 3 — command profile selector (§7 row 3) -->
+    @if (vm().commandProfile; as cp) {
       <div class="row">
-        <span class="row__label">{{ text().cmdLabel }}</span>
-        <input
-          #cmdInput
-          class="row__cmd"
-          type="text"
-          [value]="cmd.value"
-          [placeholder]="cmd.placeholder"
-          [uiTooltip]="cmd.tip"
-          (keydown.enter)="commandApply.emit(cmdInput.value)"
+        <span class="row__label">{{ text().profileLabel }}</span>
+        <ui-searchable-select
+          class="row__config"
+          [options]="cp.options"
+          [value]="cp.value"
+          [searchPlaceholder]="text().searchPlaceholder"
+          [noResultsText]="text().noResultsText"
+          (selectionChange)="commandProfileSelected.emit($event)"
         />
-        <ui-button
-          variant="success"
-          size="sm"
-          [uiTooltip]="text().applyTip"
-          (clicked)="commandApply.emit(cmdInput.value)"
-        >{{ text().applyText }}</ui-button>
-        <ui-button
+        <ui-icon-button
           variant="neutral"
-          size="sm"
-          [uiTooltip]="text().resetTip"
-          (clicked)="cmdInput.value = ''; commandReset.emit()"
-        >{{ text().resetText }}</ui-button>
-      </div>
-    }
-
-    <!-- Row 3b — start arguments (§7 row 3b) -->
-    @if (vm().args; as args) {
-      <div class="row">
-        <span class="row__label">{{ text().argsLabel }}</span>
-        <input
-          #argsInput
-          class="row__cmd"
-          type="text"
-          [value]="args.value"
-          [placeholder]="args.placeholder"
-          [uiTooltip]="args.tip"
-          (keydown.enter)="argsApply.emit(argsInput.value)"
-        />
-        <ui-button
-          variant="success"
-          size="sm"
-          [uiTooltip]="text().applyArgsTip"
-          (clicked)="argsApply.emit(argsInput.value)"
-        >{{ text().applyText }}</ui-button>
-        <ui-button
-          variant="neutral"
-          size="sm"
-          [uiTooltip]="text().resetArgsTip"
-          (clicked)="argsInput.value = ''; argsReset.emit()"
-        >{{ text().resetText }}</ui-button>
+          [uiTooltip]="text().manageProfilesTip"
+          (clicked)="openCommandProfileManager.emit()"
+        ><ui-icon name="settings" /></ui-icon-button>
       </div>
     }
 
@@ -361,9 +316,9 @@ export class CardExpandComponent {
   readonly openConfigManager = output<string>();
   readonly moduleTrackedChange = output<{ moduleKey: string; tracked: boolean }>();
   readonly javaSelected = output<string>();
-  readonly commandApply = output<string>();
-  readonly commandReset = output<void>();
-  readonly argsApply = output<string>();
-  readonly argsReset = output<void>();
+  /** Row 3 — command profile selection. */
+  readonly commandProfileSelected = output<string>();
+  /** Row 3 — open the command-profile manager window. */
+  readonly openCommandProfileManager = output<void>();
   readonly dockerFileClicked = output<string>();
 }

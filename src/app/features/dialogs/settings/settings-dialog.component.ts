@@ -39,6 +39,7 @@ import {
   ButtonComponent,
   DialogShellComponent,
   FormRowComponent,
+  IconComponent,
   SearchableSelectComponent,
 } from '../../../ui';
 import { DialogBase } from '../dialog-base';
@@ -55,6 +56,7 @@ const LANGUAGE_CODES: readonly LanguageCode[] = ['en', 'es'];
     ButtonComponent,
     DialogShellComponent,
     FormRowComponent,
+    IconComponent,
     SearchableSelectComponent,
     TPipe,
   ],
@@ -66,7 +68,7 @@ const LANGUAGE_CODES: readonly LanguageCode[] = ['en', 'es'];
     >
       <div class="settings">
         <!-- 1. Language (§22 row 1) -->
-        <ui-form-row [label]="'dialog.settings.language_title' | t" labelWidth="155px">
+        <ui-form-row icon="globe" [label]="'dialog.settings.language_title' | t" labelWidth="155px">
           <ui-searchable-select
             class="settings__lang"
             [options]="languageNames()"
@@ -80,15 +82,15 @@ const LANGUAGE_CODES: readonly LanguageCode[] = ['en', 'es'];
         <div class="settings__divider"></div>
 
         <!-- 2. Workspace (§22 row 2) -->
-        <ui-form-row [label]="'dialog.settings.workspace_title' | t" labelWidth="155px">
+        <ui-form-row icon="folder" [label]="'dialog.settings.workspace_title' | t" labelWidth="155px">
           <ui-button variant="blue" (clicked)="openGroups()">
-            {{ 'btn.manage_groups' | t }}
+            <ui-icon name="folder" [size]="14" /> {{ 'btn.manage_groups' | t }}
           </ui-button>
         </ui-form-row>
         <div class="settings__divider"></div>
 
         <!-- 3. Behavior (§22 row 3) -->
-        <ui-form-row [label]="'dialog.settings.behavior_title' | t" labelWidth="155px">
+        <ui-form-row icon="app-window" [label]="'dialog.settings.behavior_title' | t" labelWidth="155px">
           <label class="settings__check">
             <input
               type="checkbox"
@@ -101,7 +103,7 @@ const LANGUAGE_CODES: readonly LanguageCode[] = ['en', 'es'];
         <div class="settings__divider"></div>
 
         <!-- 3b. Terminal — shell for new PTY terminals -->
-        <ui-form-row [label]="'dialog.settings.terminal_title' | t" labelWidth="155px">
+        <ui-form-row icon="terminal" [label]="'dialog.settings.terminal_title' | t" labelWidth="155px">
           <div class="settings__terminal">
             <label class="settings__radio">
               <input
@@ -148,10 +150,10 @@ const LANGUAGE_CODES: readonly LanguageCode[] = ['en', 'es'];
         <div class="settings__divider"></div>
 
         <!-- 4. Java (§22 row 5; row 4 shortcut omitted — see class JSDoc) -->
-        <ui-form-row [label]="'dialog.settings.java_title' | t" labelWidth="155px">
+        <ui-form-row icon="coffee" [label]="'dialog.settings.java_title' | t" labelWidth="155px">
           <div class="settings__java">
             <ui-button variant="purple" (clicked)="openJavaManager()">
-              {{ 'btn.manage_java' | t }}
+              <ui-icon name="coffee" [size]="14" /> {{ 'btn.manage_java' | t }}
             </ui-button>
             <span class="settings__java-count">{{ javaCountLabel() }}</span>
           </div>
@@ -159,7 +161,7 @@ const LANGUAGE_CODES: readonly LanguageCode[] = ['en', 'es'];
         <div class="settings__divider"></div>
 
         <!-- 5. Updates / About -->
-        <ui-form-row [label]="'dialog.settings.updates_title' | t" labelWidth="155px">
+        <ui-form-row icon="rotate-ccw" [label]="'dialog.settings.updates_title' | t" labelWidth="155px">
           <div class="settings__updates">
             <ui-button variant="blue" [loading]="checking()" (clicked)="checkUpdates()">
               {{ 'dialog.settings.check_updates' | t }}
@@ -189,7 +191,7 @@ const LANGUAGE_CODES: readonly LanguageCode[] = ['en', 'es'];
           {{ 'btn.cancel' | t }}
         </ui-button>
         <ui-button variant="success" size="lg" [loading]="saving()" (clicked)="save()">
-          {{ 'btn.save_changes' | t }}
+          <ui-icon name="save" [size]="15" /> {{ 'btn.save_changes' | t }}
         </ui-button>
       </div>
     </ui-dialog-shell>

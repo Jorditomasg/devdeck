@@ -23,8 +23,7 @@ function repo(partial: Partial<RepoProfile> = {}): RepoProfile {
     type: 'spring-boot',
     profile: null,
     profile_tracked: [],
-    custom_command: '',
-    start_args: '',
+    command_profile: null,
     selected: true,
     ...partial,
   };

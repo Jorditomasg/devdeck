@@ -99,7 +99,7 @@ import {
 
           <div class="envmgr__btn-col">
             <ui-button variant="blue" size="sm" (clicked)="newConfig()">
-              {{ 'dialog.env_manager.btn_new' | t }}
+              <ui-icon name="plus" [size]="14" /> {{ 'dialog.env_manager.btn_new' | t }}
             </ui-button>
             <ui-button
               variant="purple-alt"
@@ -107,7 +107,7 @@ import {
               [loading]="importing()"
               (clicked)="autoImport()"
             >
-              {{ 'dialog.env_manager.btn_auto_import' | t }}
+              <ui-icon name="download" [size]="14" /> {{ 'dialog.env_manager.btn_auto_import' | t }}
             </ui-button>
           </div>
         </div>
@@ -123,7 +123,7 @@ import {
               [disabled]="selected() === ''"
               (clicked)="rename()"
             >
-              {{ 'dialog.env_manager.btn_rename' | t }}
+              <ui-icon name="pencil" [size]="14" /> {{ 'dialog.env_manager.btn_rename' | t }}
             </ui-button>
             <ui-button
               variant="neutral"
@@ -131,7 +131,7 @@ import {
               [disabled]="selected() === ''"
               (clicked)="duplicate()"
             >
-              {{ 'dialog.env_manager.btn_duplicate' | t }}
+              <ui-icon name="copy" [size]="14" /> {{ 'dialog.env_manager.btn_duplicate' | t }}
             </ui-button>
             <ui-button
               variant="danger"
@@ -139,7 +139,7 @@ import {
               [disabled]="selected() === ''"
               (clicked)="deleteConfig()"
             >
-              {{ 'dialog.env_manager.btn_delete' | t }}
+              <ui-icon name="trash" [size]="14" /> {{ 'dialog.env_manager.btn_delete' | t }}
             </ui-button>
             <button
               type="button"
@@ -169,7 +169,7 @@ import {
               [disabled]="selected() === ''"
               (clicked)="save()"
             >
-              {{ 'dialog.env_manager.btn_save' | t }}
+              <ui-icon name="save" [size]="14" /> {{ 'dialog.env_manager.btn_save' | t }}
             </ui-button>
           </div>
         </div>

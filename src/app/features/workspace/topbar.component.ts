@@ -112,13 +112,13 @@ export function profileGroupArg(groupName: string | undefined): string | undefin
         size="lg"
         [uiTooltip]="i18n.t('tooltip.clone_btn')"
         (clicked)="dialogs.openClone()"
-      >{{ i18n.t('btn.clone') }}</ui-button>
+      ><ui-icon name="plus" [size]="15" /> {{ i18n.t('btn.clone') }}</ui-button>
       <ui-button
         variant="warning"
         size="lg"
         [uiTooltip]="i18n.t('tooltip.rescan_btn')"
         (clicked)="rescanRequested.emit()"
-      >{{ i18n.t('btn.rescan') }}</ui-button>
+      ><ui-icon name="refresh" [size]="15" /> {{ i18n.t('btn.rescan') }}</ui-button>
       <span class="topbar__settings">
         <ui-icon-button
           variant="neutral"

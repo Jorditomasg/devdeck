@@ -10,6 +10,9 @@
 
 .row__label {
   @include mx.ellipsis;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   flex-shrink: 0;
   color: var(--color-text-secondary);
   font-size: var(--font-size-base);

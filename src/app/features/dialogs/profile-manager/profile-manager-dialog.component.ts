@@ -35,7 +35,7 @@ import { ReposStore } from '../../../core/state/repos.store';
 import { SettingsStore } from '../../../core/state/settings.store';
 import { RepoActionsService } from '../../workspace/state/repo-actions.service';
 import { WorkspaceStore } from '../../workspace/state/workspace.store';
-import { ButtonComponent, DialogShellComponent } from '../../../ui';
+import { ButtonComponent, DialogShellComponent, IconComponent } from '../../../ui';
 import { DialogBase } from '../dialog-base';
 import { NativePickers } from '../shared/native-pickers';
 import {
@@ -55,7 +55,7 @@ const JSON_FILTER = [{ name: 'JSON', extensions: ['json'] }] as const;
 @Component({
   selector: 'app-profile-manager-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ButtonComponent, DialogShellComponent, TPipe],
+  imports: [ButtonComponent, DialogShellComponent, IconComponent, TPipe],
   styleUrl: './profile-manager-dialog.component.scss',
   template: `
     <ui-dialog-shell
@@ -78,7 +78,7 @@ const JSON_FILTER = [{ name: 'JSON', extensions: ['json'] }] as const;
             (keydown.enter)="save()"
           />
           <ui-button variant="success" [loading]="busy() === 'save'" (clicked)="save()">
-            {{ 'dialog.profile.btn_save' | t }}
+            <ui-icon name="save" [size]="14" /> {{ 'dialog.profile.btn_save' | t }}
           </ui-button>
         </div>
         <label class="profiles__check">
@@ -111,21 +111,21 @@ const JSON_FILTER = [{ name: 'JSON', extensions: ['json'] }] as const;
           </div>
           <div class="profiles__btn-row">
             <ui-button variant="blue" [loading]="busy() === 'load'" (clicked)="load()">
-              {{ 'dialog.profile.btn_load' | t }}
+              <ui-icon name="folder" [size]="14" /> {{ 'dialog.profile.btn_load' | t }}
             </ui-button>
             <ui-button
               variant="danger-deep"
               [loading]="busy() === 'delete'"
               (clicked)="deleteProfile()"
             >
-              {{ 'dialog.profile.btn_delete' | t }}
+              <ui-icon name="trash" [size]="14" /> {{ 'dialog.profile.btn_delete' | t }}
             </ui-button>
             <ui-button
               variant="warning"
               [loading]="busy() === 'export'"
               (clicked)="exportProfile()"
             >
-              {{ 'dialog.profile.btn_export' | t }}
+              <ui-icon name="upload" [size]="14" /> {{ 'dialog.profile.btn_export' | t }}
             </ui-button>
           </div>
         }
@@ -138,7 +138,7 @@ const JSON_FILTER = [{ name: 'JSON', extensions: ['json'] }] as const;
           [loading]="busy() === 'import'"
           (clicked)="importProfile()"
         >
-          {{ 'dialog.profile.btn_import' | t }}
+          <ui-icon name="download" [size]="14" /> {{ 'dialog.profile.btn_import' | t }}
         </ui-button>
 
         <p class="profiles__help">{{ 'dialog.profile.help_text' | t }}</p>
