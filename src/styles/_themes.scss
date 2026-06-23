@@ -145,3 +145,15 @@
     }
   }
 }
+
+// ─── Themeable accent buttons — one hue pair per palette ──────────────────────
+// blue/log family ($accent) + clean/merge/seed family ($strong). The `:root`
+// call is the indigo default (and a baseline for any palette that omits these);
+// later palette-scoped calls win by source order at equal specificity. See
+// `tokens.accent-buttons`. Semantic + neutral buttons are intentionally absent.
+@include tokens.accent-buttons(':root', #3b82f6, #a855f7); // indigo (default)
+@include tokens.accent-buttons('[data-palette="slate"]', #5b8fc4, #38bdf8);
+@include tokens.accent-buttons('[data-palette="emerald"]', #06b6d4, #84cc16);
+@include tokens.accent-buttons('[data-palette="crimson"]', #f97316, #fbbf24);
+@include tokens.accent-buttons('[data-palette="rose"]', #d946ef, #f472b6);
+@include tokens.accent-buttons('[data-palette="light"]', #2563eb, #7c3aed, $solid: true);
