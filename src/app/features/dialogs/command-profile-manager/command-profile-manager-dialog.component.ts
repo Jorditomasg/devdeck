@@ -1,8 +1,9 @@
 /**
  * Command Profile Manager — per-repo named start-command profiles.
  *
- * Trimmed clone of `repo-config-manager-dialog`: no module selector,
- * no danger-toggle, no auto-import. Editor is a single-line `<input>` for the
+ * Trimmed clone of `repo-config-manager-dialog` sharing its two-column layout
+ * (left list + new button, right toolbar + editor + save): no module selector,
+ * no danger-toggle, no auto-import. Editor is a multi-line `<textarea>` for the
  * full command line. Profiles live in `AppConfig.command_profiles[repo]`.
  */
 import {
@@ -19,12 +20,12 @@ import {
 import { TPipe } from '../../../core/i18n/t.pipe';
 import { TranslationService } from '../../../core/i18n/translation.service';
 import { IpcCommands } from '../../../core/ipc/commands';
-import { ButtonComponent, DialogShellComponent } from '../../../ui';
+import { ButtonComponent, DialogShellComponent, IconComponent } from '../../../ui';
 import { DialogBase } from '../dialog-base';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ButtonComponent, DialogShellComponent, TPipe],
+  imports: [ButtonComponent, DialogShellComponent, IconComponent, TPipe],
   styleUrl: './command-profile-manager-dialog.component.scss',
   template: `
     <ui-dialog-shell
@@ -33,82 +34,86 @@ import { DialogBase } from '../dialog-base';
       (closed)="requestClose()"
     >
       <div class="profmgr">
-        <!-- Add new (top) — inline name input, no modal -->
-        <div class="profmgr__new-row">
-          <input
-            type="text"
-            class="profmgr__new-input"
-            spellcheck="false"
-            [placeholder]="'dialog.command_profiles.new_title' | t"
-            [value]="newName()"
-            (input)="newName.set($any($event.target).value)"
-            (keydown.enter)="newConfig()"
-          />
-          <ui-button
-            variant="blue"
-            size="sm"
-            [disabled]="newName().trim() === ''"
-            (clicked)="newConfig()"
-          >
-            {{ 'dialog.env_manager.btn_new' | t }}
-          </ui-button>
-        </div>
+        <!-- Left panel: profile list -->
+        <div class="profmgr__left">
+          <p class="profmgr__heading">{{ 'dialog.command_profiles.title' | t }}</p>
 
-        <!-- Profile list -->
-        <div class="profmgr__list">
-          @for (name of names(); track name) {
-            <button
-              type="button"
-              class="profmgr__row"
-              [class.selected]="name === selected()"
-              (click)="selectName(name)"
-            >
-              {{ name }}
-            </button>
-          } @empty {
-            <p class="profmgr__empty">{{ 'dialog.command_profiles.empty' | t }}</p>
-          }
-        </div>
-
-        <!-- Per-item actions + execution line (shown once a profile is picked) -->
-        @if (selected() !== '') {
-          <div class="profmgr__actions">
-            <ui-button variant="neutral" size="sm" (clicked)="rename()">
-              {{ 'dialog.env_manager.btn_rename' | t }}
-            </ui-button>
-            <ui-button variant="neutral" size="sm" (clicked)="duplicate()">
-              {{ 'dialog.env_manager.btn_duplicate' | t }}
-            </ui-button>
-            <ui-button variant="danger" size="sm" (clicked)="deleteConfig()">
-              {{ 'dialog.env_manager.btn_delete' | t }}
-            </ui-button>
-          </div>
-
-          <div class="profmgr__editor-block">
-            <label class="profmgr__editor-label" [for]="editorId">{{ editingTitle() }}</label>
-            <div class="profmgr__editor-row">
-              <input
-                [id]="editorId"
-                type="text"
-                class="profmgr__editor"
-                spellcheck="false"
-                [placeholder]="'dialog.command_profiles.placeholder' | t"
-                [value]="editorText()"
-                (input)="editorText.set($any($event.target).value)"
-                (keydown.enter)="save()"
-              />
-              <ui-button
-                variant="success"
-                size="sm"
-                [loading]="saving()"
-                [disabled]="!dirty()"
-                (clicked)="save()"
+          <div class="profmgr__list">
+            @for (name of names(); track name) {
+              <button
+                type="button"
+                class="profmgr__row"
+                [class.selected]="name === selected()"
+                (click)="selectName(name)"
               >
-                {{ 'dialog.env_manager.btn_save' | t }}
-              </ui-button>
-            </div>
+                {{ name }}
+              </button>
+            } @empty {
+              <p class="profmgr__empty">{{ 'dialog.command_profiles.empty' | t }}</p>
+            }
           </div>
-        }
+
+          <div class="profmgr__btn-col">
+            <ui-button variant="blue" size="sm" (clicked)="newConfig()">
+              <ui-icon name="plus" [size]="14" /> {{ 'dialog.env_manager.btn_new' | t }}
+            </ui-button>
+          </div>
+        </div>
+
+        <!-- Right panel: editor -->
+        <div class="profmgr__right">
+          <div class="profmgr__toolbar">
+            <span class="profmgr__editing">{{ editingTitle() }}</span>
+            <span class="profmgr__spacer"></span>
+            <ui-button
+              variant="neutral"
+              size="sm"
+              [disabled]="selected() === ''"
+              (clicked)="rename()"
+            >
+              <ui-icon name="pencil" [size]="14" /> {{ 'dialog.env_manager.btn_rename' | t }}
+            </ui-button>
+            <ui-button
+              variant="neutral"
+              size="sm"
+              [disabled]="selected() === ''"
+              (clicked)="duplicate()"
+            >
+              <ui-icon name="copy" [size]="14" /> {{ 'dialog.env_manager.btn_duplicate' | t }}
+            </ui-button>
+            <ui-button
+              variant="danger"
+              size="sm"
+              [disabled]="selected() === ''"
+              (clicked)="deleteConfig()"
+            >
+              <ui-icon name="trash" [size]="14" /> {{ 'dialog.env_manager.btn_delete' | t }}
+            </ui-button>
+          </div>
+
+          <textarea
+            #editor
+            class="profmgr__editor"
+            spellcheck="false"
+            [disabled]="selected() === ''"
+            [placeholder]="'dialog.command_profiles.placeholder' | t"
+            [value]="editorText()"
+            (input)="editorText.set(editor.value)"
+            (keydown.control.enter)="save()"
+            (keydown.meta.enter)="save()"
+          ></textarea>
+
+          <div class="profmgr__save-row">
+            <ui-button
+              variant="success"
+              [loading]="saving()"
+              [disabled]="!dirty()"
+              (clicked)="save()"
+            >
+              <ui-icon name="save" [size]="14" /> {{ 'dialog.env_manager.btn_save' | t }}
+            </ui-button>
+          </div>
+        </div>
       </div>
 
       <div uiDialogFooter>
@@ -126,11 +131,7 @@ export class CommandProfileManagerDialogComponent extends DialogBase {
   private readonly i18n = inject(TranslationService);
   private readonly shell = viewChild.required<DialogShellComponent>('shell');
 
-  /** Stable id linking the editor <label> to its <input>. */
-  protected readonly editorId = 'cmd-profile-editor';
-
   protected readonly profiles = signal<Readonly<Record<string, string>>>({});
-  protected readonly newName = signal('');
   protected readonly selected = signal('');
   protected readonly editorText = signal('');
   protected readonly saving = signal(false);
@@ -144,7 +145,9 @@ export class CommandProfileManagerDialogComponent extends DialogBase {
   );
 
   protected readonly editingTitle = computed(() =>
-    this.i18n.t('dialog.command_profiles.editing', { name: this.selected() }),
+    this.selected() === ''
+      ? this.i18n.t('dialog.command_profiles.select_hint')
+      : this.i18n.t('dialog.command_profiles.editing', { name: this.selected() }),
   );
 
   /** Editor text differs from the stored value (unsaved tracking). */
@@ -188,14 +191,17 @@ export class CommandProfileManagerDialogComponent extends DialogBase {
   }
 
   protected async newConfig(): Promise<void> {
-    const name = this.newName().trim();
-    if (name === '' || !(await this.guardDuplicate(name))) {
+    const name = await this.askName(
+      'dialog.command_profiles.new_title',
+      'dialog.command_profiles.new_prompt',
+      '',
+    );
+    if (name === null || name.trim() === '' || !(await this.guardDuplicate(name))) {
       return;
     }
     await this.persist({ ...this.profiles(), [name]: '' });
     this.selected.set(name);
     this.editorText.set('');
-    this.newName.set('');
   }
 
   protected async rename(): Promise<void> {

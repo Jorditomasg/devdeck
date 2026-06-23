@@ -1,35 +1,36 @@
-// Command Profile Manager dialog — single-column flow:
-// add-new (top) → profile list → per-item actions → execution-line editor.
+// Command Profile Manager dialog — mirrors the repo-config-manager (§23)
+// two-column layout: fixed left list + new button, right toolbar + editor.
 @use '../../../../styles/mixins' as mx;
 @use '../shared/controls' as c;
 
 .profmgr {
+  display: grid;
+  grid-template-columns: 250px 1fr;
+  gap: 14px;
+}
+
+.profmgr__left,
+.profmgr__right {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  width: 460px;
-  max-width: 100%;
-}
-
-.profmgr__new-row {
-  display: flex;
-  align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 
-.profmgr__new-input {
-  @include c.text-input;
-  flex: 1;
-  min-width: 0;
+.profmgr__heading {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-md);
+  font-weight: 700;
 }
 
 .profmgr__list {
   @include c.list-surface;
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 2px;
-  min-height: 180px;
-  max-height: 320px;
+  min-height: 260px;
   padding: 4px;
 }
 
@@ -46,35 +47,40 @@
   margin: 8px 4px;
 }
 
-.profmgr__actions {
-  display: flex;
-  gap: 6px;
-}
-
-.profmgr__editor-block {
+.profmgr__btn-col {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding-top: 4px;
-  border-top: var(--geo-border-width) solid var(--color-divider);
 }
 
-.profmgr__editor-label {
+.profmgr__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.profmgr__editing {
   @include mx.ellipsis;
   color: var(--color-text-secondary);
   font-size: var(--font-size-base);
   font-weight: 700;
 }
 
-.profmgr__editor-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.profmgr__spacer {
+  flex: 1;
 }
 
 .profmgr__editor {
-  @include c.text-input;
+  @include c.mono-textarea;
   flex: 1;
-  min-width: 0;
-  font-family: var(--font-family-mono);
+  min-height: 320px;
+
+  &:disabled {
+    opacity: 0.6;
+  }
+}
+
+.profmgr__save-row {
+  display: flex;
+  justify-content: flex-end;
 }
