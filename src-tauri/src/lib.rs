@@ -286,6 +286,16 @@ pub fn run() {
 /// Builder setup: stores, event emitter, process manager, poll loops,
 /// repo-type definitions, managed state and tray.
 fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    // With `panic = "abort"` a panic kills the process with no trace in the
+    // log file. Log the payload + location FIRST so a field crash leaves a
+    // breadcrumb. Installed here (after the log plugin) so the record lands in
+    // the configured targets; the default hook still runs after.
+    let default_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        log::error!("PANIC: {info}");
+        default_hook(info);
+    }));
+
     let handle = app.handle().clone();
 
     // Stores in OS-standard directories (architecture-v2.md §7.5).
