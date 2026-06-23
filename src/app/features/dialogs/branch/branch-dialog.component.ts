@@ -22,6 +22,7 @@ import { ReposStore } from '../../../core/state/repos.store';
 import {
   ButtonComponent,
   DialogShellComponent,
+  IconComponent,
   PaginationComponent,
   SearchableSelectComponent,
   type TabDef,
@@ -43,6 +44,7 @@ const PAGE_SIZE = 12;
   imports: [
     ButtonComponent,
     DialogShellComponent,
+    IconComponent,
     PaginationComponent,
     SearchableSelectComponent,
     TabsComponent,
@@ -130,7 +132,7 @@ const PAGE_SIZE = 12;
                                 [disabled]="busy() || b === current()"
                                 (clicked)="checkout(b)"
                               >
-                                ⏎ {{ 'dialog.branch.btn_checkout' | t }}
+                                <ui-icon name="corner-down-left" [size]="14" /> {{ 'dialog.branch.btn_checkout' | t }}
                               </ui-button>
                               <ui-button
                                 size="sm"
@@ -139,7 +141,7 @@ const PAGE_SIZE = 12;
                                 [disabled]="busy()"
                                 (clicked)="rename(b)"
                               >
-                                ✎ {{ 'dialog.branch.btn_rename' | t }}
+                                <ui-icon name="pencil" [size]="14" /> {{ 'dialog.branch.btn_rename' | t }}
                               </ui-button>
                               <ui-button
                                 size="sm"
@@ -148,7 +150,7 @@ const PAGE_SIZE = 12;
                                 [disabled]="busy()"
                                 (clicked)="publish(b)"
                               >
-                                ⬆ {{ 'dialog.branch.btn_publish' | t }}
+                                <ui-icon name="arrow-up" [size]="14" /> {{ 'dialog.branch.btn_publish' | t }}
                               </ui-button>
                               <ui-button
                                 size="sm"
@@ -157,7 +159,7 @@ const PAGE_SIZE = 12;
                                 [disabled]="busy()"
                                 (clicked)="deleteRemote(b)"
                               >
-                                ☁ {{ 'dialog.branch.btn_delete_remote' | t }}
+                                <ui-icon name="cloud" [size]="14" /> {{ 'dialog.branch.btn_delete_remote' | t }}
                               </ui-button>
                               <ui-button
                                 size="sm"
@@ -166,7 +168,7 @@ const PAGE_SIZE = 12;
                                 [disabled]="busy() || b === current()"
                                 (clicked)="deleteLocal(b)"
                               >
-                                🗑 {{ 'dialog.branch.btn_delete_local' | t }}
+                                <ui-icon name="trash" [size]="14" /> {{ 'dialog.branch.btn_delete_local' | t }}
                               </ui-button>
                             </div>
                           </td>

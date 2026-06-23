@@ -16,6 +16,7 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
 
 import {
   ButtonComponent,
+  IconComponent,
   LogViewerComponent,
   SectionHeaderComponent,
   TooltipDirective,
@@ -35,7 +36,13 @@ export interface CardLogText {
 @Component({
   selector: 'app-card-log',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ButtonComponent, LogViewerComponent, SectionHeaderComponent, TooltipDirective],
+  imports: [
+    ButtonComponent,
+    IconComponent,
+    LogViewerComponent,
+    SectionHeaderComponent,
+    TooltipDirective,
+  ],
   styleUrl: './card-log.component.scss',
   template: `
     <ui-section-header [label]="text().title">
@@ -45,7 +52,7 @@ export interface CardLogText {
           class="log-url"
           [uiTooltip]="text().urlTip"
           (click)="urlClicked.emit()"
-        >🔗 {{ u }}</button>
+        ><ui-icon name="link" [size]="14" /> {{ u }}</button>
       }
       <ui-button
         variant="log-action"

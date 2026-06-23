@@ -13,6 +13,7 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
 import {
   BadgeComponent,
   IconButtonComponent,
+  IconComponent,
   StatusDotComponent,
   TooltipDirective,
 } from '../../../ui';
@@ -39,7 +40,13 @@ export interface CardHeaderText {
 @Component({
   selector: 'app-card-header',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [BadgeComponent, IconButtonComponent, StatusDotComponent, TooltipDirective],
+  imports: [
+    BadgeComponent,
+    IconButtonComponent,
+    IconComponent,
+    StatusDotComponent,
+    TooltipDirective,
+  ],
   styleUrl: './card-header.component.scss',
   template: `
     <div class="header" (click)="toggleExpand.emit()">
@@ -76,7 +83,7 @@ export interface CardHeaderText {
           [uiTooltip]="text().pullTip"
           (click)="onBadgeClick($event, 'pull')"
         >
-          📥 {{ behind() }}
+          <ui-icon name="download" [size]="12" /> {{ behind() }}
         </ui-badge>
       }
       @if (changes() > 0) {
@@ -86,7 +93,7 @@ export interface CardHeaderText {
           [uiTooltip]="text().changesTip"
           (click)="onBadgeClick($event, 'changes')"
         >
-          📝 {{ changes() }}
+          <ui-icon name="file-text" [size]="12" /> {{ changes() }}
         </ui-badge>
       }
       @if (conflicts() > 0) {
@@ -96,7 +103,7 @@ export interface CardHeaderText {
           [uiTooltip]="text().conflictsTip"
           (click)="onBadgeClick($event, 'conflicts')"
         >
-          ⚠️ {{ conflicts() }}
+          <ui-icon name="alert-triangle" [size]="12" /> {{ conflicts() }}
         </ui-badge>
       }
       @if (danger()) {
@@ -127,7 +134,7 @@ export interface CardHeaderText {
               [disabled]="!vis().startEnabled"
               [uiTooltip]="text().startTip"
               (clicked)="start.emit()"
-            >▶</ui-icon-button>
+            ><ui-icon name="play" /></ui-icon-button>
           }
           @if (vis().showStop) {
             <ui-icon-button
@@ -135,7 +142,7 @@ export interface CardHeaderText {
               [disabled]="!vis().stopEnabled"
               [uiTooltip]="text().stopTip"
               (clicked)="stop.emit()"
-            >⬛</ui-icon-button>
+            ><ui-icon name="square" /></ui-icon-button>
           }
           @if (vis().showRestart) {
             <ui-icon-button
@@ -143,13 +150,13 @@ export interface CardHeaderText {
               [disabled]="!vis().restartEnabled"
               [uiTooltip]="text().restartTip"
               (clicked)="restart.emit()"
-            >🔄</ui-icon-button>
+            ><ui-icon name="refresh" /></ui-icon-button>
           }
           <ui-icon-button
             variant="neutral"
             [uiTooltip]="text().openExplorerTip"
             (clicked)="openExplorer.emit()"
-          >📁</ui-icon-button>
+          ><ui-icon name="folder" /></ui-icon-button>
           <ui-icon-button
             variant="neutral"
             [uiTooltip]="text().openTerminalTip"
@@ -159,7 +166,11 @@ export interface CardHeaderText {
             variant="toggle-expand"
             [uiTooltip]="text().expandTip"
             (clicked)="toggleExpand.emit()"
-          >{{ expanded() ? '▲' : '▼' }}</ui-icon-button>
+          >@if (expanded()) {
+              <ui-icon name="chevron-up" />
+            } @else {
+              <ui-icon name="chevron-down" />
+            }</ui-icon-button>
         </div>
       </div>
     </div>
@@ -167,8 +178,6 @@ export interface CardHeaderText {
 })
 export class CardHeaderComponent {
   readonly name = input.required<string>();
-  /** ui_config.icon (default 📁). */
-  readonly icon = input('📁');
   /** Title-cased repo type (`repoTypeLabel`). */
   readonly typeLabel = input('');
   /** ui_config.color background of the solid type badge. */

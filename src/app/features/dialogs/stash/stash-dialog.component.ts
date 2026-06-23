@@ -21,6 +21,7 @@ import { ReposStore } from '../../../core/state/repos.store';
 import {
   ButtonComponent,
   DialogShellComponent,
+  IconComponent,
   PaginationComponent,
   type TabDef,
   TabsComponent,
@@ -41,6 +42,7 @@ const PAGE_SIZE = 12;
   imports: [
     ButtonComponent,
     DialogShellComponent,
+    IconComponent,
     PaginationComponent,
     TabsComponent,
     TooltipDirective,
@@ -108,7 +110,7 @@ const PAGE_SIZE = 12;
                                 [disabled]="busy()"
                                 (clicked)="apply(entry)"
                               >
-                                ⬇ {{ 'dialog.stash.btn_apply' | t }}
+                                <ui-icon name="arrow-down" [size]="14" /> {{ 'dialog.stash.btn_apply' | t }}
                               </ui-button>
                               <ui-button
                                 size="sm"
@@ -117,7 +119,7 @@ const PAGE_SIZE = 12;
                                 [disabled]="busy()"
                                 (clicked)="pop(entry)"
                               >
-                                ⤓ {{ 'dialog.stash.btn_pop' | t }}
+                                <ui-icon name="arrow-down-to-line" [size]="14" /> {{ 'dialog.stash.btn_pop' | t }}
                               </ui-button>
                               <ui-button
                                 size="sm"
@@ -126,7 +128,7 @@ const PAGE_SIZE = 12;
                                 [disabled]="busy()"
                                 (clicked)="drop(entry)"
                               >
-                                🗑 {{ 'dialog.stash.btn_drop' | t }}
+                                <ui-icon name="trash" [size]="14" /> {{ 'dialog.stash.btn_drop' | t }}
                               </ui-button>
                             </div>
                           </td>

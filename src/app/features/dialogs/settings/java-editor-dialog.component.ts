@@ -28,6 +28,7 @@ import {
   DialogShellComponent,
   FormRowComponent,
   IconButtonComponent,
+  IconComponent,
 } from '../../../ui';
 import { DialogBase } from '../dialog-base';
 import { NativePickers } from '../shared/native-pickers';
@@ -46,6 +47,7 @@ export interface JavaVersionEntry {
     DialogShellComponent,
     FormRowComponent,
     IconButtonComponent,
+    IconComponent,
     TPipe,
   ],
   styleUrl: './java-editor-dialog.component.scss',
@@ -81,7 +83,7 @@ export interface JavaVersionEntry {
             <ui-icon-button
               [title]="'dialog.settings.java_dir_title' | t"
               (clicked)="browse()"
-              >📁</ui-icon-button
+              ><ui-icon name="folder" /></ui-icon-button
             >
           </div>
         </ui-form-row>
