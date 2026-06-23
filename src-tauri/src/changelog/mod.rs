@@ -68,20 +68,29 @@ pub fn parse(text: &str) -> Vec<ChangelogRelease> {
             };
             continue;
         }
-        let item = line
-            .strip_prefix("- ")
-            .or_else(|| line.strip_prefix("* "));
-        if let (Some(item), Some(current)) = (item, releases.last_mut()) {
+        let Some(current) = releases.last_mut() else {
+            continue;
+        };
+        let items = match section {
+            Section::Added => &mut current.added,
+            Section::Changed => &mut current.changed,
+            Section::Fixed => &mut current.fixed,
+            Section::Removed => &mut current.removed,
+            Section::Other => continue,
+        };
+        if let Some(item) = line.strip_prefix("- ").or_else(|| line.strip_prefix("* ")) {
             let text = item.trim().to_owned();
-            if text.is_empty() {
-                continue;
+            if !text.is_empty() {
+                items.push(text);
             }
-            match section {
-                Section::Added => current.added.push(text),
-                Section::Changed => current.changed.push(text),
-                Section::Fixed => current.fixed.push(text),
-                Section::Removed => current.removed.push(text),
-                Section::Other => {}
+        } else if !line.is_empty() {
+            // Continuation of a hard-wrapped list item (Keep-a-Changelog
+            // entries are wrapped for file readability) — fold into the current
+            // item with a single space so the rendered bullet shows the full
+            // sentence instead of dropping everything after the first line.
+            if let Some(last) = items.last_mut() {
+                last.push(' ');
+                last.push_str(line);
             }
         }
     }
@@ -155,6 +164,20 @@ mod tests {
     fn ignores_items_before_first_version_and_empty_input() {
         assert!(parse("").is_empty());
         assert!(parse("# Changelog\n- stray bullet\n").is_empty());
+    }
+
+    #[test]
+    fn folds_hard_wrapped_continuation_lines() {
+        let releases = parse(
+            "## [1.0.0]\n### Changed\n- Opening Settings now shows the update\n  automatically, without a click.\n- Second item\n",
+        );
+        assert_eq!(
+            releases[0].changed,
+            vec![
+                "Opening Settings now shows the update automatically, without a click.",
+                "Second item",
+            ],
+        );
     }
 
     #[test]

@@ -142,6 +142,8 @@ export const CMD = {
   checkForUpdate: 'check_for_update',
   installUpdate: 'install_update',
   getChangelog: 'get_changelog',
+  whatsNewOnStartup: 'whats_new_on_startup',
+  disableWhatsNew: 'disable_whats_new',
 } as const;
 
 /**
@@ -731,5 +733,16 @@ export class IpcCommands {
     /** Full parsed changelog history, newest first. */
     changelog: (): Promise<ChangelogRelease[]> =>
       this.bridge.invoke<ChangelogRelease[]>(CMD.getChangelog),
+
+    /**
+     * Marks the running version as seen and returns it when the app was just
+     * updated (so the "What's new" popup should show), else `null`.
+     */
+    whatsNewOnStartup: (): Promise<string | null> =>
+      this.bridge.invoke<string | null>(CMD.whatsNewOnStartup),
+
+    /** Opt out of the "What's new" popup permanently. */
+    disableWhatsNew: (): Promise<void> =>
+      this.bridge.invoke<void>(CMD.disableWhatsNew),
   };
 }

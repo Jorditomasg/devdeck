@@ -1,0 +1,36 @@
+.whats-new {
+  &__section {
+    margin: 12px 0 4px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    opacity: 0.75;
+
+    &:first-child {
+      margin-top: 0;
+    }
+  }
+
+  &__items {
+    margin: 0 0 8px;
+    padding-left: 20px;
+
+    li {
+      margin: 2px 0;
+      line-height: 1.4;
+    }
+  }
+
+  &__empty {
+    opacity: 0.7;
+  }
+
+  &__check {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-right: auto;
+    font-size: 13px;
+    cursor: pointer;
+  }
+}

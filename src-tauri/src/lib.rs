@@ -300,6 +300,8 @@ pub fn run() {
             commands::updates::check_for_update,
             commands::updates::install_update,
             commands::updates::get_changelog,
+            commands::updates::whats_new_on_startup,
+            commands::updates::disable_whats_new,
         ])
         .build(tauri::generate_context!())
         .expect("error while building DevDeck")

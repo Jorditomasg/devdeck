@@ -28,6 +28,8 @@ export const DIALOG_WINDOW_COMPONENTS: Readonly<Record<string, DialogComponentLo
     import('./settings/java-editor-dialog.component').then((m) => m.JavaEditorDialogComponent),
   changelog: () =>
     import('./changelog/changelog-dialog.component').then((m) => m.ChangelogDialogComponent),
+  'whats-new': () =>
+    import('./whats-new/whats-new-dialog.component').then((m) => m.WhatsNewDialogComponent),
   clone: () => import('./clone/clone-dialog.component').then((m) => m.CloneDialogComponent),
   'workspace-groups': () =>
     import('./workspace-groups/workspace-groups-dialog.component').then(
