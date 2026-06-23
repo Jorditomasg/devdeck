@@ -111,16 +111,45 @@ pub async fn open_log_window(
         "index.html?log={}",
         urlencode_component(&service_id)
     );
-    tauri::WebviewWindowBuilder::new(&app, &label, tauri::WebviewUrl::App(url.into()))
-        .title(&title)
-        .inner_size(900.0, 620.0)
-        .min_inner_size(420.0, 280.0)
-        .build()
-        .map_err(|err| super::error::AppError {
-            kind: "io".into(),
-            message: format!("open log window: {err}"),
-        })?;
+    // Build hidden so we can stamp the taskbar style BEFORE the first show —
+    // Windows only registers the taskbar button on show, so toggling the style
+    // afterwards would not take until the next hide/show cycle.
+    let window =
+        tauri::WebviewWindowBuilder::new(&app, &label, tauri::WebviewUrl::App(url.into()))
+            .title(&title)
+            .inner_size(900.0, 620.0)
+            .min_inner_size(420.0, 280.0)
+            .visible(false)
+            .build()
+            .map_err(|err| super::error::AppError {
+                kind: "io".into(),
+                message: format!("open log window: {err}"),
+            })?;
+    #[cfg(windows)]
+    force_taskbar_button(&window);
+    let _ = window.show();
     Ok(())
+}
+
+/// Force `WS_EX_APPWINDOW` on a window so it owns a taskbar button and minimizes
+/// to the taskbar. Without it tao's runtime-created secondary windows lack the
+/// style and Windows minimizes them to the legacy bottom-left desktop stub
+/// (tauri#10422). Must run while the window is still hidden (see caller).
+#[cfg(windows)]
+fn force_taskbar_button(window: &tauri::WebviewWindow) {
+    use windows::Win32::UI::WindowsAndMessaging::{
+        GetWindowLongPtrW, SetWindowLongPtrW, GWL_EXSTYLE, WS_EX_APPWINDOW, WS_EX_TOOLWINDOW,
+    };
+    if let Ok(hwnd) = window.hwnd() {
+        // ponytail: raw Win32 because Tauri's set_skip_taskbar(false) clears
+        // WS_EX_TOOLWINDOW but never adds WS_EX_APPWINDOW, which is the bit that
+        // actually puts the window on the taskbar.
+        unsafe {
+            let ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+            let ex = (ex & !(WS_EX_TOOLWINDOW.0 as isize)) | (WS_EX_APPWINDOW.0 as isize);
+            SetWindowLongPtrW(hwnd, GWL_EXSTYLE, ex);
+        }
+    }
 }
 
 /// `get_log_backlog { serviceId }` → recent lines for a service (or the
