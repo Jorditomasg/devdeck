@@ -247,6 +247,8 @@ Operation logs flow through `service://log-line` with `stream: "git"` and `name`
 | 28 | `set_repo_state` | `{ repo: string, state: RepoState }` | `void` | `ConfigStore::update` — whole-entry replace per repo |
 | 29 | `get_saved_environments` | `{ configKey: string }` | `Record<string, string>` | `AppConfig::repo_configs_for` |
 | 30 | `save_saved_environments` | `{ configKey: string, environments: Record<string, string> }` | `void` | `AppConfig::set_repo_configs_for` (empty map removes the entry) |
+| 60 | `get_command_profiles` | `{ repo: string }` | `Record<string, string>` | `AppConfig::command_profiles_for` — returns name→command-line map for one repo |
+| 61 | `save_command_profiles` | `{ repo: string, profiles: Record<string, string> }` | `void` | `AppConfig::set_command_profiles_for` (empty map removes the entry) |
 | 31 | `set_active_config` | `{ configKey: string, name: string \| null }` | `void` | `ConfigStore::update` — `null` drops the key (v1 sentinel `"- Sin Seleccionar -"` normalized) |
 | 32 | `set_danger_flags` | `{ configKey: string, names: string[] }` | `void` | `ConfigStore::update` (stored sorted; empty removes key) |
 | 33 | `read_config_file` | `{ path: string }` | `string` | `config::read_config_file_raw` |
@@ -330,7 +332,7 @@ migration phases.
 
 ## 3. Events
 
-10 events. Only Rust emits; the frontend only listens (`core/ipc/events.ts`). Names and payload
+11 events. Only Rust emits; the frontend only listens (`core/ipc/events.ts`). Names and payload
 structs live in `src-tauri/src/events.rs`.
 
 | Event | Payload (TS mirror) | Cadence / source |
@@ -344,6 +346,7 @@ structs live in `src-tauri/src/events.rs`.
 | `app://close-requested` | `{}` (empty object) | close/quit attempted while services run; Rust prevented the close — the frontend shows the confirm-running dialog and answers with `app_exit { force }` (§2.1 extensions) |
 | `update://progress` | `UpdateProgressEvent { downloaded, contentLength: number \| null }` | download progress while `install_update` runs (updater chunk callback) |
 | `config://changed` | `AppConfig` (full, v1 snake_case keys) | the persisted config changed — emitted from the single `ConfigStore::save` choke point so every window's `SettingsStore` re-syncs (docs/migration/dialogs-as-windows.md Phase 3) |
+| `profiles://changed` | `{ group: string \| null }` | a profile was saved/deleted — emitted from `save_profile` / `delete_profile` so every window's `ProfilesStore` re-lists (the profile manager runs in its own window; the main window's dropdown would otherwise miss new profiles) |
 | `dialog://resolved` | `DialogResolvedEvent { token, result: unknown }` | a native dialog window settled (`resolve_dialog` or `dlg-*` close); `result: null` = cancelled → opener applies its fallback (design doc `dialogs-as-windows.md`) |
 
 `name` in `git://badge` / `docker://status` / service events is the repo name / service id

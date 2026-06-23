@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { CMD, IpcCommands } from '../ipc/commands';
+import { IpcEvents } from '../ipc/events';
 import { FakeTauriBridge } from '../ipc/tauri-bridge.fake';
 import type { ProfileDocument, RepoProfile } from '../ipc/tauri.types';
 import {
@@ -19,8 +20,7 @@ function repoProfile(extra?: Partial<RepoProfile>): RepoProfile {
     type: 'spring-boot',
     profile: 'mysql',
     profile_tracked: ['src/main/resources/application.yml'],
-    custom_command: '',
-    start_args: '',
+    command_profile: null,
     selected: true,
     ...extra,
   };
@@ -31,7 +31,7 @@ function doc(repos: Record<string, RepoProfile>): ProfileDocument {
 }
 
 function makeStore(bridge: FakeTauriBridge): ProfilesStore {
-  return new ProfilesStore(new IpcCommands(bridge));
+  return new ProfilesStore(new IpcCommands(bridge), new IpcEvents(bridge));
 }
 
 describe('normalizeJavaVersion (v1 sentinel tolerance — accepted forever)', () => {

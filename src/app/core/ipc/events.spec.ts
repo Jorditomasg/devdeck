@@ -17,7 +17,8 @@ describe('EVT registry', () => {
     expect(EVT.updateProgress).toBe('update://progress');
     expect(EVT.dialogResolved).toBe('dialog://resolved');
     expect(EVT.configChanged).toBe('config://changed');
-    expect(Object.values(EVT).length).toBe(10);
+    expect(EVT.profilesChanged).toBe('profiles://changed');
+    expect(Object.values(EVT).length).toBe(11);
   });
 });
 
