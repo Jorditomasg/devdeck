@@ -30,6 +30,7 @@ export {
 } from './searchable-select/searchable-select.logic';
 export { LogViewerComponent } from './log-viewer/log-viewer.component';
 export { DEFAULT_MAX_LINES } from './log-viewer/log-viewer.logic';
+export { DialogLogComponent } from './dialog-log/dialog-log.component';
 export { DialogShellComponent } from './dialog-shell/dialog-shell.component';
 export { DIALOG_WINDOW_MODE, DIALOG_WINDOW_CLOSE } from './dialog-shell/dialog-window-mode';
 export type { DialogWindowClose } from './dialog-shell/dialog-window-mode';

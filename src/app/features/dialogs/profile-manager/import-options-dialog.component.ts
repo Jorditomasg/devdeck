@@ -34,6 +34,7 @@ import type { MissingRepo, ProfileDocument } from '../../../core/ipc/tauri.types
 import { normalizeJavaVersion } from '../../../core/state/profiles.store';
 import {
   ButtonComponent,
+  DialogLogComponent,
   DialogShellComponent,
   IconComponent,
   SearchableSelectComponent,
@@ -61,6 +62,7 @@ export interface ImportApplyResult {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ButtonComponent,
+    DialogLogComponent,
     DialogShellComponent,
     IconComponent,
     SearchableSelectComponent,
@@ -146,8 +148,14 @@ export interface ImportApplyResult {
           <div class="import__bar">
             <div class="import__bar-fill" [style.width.%]="progress() * 100"></div>
           </div>
-          <p class="import__log-label">{{ 'dialog.import.log_detail' | t }}</p>
-          <pre class="import__log">{{ logText() }}</pre>
+          <ui-dialog-log
+            [label]="'dialog.import.log_detail' | t"
+            [lines]="logLines()"
+            [emptyText]="'label.log_empty' | t"
+            [clearText]="'btn.clear_log' | t"
+            [canDetach]="false"
+            (clear)="logLines.set([])"
+          />
         </div>
       }
 
@@ -216,7 +224,6 @@ export class ImportOptionsDialogComponent extends DialogBase {
   protected readonly missingNames = computed(() =>
     truncate(this.missing().map((m) => m.name).join(', '), 80),
   );
-  protected readonly logText = computed(() => this.logLines().join('\n'));
 
   /** Live preview lines (v1 read-only textbox, re-built on toggles). */
   protected readonly preview = computed(() => {

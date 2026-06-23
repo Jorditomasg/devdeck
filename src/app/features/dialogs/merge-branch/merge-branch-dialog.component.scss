@@ -8,13 +8,6 @@
   gap: 10px;
 }
 
-.merge__repo {
-  margin: 0;
-  color: var(--color-text-primary);
-  font-size: var(--font-size-base);
-  font-weight: 700;
-}
-
 .merge__section {
   @include c.section;
 }
@@ -143,17 +136,3 @@
   font-size: var(--font-size-md);
 }
 
-.merge__log-label {
-  margin: 0;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-md);
-  font-weight: 700;
-}
-
-.merge__log {
-  @include c.mono-textarea;
-  height: 140px; // v1 log textbox height (§20)
-  margin: 0;
-  overflow-y: auto;
-  white-space: pre-wrap;
-}

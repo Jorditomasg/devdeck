@@ -63,8 +63,7 @@
   white-space: nowrap;
 }
 
-.import__preview,
-.import__log {
+.import__preview {
   @include c.mono-textarea;
   margin: 0;
   height: 170px;
@@ -90,11 +89,4 @@
   background-color: var(--color-status-running);
   border-radius: 4px;
   transition: width 150ms ease;
-}
-
-.import__log-label {
-  margin: 0;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-md);
-  font-weight: 700;
 }

@@ -45,6 +45,7 @@ import { ReposStore } from '../../../core/state/repos.store';
 import { ServicesStore } from '../../../core/state/services.store';
 import {
   ButtonComponent,
+  DialogLogComponent,
   DialogShellComponent,
   IconComponent,
   SearchableSelectComponent,
@@ -72,6 +73,7 @@ interface RevertEntry {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ButtonComponent,
+    DialogLogComponent,
     DialogShellComponent,
     IconComponent,
     SearchableSelectComponent,
@@ -81,12 +83,10 @@ interface RevertEntry {
   template: `
     <ui-dialog-shell
       #shell
-      [dialogTitle]="'dialog.merge.title' | t"
+      [dialogTitle]="'dialog.merge.title' | t: { name: repoName() }"
       (closed)="requestClose()"
     >
       <div class="merge">
-        <p class="merge__repo">{{ 'dialog.merge.repo_label' | t: { name: repoName() } }}</p>
-
         <!-- Target section (§20) -->
         <section class="merge__section">
           <h3 class="merge__section-title">{{ 'dialog.merge.target_section' | t }}</h3>
@@ -266,9 +266,16 @@ interface RevertEntry {
           </section>
         }
 
-        <!-- Live progress log (§20) -->
-        <p class="merge__log-label">{{ 'dialog.merge.log_label' | t }}</p>
-        <pre class="merge__log">{{ logText() }}</pre>
+        <!-- Live progress log (§20) — detachable to its own window + clearable. -->
+        <ui-dialog-log
+          [label]="'dialog.merge.log_label' | t"
+          [lines]="logLines()"
+          [emptyText]="'label.log_empty' | t"
+          [detachText]="'btn.detach_log' | t"
+          [clearText]="'btn.clear_log' | t"
+          (detach)="detachLog()"
+          (clear)="clearLog()"
+        />
       </div>
 
       <div uiDialogFooter>
@@ -344,14 +351,27 @@ export class MergeBranchDialogComponent extends DialogBase {
   );
 
   /** Dialog log = git-stream lines since the merge started + local notices. */
-  protected readonly logText = computed(() => {
+  protected readonly logLines = computed<readonly string[]>(() => {
     const streamed = this.services
       .logsFor(this.repoName())()
       .slice(this.logBaseline)
       .filter((l) => l.stream === 'git')
       .map((l) => l.line);
-    return [...streamed, ...this.extraLog()].join('\n');
+    return [...streamed, ...this.extraLog()];
   });
+
+  /** Detach the live log into its own OS window (reuses `open_log_window`). */
+  protected detachLog(): void {
+    void this.commands
+      .openLogWindow(this.repoName(), this.i18n.t('dialog.merge.title', { name: this.repoName() }))
+      .catch((err: unknown) => console.error('open log window failed', err));
+  }
+
+  /** Clear the dialog's view of the log (non-destructive: baseline bump). */
+  protected clearLog(): void {
+    this.logBaseline = this.services.logsFor(this.repoName())().length;
+    this.extraLog.set([]);
+  }
 
   constructor() {
     super();

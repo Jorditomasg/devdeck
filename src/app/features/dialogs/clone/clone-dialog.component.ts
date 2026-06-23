@@ -28,14 +28,19 @@ import { IpcCommands } from '../../../core/ipc/commands';
 import { ReposStore } from '../../../core/state/repos.store';
 import { ServicesStore } from '../../../core/state/services.store';
 import { SettingsStore } from '../../../core/state/settings.store';
-import { ButtonComponent, DialogShellComponent, FormRowComponent } from '../../../ui';
+import {
+  ButtonComponent,
+  DialogLogComponent,
+  DialogShellComponent,
+  FormRowComponent,
+} from '../../../ui';
 import { DialogBase } from '../dialog-base';
 import { defaultFolderName, foldCloneProgress, isValidGitUrl } from './clone.logic';
 
 @Component({
   selector: 'app-clone-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ButtonComponent, DialogShellComponent, FormRowComponent, TPipe],
+  imports: [ButtonComponent, DialogLogComponent, DialogShellComponent, FormRowComponent, TPipe],
   styleUrl: './clone-dialog.component.scss',
   template: `
     <ui-dialog-shell
@@ -85,9 +90,16 @@ import { defaultFolderName, foldCloneProgress, isValidGitUrl } from './clone.log
           <div class="clone__bar-fill" [style.width.%]="progress()"></div>
         </div>
 
-        @if (recentLines().length > 0) {
-          <pre class="clone__log">{{ recentLines().join('\n') }}</pre>
-        }
+        <ui-dialog-log
+          [label]="'dialog.clone.log_label' | t"
+          [lines]="logLines()"
+          [emptyText]="'label.log_empty' | t"
+          [detachText]="'btn.detach_log' | t"
+          [clearText]="'btn.clear_log' | t"
+          [canDetach]="logName() !== ''"
+          (detach)="detachLog()"
+          (clear)="clearLog()"
+        />
       </div>
 
       <div uiDialogFooter>
@@ -115,7 +127,7 @@ export class CloneDialogComponent extends DialogBase {
   protected readonly error = signal('');
 
   /** Name the git log lines arrive under while cloning (dest basename). */
-  private readonly logName = signal('');
+  protected readonly logName = signal('');
   private logBaseline = 0;
   private folderTouched = false;
 
@@ -124,8 +136,8 @@ export class CloneDialogComponent extends DialogBase {
     () => this.settings.activeGroup()?.paths[0] ?? '',
   );
 
-  /** Last few git progress lines streamed during the clone. */
-  protected readonly recentLines = computed<readonly string[]>(() => {
+  /** Git progress lines streamed during the clone (since the run started). */
+  protected readonly logLines = computed<readonly string[]>(() => {
     const name = this.logName();
     if (name === '') {
       return [];
@@ -134,9 +146,27 @@ export class CloneDialogComponent extends DialogBase {
       .logsFor(name)()
       .slice(this.logBaseline)
       .filter((l) => l.stream === 'git')
-      .slice(-4)
       .map((l) => l.line);
   });
+
+  /** Detach the live log into its own OS window (reuses `open_log_window`). */
+  protected detachLog(): void {
+    const name = this.logName();
+    if (name === '') {
+      return;
+    }
+    void this.commands
+      .openLogWindow(name, this.i18n.t('dialog.clone.title'))
+      .catch((err: unknown) => console.error('open log window failed', err));
+  }
+
+  /** Clear the dialog's view of the log (non-destructive: baseline bump). */
+  protected clearLog(): void {
+    const name = this.logName();
+    if (name !== '') {
+      this.logBaseline = this.services.logsFor(name)().length;
+    }
+  }
 
   constructor() {
     super();
