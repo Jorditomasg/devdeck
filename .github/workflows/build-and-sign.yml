@@ -141,6 +141,9 @@ jobs:
             grab { print }
           ' CHANGELOG.md)
 
+          # Same notes feed the GitHub Release body (softprops body_path below).
+          printf '%s\n' "$NOTES" > dist/release-notes.md
+
           ASSET="https://github.com/${GITHUB_REPOSITORY}/releases/download/${REF_NAME}/$(basename "$INSTALLER")"
 
           jq -n \
@@ -164,6 +167,7 @@ jobs:
         with:
           tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || inputs.release-tag }}
           draft: ${{ github.event_name == 'workflow_dispatch' }}
+          body_path: dist/release-notes.md
           files: |
             dist/*-setup.exe
             dist/latest.json
