@@ -372,6 +372,11 @@ export class ProfileManagerDialogComponent extends DialogBase {
         }
         staged = uniqueImportedName(this.profileNames(), base);
       }
+      // Importing adds the profile to the library RIGHT AWAY — applying it to
+      // the workspace (the preview wizard below) is a separate, optional step.
+      // Previously the profile was only persisted if the apply flow completed,
+      // so a cancelled/failed apply left nothing saved ("as if no profile").
+      await this.persistStaged(doc, staged);
       await this.applyWithPreview(doc, staged);
     } catch (err: unknown) {
       await this.dialogs.error(this.i18n.t('misc.error_title'), describe(err));
@@ -385,9 +390,10 @@ export class ProfileManagerDialogComponent extends DialogBase {
   /**
    * Diff against the live capture: no differences ⇒ direct apply; otherwise
    * route through the options wizard. `stagedName` ≠ null marks the import
-   * path (the staged profile is saved only when the flow completes, §21);
-   * `adoptName` ≠ null marks the load path (the named profile becomes the
-   * dirty-detection baseline AFTER a completed apply).
+   * path (the profile is already persisted by the caller; on a completed flow
+   * we re-save with the Java-mapped doc); `adoptName` ≠ null marks the load
+   * path (the named profile becomes the dirty-detection baseline AFTER a
+   * completed apply).
    */
   private async applyWithPreview(
     doc: ProfileDocument,
