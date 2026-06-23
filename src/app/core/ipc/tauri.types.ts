@@ -351,9 +351,8 @@ export interface WorkspaceGroup {
 /** Per-repo persisted UI state (`repo_state` values — v1 snake_case keys). */
 export interface RepoState {
   readonly selected?: boolean;
-  readonly custom_command?: string;
-  /** Extra args appended to the resolved start command (`''`/absent = none). */
-  readonly start_args?: string;
+  /** Active command-profile name; absent = repo-type default command. */
+  readonly command_profile?: string;
   /** Selected JDK display label; absent = system default (sentinel normalized). */
   readonly java_version?: string;
   readonly expanded?: boolean;
@@ -433,9 +432,8 @@ export interface RepoProfile {
   readonly type: string;
   readonly profile: string | null;
   readonly profile_tracked: readonly string[];
-  readonly custom_command: string;
-  /** Extra args appended to the resolved start command (`''` = none). */
-  readonly start_args: string;
+  /** Active command-profile name; `null` = repo default. */
+  readonly command_profile: string | null;
   readonly java_version?: string;
   readonly selected: boolean;
   readonly docker_compose_active?: readonly string[];

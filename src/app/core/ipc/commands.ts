@@ -107,6 +107,8 @@ export const CMD = {
   setRepoState: 'set_repo_state',
   getSavedEnvironments: 'get_saved_environments',
   saveSavedEnvironments: 'save_saved_environments',
+  getCommandProfiles: 'get_command_profiles',
+  saveCommandProfiles: 'save_command_profiles',
   setActiveConfig: 'set_active_config',
   setDangerFlags: 'set_danger_flags',
   readConfigFile: 'read_config_file',
@@ -246,7 +248,7 @@ export class IpcCommands {
     /** Fire-and-forget; lifecycle arrives via `service://status-changed`. */
     startService: (
       serviceId: ServiceId,
-      opts?: { customCommand?: string; startArgs?: string; javaLabel?: string },
+      opts?: { javaLabel?: string },
     ): Promise<void> =>
       this.bridge.invoke<void>(CMD.startService, { serviceId, ...opts }),
 
@@ -255,7 +257,7 @@ export class IpcCommands {
 
     restartService: (
       serviceId: ServiceId,
-      opts?: { customCommand?: string; startArgs?: string; javaLabel?: string },
+      opts?: { javaLabel?: string },
     ): Promise<void> =>
       this.bridge.invoke<void>(CMD.restartService, { serviceId, ...opts }),
 
@@ -476,6 +478,15 @@ export class IpcCommands {
         configKey,
         environments,
       }),
+
+    getCommandProfiles: (repo: string): Promise<Record<string, string>> =>
+      this.bridge.invoke<Record<string, string>>(CMD.getCommandProfiles, { repo }),
+
+    saveCommandProfiles: (
+      repo: string,
+      profiles: Readonly<Record<string, string>>,
+    ): Promise<void> =>
+      this.bridge.invoke<void>(CMD.saveCommandProfiles, { repo, profiles }),
 
     /** `null` drops the key (v1 `"- Sin Seleccionar -"` normalized). */
     setActiveConfig: (configKey: string, name: string | null): Promise<void> =>

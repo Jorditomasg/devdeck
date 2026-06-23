@@ -188,7 +188,7 @@ export class ServicesStore {
    */
   async start(
     id: ServiceId,
-    opts?: { customCommand?: string; startArgs?: string; javaLabel?: string },
+    opts?: { javaLabel?: string },
   ): Promise<void> {
     await this.dispatch(id, 'starting', () =>
       this.commands.process.startService(id, opts),
@@ -203,7 +203,7 @@ export class ServicesStore {
 
   async restart(
     id: ServiceId,
-    opts?: { customCommand?: string; startArgs?: string; javaLabel?: string },
+    opts?: { javaLabel?: string },
   ): Promise<void> {
     await this.dispatch(id, 'stopping', () =>
       this.commands.process.restartService(id, opts),

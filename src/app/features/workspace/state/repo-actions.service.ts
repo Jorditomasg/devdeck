@@ -59,7 +59,7 @@ export class RepoActionsService {
       return;
     }
     const opts = this.startOverrides(repo);
-    if (!repo.runCommand && !opts.customCommand) {
+    if (!repo.runCommand && !this.ws.card(repo.name).selectedCommandProfile) {
       await this.dialogs.warning(
         this.i18n.t('misc.warning_title'),
         this.i18n.t('log.no_start_command', { name: repo.name }),
@@ -462,22 +462,13 @@ export class RepoActionsService {
 
   // -- helpers --------------------------------------------------------------------
 
-  private startOverrides(repo: RepoInfo): {
-    customCommand?: string;
-    startArgs?: string;
-    javaLabel?: string;
-  } {
+  private startOverrides(repo: RepoInfo): { javaLabel?: string } {
     const state = this.ws.card(repo.name);
-    const customCommand =
-      state.customCommand && state.customCommand !== repo.runCommand
-        ? state.customCommand
-        : undefined;
-    const startArgs = state.startArgs ? state.startArgs : undefined;
     const javaLabel =
       repo.features.includes('java_version') && state.javaLabel
         ? state.javaLabel
         : undefined;
-    return { customCommand, startArgs, javaLabel };
+    return { javaLabel };
   }
 
   private envTargetFile(repo: RepoInfo, moduleKey: string): string | undefined {

@@ -27,24 +27,18 @@ pub(crate) const RESTART_DELAY: Duration = Duration::from_millis(300);
 // RESTART_DELAY_DOCKER deleted — the value now lives in docker-infra.yml
 // as run.restart_delay_ms.
 
-/// #3 `start_service { serviceId, customCommand?, startArgs?, javaLabel? }`.
+/// #3 `start_service { serviceId, javaLabel? }`.
 #[tauri::command]
 pub async fn start_service(
     state: State<'_, AppState>,
     service_id: String,
-    custom_command: Option<String>,
-    start_args: Option<String>,
     java_label: Option<String>,
 ) -> CmdResult<()> {
+    let config = load_config(&state);
     let repo = find_repo(&state, &service_id)?;
-    let env = java_env_from_config(&load_config(&state), java_label.as_deref());
-    let spec = build_service_spec(
-        &repo,
-        &service_id,
-        custom_command.as_deref(),
-        start_args.as_deref(),
-        env,
-    )?;
+    let env = java_env_from_config(&config, java_label.as_deref());
+    let override_cmd = resolved_command_override(&config, &repo.name);
+    let spec = build_service_spec(&repo, &service_id, override_cmd.as_deref(), env)?;
     state.process.start_service(spec).await?;
     Ok(())
 }
@@ -80,7 +74,7 @@ pub async fn stop_service(state: State<'_, AppState>, service_id: String) -> Cmd
     Ok(())
 }
 
-/// #5 `restart_service { serviceId, customCommand?, startArgs?, javaLabel? }` —
+/// #5 `restart_service { serviceId, javaLabel? }` —
 /// stop + delayed start (300 ms process / 2000 ms docker, inventory-gui.md §28).
 /// The spec is validated up-front (so bad input still rejects); the
 /// stop/sleep/start sequence runs detached so the command returns
@@ -89,19 +83,13 @@ pub async fn stop_service(state: State<'_, AppState>, service_id: String) -> Cmd
 pub async fn restart_service(
     state: State<'_, AppState>,
     service_id: String,
-    custom_command: Option<String>,
-    start_args: Option<String>,
     java_label: Option<String>,
 ) -> CmdResult<()> {
+    let config = load_config(&state);
     let repo = find_repo(&state, &service_id)?;
-    let env = java_env_from_config(&load_config(&state), java_label.as_deref());
-    let spec = build_service_spec(
-        &repo,
-        &service_id,
-        custom_command.as_deref(),
-        start_args.as_deref(),
-        env,
-    )?;
+    let env = java_env_from_config(&config, java_label.as_deref());
+    let override_cmd = resolved_command_override(&config, &repo.name);
+    let spec = build_service_spec(&repo, &service_id, override_cmd.as_deref(), env)?;
     let delay = restart_delay(&repo);
     let process = state.process.clone();
     let fallback_stop = untracked_stop_command(&repo);
@@ -272,17 +260,22 @@ pub(crate) fn java_env_from_config(
     }
 }
 
+/// Resolve the active command-profile line for a repo (`None` = repo default).
+fn resolved_command_override(config: &AppConfig, repo_name: &str) -> Option<String> {
+    let name = config.repo_state.get(repo_name)?.command_profile.as_ref()?;
+    config.command_profiles_for(repo_name).get(name).cloned()
+}
+
 /// Build the `ServiceSpec` from the scanned `RepoInfo` + per-start
-/// overrides (ipc-contract.md §2.3 #3). Rejects (`kind: "process"`) when
-/// neither a custom command nor a detected `run_command` exists.
+/// override (ipc-contract.md §2.3 #3). Rejects (`kind: "process"`) when
+/// neither a command override nor a detected `run_command` exists.
 pub(crate) fn build_service_spec(
     repo: &RepoInfo,
     service_id: &str,
-    custom_command: Option<&str>,
-    start_args: Option<&str>,
+    command_override: Option<&str>,
     env: HashMap<String, String>,
 ) -> Result<ServiceSpec, AppError> {
-    let base = custom_command
+    let command = command_override
         .map(str::trim)
         .filter(|c| !c.is_empty())
         .map(str::to_owned)
@@ -290,13 +283,6 @@ pub(crate) fn build_service_spec(
         .ok_or_else(|| {
             AppError::process(format!("no run command defined for service '{service_id}'"))
         })?;
-
-    // Append extra args to whatever base resolved (type default OR custom
-    // command). Empty/whitespace args are a no-op — backwards compatible.
-    let command = match start_args.map(str::trim).filter(|a| !a.is_empty()) {
-        Some(args) => format!("{base} {args}"),
-        None => base,
-    };
 
     Ok(ServiceSpec {
         id: service_id.to_owned(),
@@ -347,20 +333,34 @@ mod tests {
         }
     }
 
-    #[test]
-    fn custom_command_overrides_run_command() {
-        let spec =
-            build_service_spec(&repo("api"), "api", Some("  npm start  "), None, HashMap::new())
-                .unwrap();
-        assert_eq!(spec.command, "npm start");
-        assert_eq!(spec.id, "api");
-        assert_eq!(spec.known_port, Some(8080));
+    /// Alias matching the plan's helper name used in the new tests.
+    fn test_repo_with_run_command(cmd: &str) -> RepoInfo {
+        RepoInfo {
+            name: "svc".into(),
+            path: "/ws/svc".into(),
+            run_command: Some(cmd.into()),
+            ..Default::default()
+        }
     }
 
     #[test]
-    fn blank_custom_command_falls_back_to_run_command() {
-        let spec =
-            build_service_spec(&repo("api"), "api", Some("   "), None, HashMap::new()).unwrap();
+    fn command_override_replaces_base() {
+        let repo = test_repo_with_run_command("mvn spring-boot:run");
+        let spec = build_service_spec(&repo, "svc", Some("mvn -Pbatch spring-boot:run --job=x"), HashMap::new()).unwrap();
+        assert_eq!(spec.command, "mvn -Pbatch spring-boot:run --job=x");
+    }
+
+    #[test]
+    fn no_override_uses_repo_default() {
+        let repo = test_repo_with_run_command("mvn spring-boot:run");
+        let spec = build_service_spec(&repo, "svc", None, HashMap::new()).unwrap();
+        assert_eq!(spec.command, "mvn spring-boot:run");
+    }
+
+    #[test]
+    fn blank_override_uses_repo_default() {
+        let repo = test_repo_with_run_command("mvn spring-boot:run");
+        let spec = build_service_spec(&repo, "svc", Some("  "), HashMap::new()).unwrap();
         assert_eq!(spec.command, "mvn spring-boot:run");
     }
 
@@ -368,43 +368,19 @@ mod tests {
     fn no_command_at_all_rejects_with_process_kind() {
         let mut r = repo("api");
         r.run_command = None;
-        let err = build_service_spec(&r, "api", None, None, HashMap::new()).unwrap_err();
+        let err = build_service_spec(&r, "api", None, HashMap::new()).unwrap_err();
         assert_eq!(err.kind, "process");
         assert!(err.message.contains("api"));
     }
 
     #[test]
-    fn start_args_appended_to_resolved_command() {
-        // Appends to the type default (keeps OS-aware/{main_app} resolution).
-        let spec = build_service_spec(
-            &repo("api"),
-            "api",
-            None,
-            Some("  --job=import  "),
-            HashMap::new(),
-        )
-        .unwrap();
-        assert_eq!(spec.command, "mvn spring-boot:run --job=import");
-    }
-
-    #[test]
-    fn blank_start_args_is_a_noop() {
+    fn build_spec_id_and_port_forwarded() {
         let spec =
-            build_service_spec(&repo("api"), "api", None, Some("   "), HashMap::new()).unwrap();
-        assert_eq!(spec.command, "mvn spring-boot:run");
-    }
-
-    #[test]
-    fn start_args_appended_to_custom_command_too() {
-        let spec = build_service_spec(
-            &repo("api"),
-            "api",
-            Some("npm start"),
-            Some("-- --port 5000"),
-            HashMap::new(),
-        )
-        .unwrap();
-        assert_eq!(spec.command, "npm start -- --port 5000");
+            build_service_spec(&repo("api"), "api", Some("  npm start  "), HashMap::new())
+                .unwrap();
+        assert_eq!(spec.command, "npm start");
+        assert_eq!(spec.id, "api");
+        assert_eq!(spec.known_port, Some(8080));
     }
 
     #[test]

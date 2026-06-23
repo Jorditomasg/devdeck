@@ -104,6 +104,28 @@ pub async fn save_saved_environments(
     Ok(())
 }
 
+/// `get_command_profiles { repo }` → `Record<string, string>` (name → command line).
+#[tauri::command]
+pub async fn get_command_profiles(
+    state: State<'_, AppState>,
+    repo: String,
+) -> CmdResult<BTreeMap<String, String>> {
+    Ok(state.config.load()?.command_profiles_for(&repo))
+}
+
+/// `save_command_profiles { repo, profiles }` — empty map removes the entry.
+#[tauri::command]
+pub async fn save_command_profiles(
+    state: State<'_, AppState>,
+    repo: String,
+    profiles: BTreeMap<String, String>,
+) -> CmdResult<()> {
+    state
+        .config
+        .update(|c| c.set_command_profiles_for(&repo, profiles))?;
+    Ok(())
+}
+
 /// #31 `set_active_config { configKey, name }` — `null` drops the key.
 /// The v1 sentinel `"- Sin Seleccionar -"` is normalized to a drop too
 /// (ipc-contract.md §2.5).
