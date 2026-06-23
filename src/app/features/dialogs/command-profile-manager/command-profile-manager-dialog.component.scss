@@ -11,8 +11,16 @@
   max-width: 100%;
 }
 
-.profmgr__new {
-  align-self: flex-start;
+.profmgr__new-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.profmgr__new-input {
+  @include c.text-input;
+  flex: 1;
+  min-width: 0;
 }
 
 .profmgr__list {

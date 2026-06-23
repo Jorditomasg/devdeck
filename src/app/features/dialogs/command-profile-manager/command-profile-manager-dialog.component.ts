@@ -33,10 +33,26 @@ import { DialogBase } from '../dialog-base';
       (closed)="requestClose()"
     >
       <div class="profmgr">
-        <!-- Add new (top) -->
-        <ui-button class="profmgr__new" variant="blue" size="sm" (clicked)="newConfig()">
-          {{ 'dialog.env_manager.btn_new' | t }}
-        </ui-button>
+        <!-- Add new (top) — inline name input, no modal -->
+        <div class="profmgr__new-row">
+          <input
+            type="text"
+            class="profmgr__new-input"
+            spellcheck="false"
+            [placeholder]="'dialog.command_profiles.new_title' | t"
+            [value]="newName()"
+            (input)="newName.set($any($event.target).value)"
+            (keydown.enter)="newConfig()"
+          />
+          <ui-button
+            variant="blue"
+            size="sm"
+            [disabled]="newName().trim() === ''"
+            (clicked)="newConfig()"
+          >
+            {{ 'dialog.env_manager.btn_new' | t }}
+          </ui-button>
+        </div>
 
         <!-- Profile list -->
         <div class="profmgr__list">
@@ -50,7 +66,7 @@ import { DialogBase } from '../dialog-base';
               {{ name }}
             </button>
           } @empty {
-            <p class="profmgr__empty">{{ 'dialog.env_manager.empty_list' | t }}</p>
+            <p class="profmgr__empty">{{ 'dialog.command_profiles.empty' | t }}</p>
           }
         </div>
 
@@ -114,6 +130,7 @@ export class CommandProfileManagerDialogComponent extends DialogBase {
   protected readonly editorId = 'cmd-profile-editor';
 
   protected readonly profiles = signal<Readonly<Record<string, string>>>({});
+  protected readonly newName = signal('');
   protected readonly selected = signal('');
   protected readonly editorText = signal('');
   protected readonly saving = signal(false);
@@ -171,17 +188,14 @@ export class CommandProfileManagerDialogComponent extends DialogBase {
   }
 
   protected async newConfig(): Promise<void> {
-    const name = await this.askName(
-      'dialog.command_profiles.new_title',
-      'dialog.command_profiles.new_prompt',
-      '',
-    );
-    if (name === null || !(await this.guardDuplicate(name))) {
+    const name = this.newName().trim();
+    if (name === '' || !(await this.guardDuplicate(name))) {
       return;
     }
     await this.persist({ ...this.profiles(), [name]: '' });
     this.selected.set(name);
     this.editorText.set('');
+    this.newName.set('');
   }
 
   protected async rename(): Promise<void> {
