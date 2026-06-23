@@ -111,10 +111,26 @@ impl ConfigStore {
         let mut config = if self.path.is_file() {
             let raw = fs::read_to_string(&self.path)
                 .map_err(|e| DomainError::io(self.path.display().to_string(), e))?;
-            serde_json::from_str::<AppConfig>(&raw).map_err(|e| DomainError::JsonParse {
-                path: self.path.display().to_string(),
-                message: e.to_string(),
-            })?
+            match serde_json::from_str::<AppConfig>(&raw) {
+                Ok(cfg) => cfg,
+                Err(e) => {
+                    // Self-heal: a corrupt/truncated config must not wedge the
+                    // UI by making every get_app_config call reject. Back the
+                    // bad file up and fall back to defaults, mirroring the
+                    // graceful missing-file path. (ponytail: single .corrupt
+                    // backup; a later corruption overwrites it — fine, the
+                    // newest broken file is the one worth keeping.)
+                    let backup = self.path.with_extension("json.corrupt");
+                    let _ = fs::rename(&self.path, &backup);
+                    log::warn!(
+                        "config: {} is corrupt ({}); backed up to {} and reset to defaults",
+                        self.path.display(),
+                        e,
+                        backup.display()
+                    );
+                    AppConfig::default()
+                }
+            }
         } else {
             AppConfig::default()
         };
