@@ -56,6 +56,15 @@ pub async fn open_dialog_window(
     args: serde_json::Value,
     parent_label: Option<String>,
 ) -> CmdResult<String> {
+    // Singleton per (kind, args): a repeat open just focuses the live window
+    // and returns its token, so the opener's awaiting promise still settles
+    // when that one window resolves. Prevents stacking duplicate dialogs.
+    if let Some(token) = state.dialogs.existing(&kind, &args) {
+        if let Some(window) = app.get_webview_window(&token) {
+            let _ = window.set_focus();
+            return Ok(token);
+        }
+    }
     let token = state.dialogs.allocate(&kind, args);
     let (width, height) = dialog_size(&kind);
     let url = format!(
