@@ -227,6 +227,11 @@ export class SettingsDialogComponent extends DialogBase implements OnInit {
     } catch {
       this.version.set(null);
     }
+    // This dialog is its own webview window with its own UpdatesStore, so the
+    // main window's startup check never reaches it. Re-run it silently here so
+    // the update banner (version + "Update now") shows without the user having
+    // to click "Check for updates". Reactive — the banner updates when it lands.
+    void this.updates.checkSilently();
     // Load detected shells, THEN decide if the saved value is a custom command
     // (non-empty and not one of the detected shells).
     const shells = await this.commands.terminal.listShells().catch(() => [] as ShellInfo[]);
