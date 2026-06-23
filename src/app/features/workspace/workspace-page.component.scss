@@ -6,7 +6,10 @@
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background-color: var(--color-app);
+  // Transparent on purpose: `body` already paints `--color-app` globally
+  // (_base.scss) plus the geometric pattern overlay (body::before). An opaque
+  // app-colour here would cover the pattern — let it show through the gaps.
+  background-color: transparent;
 }
 
 // §4 scrollable card list — the only scrolling region of the shell.
@@ -43,6 +46,8 @@
   height: 24px;
   padding: 0 10px;
   border-top: var(--geo-border-width) solid var(--color-divider);
+  // Opaque so the background pattern never sits behind the status text.
+  background-color: var(--color-app);
   color: var(--color-text-accent);
   font-size: var(--font-size-md);
 }

@@ -34,6 +34,13 @@ import {
 import { IpcCommands } from '../../../core/ipc/commands';
 import type { ShellInfo } from '../../../core/ipc/tauri.types';
 import { SettingsStore } from '../../../core/state/settings.store';
+import {
+  PALETTES,
+  PATTERNS,
+  type Palette,
+  type Pattern,
+  ThemeService,
+} from '../../../core/state/theme.service';
 import { UpdatesStore } from '../../../core/state/updates.store';
 import {
   ButtonComponent,
@@ -79,6 +86,34 @@ const LANGUAGE_CODES: readonly LanguageCode[] = ['en', 'es'];
           />
         </ui-form-row>
         <p class="settings__hint">{{ 'dialog.settings.language_desc' | t }}</p>
+        <div class="settings__divider"></div>
+
+        <!-- 1b. Appearance — palette + pattern (draft; applied on Save) -->
+        <ui-form-row icon="palette" [label]="'dialog.settings.appearance_title' | t" labelWidth="155px">
+          <div class="settings__appearance">
+            <label class="settings__appearance-field">
+              <span>{{ 'dialog.settings.appearance_palette' | t }}</span>
+              <ui-searchable-select
+                [options]="paletteNames()"
+                [value]="paletteName()"
+                [searchPlaceholder]="'placeholder.search' | t"
+                [noResultsText]="'placeholder.no_results' | t"
+                (selectionChange)="onPalettePick($event)"
+              />
+            </label>
+            <label class="settings__appearance-field">
+              <span>{{ 'dialog.settings.appearance_pattern' | t }}</span>
+              <ui-searchable-select
+                [options]="patternNames()"
+                [value]="patternName()"
+                [searchPlaceholder]="'placeholder.search' | t"
+                [noResultsText]="'placeholder.no_results' | t"
+                (selectionChange)="onPatternPick($event)"
+              />
+            </label>
+          </div>
+        </ui-form-row>
+        <p class="settings__hint">{{ 'dialog.settings.appearance_desc' | t }}</p>
         <div class="settings__divider"></div>
 
         <!-- 2. Workspace (§22 row 2) -->
@@ -202,6 +237,7 @@ export class SettingsDialogComponent extends DialogBase implements OnInit {
   static readonly dialogKind = 'settings';
 
   private readonly settings = inject(SettingsStore);
+  private readonly theme = inject(ThemeService);
   private readonly i18n = inject(TranslationService);
   private readonly updates = inject(UpdatesStore);
   private readonly commands = inject(IpcCommands);
@@ -254,6 +290,39 @@ export class SettingsDialogComponent extends DialogBase implements OnInit {
   protected readonly languageName = computed(() =>
     this.i18n.t(`dialog.settings.language_${this.language()}`),
   );
+
+  // Appearance — DRAFT only; applied + persisted on Save (like the other rows).
+  // Cancel discards because nothing was applied live.
+  protected readonly paletteDraft = signal<Palette>(this.theme.palette());
+  protected readonly patternDraft = signal<Pattern>(this.theme.pattern());
+
+  protected readonly paletteNames = computed<readonly string[]>(() =>
+    PALETTES.map((p) => this.i18n.t(`dialog.settings.palette_${p}`)),
+  );
+  protected readonly patternNames = computed<readonly string[]>(() =>
+    PATTERNS.map((p) => this.i18n.t(`dialog.settings.pattern_${p}`)),
+  );
+  protected readonly paletteName = computed(() =>
+    this.i18n.t(`dialog.settings.palette_${this.paletteDraft()}`),
+  );
+  protected readonly patternName = computed(() =>
+    this.i18n.t(`dialog.settings.pattern_${this.patternDraft()}`),
+  );
+
+  /** Map picked display name back to its value by index (never by text). */
+  protected onPalettePick(name: string): void {
+    const value = PALETTES[this.paletteNames().indexOf(name)];
+    if (value !== undefined) {
+      this.paletteDraft.set(value);
+    }
+  }
+
+  protected onPatternPick(name: string): void {
+    const value = PATTERNS[this.patternNames().indexOf(name)];
+    if (value !== undefined) {
+      this.patternDraft.set(value);
+    }
+  }
 
   /** `java_none_configured` / `java_n_configured(count)` (§22 row 5). */
   protected readonly javaCountLabel = computed(() => {
@@ -349,6 +418,12 @@ export class SettingsDialogComponent extends DialogBase implements OnInit {
       const shell = this.terminalShellDraft().trim();
       if (shell !== this.settings.terminalShell()) {
         await this.settings.setTerminalShell(shell || null);
+      }
+      if (this.paletteDraft() !== this.theme.palette()) {
+        this.theme.setPalette(this.paletteDraft());
+      }
+      if (this.patternDraft() !== this.theme.pattern()) {
+        this.theme.setPattern(this.patternDraft());
       }
       this.closeSelf();
     } catch (err: unknown) {

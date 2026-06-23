@@ -17,6 +17,8 @@
 // v1 family kept first; modern fallback stack added for non-Windows platforms.
 
 :root {
+  color-scheme: dark;
+
   --font-family: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial,
     sans-serif;
   --font-family-mono: Consolas, 'Cascadia Code', 'JetBrains Mono',
@@ -57,6 +59,11 @@
   --color-section: #1e1b4b; // entries, combos, settings frames
   --color-section-alt: #0f172a; // dialog list backgrounds
   --color-divider: #312e81; // 1px separator line
+  --color-pattern: #4338ca; // geometric background-pattern line color (theme.service)
+  --color-dirty-field: #2a1a00; // unsaved profile field bg (topbar §26 dirty)
+  --color-selected-bg: #172554; // selected list-item bg (dialogs/_controls)
+  --color-selected-fg: #ffffff; // selected list-item text
+  --color-active-highlight: #eab308; // active toggle chip — bright amber + dark text, both themes
 
   // ─── Borders (4) ───────────────────────────────────────────────────────────
   --color-border-card: #3b3768; // card / log textbox

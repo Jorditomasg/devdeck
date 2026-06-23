@@ -28,7 +28,7 @@ fn dialog_size(kind: &str) -> (f64, f64) {
         "branch" => (680.0, 560.0),
         "stash" => (620.0, 560.0),
         "merge-branch" => (600.0, 600.0),
-        "settings" => (640.0, 620.0),
+        "settings" => (640.0, 740.0),
         "java-manager" => (560.0, 520.0),
         "java-editor" => (520.0, 320.0),
         "changelog" => (640.0, 640.0),
@@ -77,6 +77,12 @@ pub async fn open_dialog_window(
             .title(&title)
             .inner_size(width, height)
             .resizable(false)
+            // Modal dialogs parented to the main window: no minimize/maximize.
+            // Maximizing a fixed-size dialog is nonsensical, and minimizing an
+            // owned window (no taskbar button) drops it to Windows' legacy
+            // bottom-corner stub with no way back — so disable both buttons.
+            .minimizable(false)
+            .maximizable(false)
             .center();
     if let Some(parent) = parent_label.as_deref() {
         if let Some(parent_window) = app.get_webview_window(parent) {

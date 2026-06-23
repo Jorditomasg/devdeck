@@ -74,7 +74,7 @@
 
   &--dirty {
     --color-border-default: var(--color-status-logging);
-    --color-section: #2a1a00; // v1 dirty field bg (theme constant, §26)
+    --color-section: var(--color-dirty-field); // dirty field bg (§26; light-aware)
     --color-text-primary: var(--color-text-warning-badge);
     font-weight: 700;
   }

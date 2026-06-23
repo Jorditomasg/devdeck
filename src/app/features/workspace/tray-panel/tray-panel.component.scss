@@ -3,7 +3,11 @@
 :host {
   display: block;
   height: 100vh;
-  background: var(--color-app);
+  // Transparent + padding = gutter where `body`'s pattern shows; the .panel
+  // card floats on it (same framed look as the log window / windowed dialogs).
+  background: transparent;
+  padding: 8px;
+  box-sizing: border-box;
   color: var(--color-text-primary);
   font-size: var(--font-size-base);
   user-select: none;
@@ -15,6 +19,9 @@
   height: 100%;
   padding: 8px;
   gap: 8px;
+  background: var(--color-card);
+  border: var(--geo-border-width) solid var(--color-border-card);
+  border-radius: var(--geo-corner-card);
 }
 
 .panel__head {

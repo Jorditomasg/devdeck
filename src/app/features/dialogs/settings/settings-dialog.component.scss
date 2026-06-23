@@ -88,3 +88,23 @@
   border-radius: 8px;
   background: var(--color-accent-soft, rgba(64, 132, 255, 0.12));
 }
+
+.settings__appearance {
+  display: flex;
+  gap: 16px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.settings__appearance-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 160px;
+  flex: 1;
+
+  span {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-md);
+  }
+}

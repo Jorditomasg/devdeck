@@ -1,0 +1,147 @@
+// ═══════════════════════════════════════════════════════════════════════════
+// Color palettes — `[data-palette]` overrides of the `:root` design tokens.
+//
+// The default (indigo) lives in `_tokens-root.scss`; each palette here re-binds
+// only the ~14 ANCHOR tokens that define a theme's mood (backgrounds, borders,
+// accent, pattern). Text/status/button tokens stay shared — the dark palettes
+// all use light text. The `light` palette is the one exception: it also flips
+// text + `color-scheme`. Applied live by `ThemeService` (no rebuild, no IPC).
+//
+// Imported ONCE from `styles.scss`. Emits CSS — do NOT `@use` from components.
+// ═══════════════════════════════════════════════════════════════════════════
+
+@use 'sass:map';
+@use 'tokens';
+
+// ─── Slate — neutral blue-grey, low saturation (IDE-sober) ───────────────────
+[data-palette='slate'] {
+  --color-app: #0f1419;
+  --color-card: #161c24;
+  --color-card-hover: #1f2730;
+  --color-expand-panel: #0d1218;
+  --color-section: #1e2630;
+  --color-section-alt: #0f172a;
+  --color-divider: #334155;
+  --color-border-card: #334155;
+  --color-border-default: #475569;
+  --color-border-settings: #334155;
+  --color-border-subtle: #2a3543;
+  --color-text-accent: #7c8aa3;
+  --color-text-accent-bright: #a5b4c8;
+  --color-pattern: #64748b;
+}
+
+// ─── Emerald — deep green ────────────────────────────────────────────────────
+[data-palette='emerald'] {
+  --color-app: #0a1410;
+  --color-card: #0f1d17;
+  --color-card-hover: #15281f;
+  --color-expand-panel: #081310;
+  --color-section: #10241b;
+  --color-section-alt: #0a1712;
+  --color-divider: #14532d;
+  --color-border-card: #166534;
+  --color-border-default: #15803d;
+  --color-border-settings: #14532d;
+  --color-border-subtle: #1f3d30;
+  --color-text-accent: #10b981;
+  --color-text-accent-bright: #34d399;
+  --color-pattern: #15803d;
+}
+
+// ─── Crimson / Amber — warm dark ─────────────────────────────────────────────
+[data-palette='crimson'] {
+  --color-app: #1a0f0e;
+  --color-card: #241413;
+  --color-card-hover: #2e1a18;
+  --color-expand-panel: #160d0c;
+  --color-section: #2a1614;
+  --color-section-alt: #1a0f0e;
+  --color-divider: #7c2d12;
+  --color-border-card: #7c2d12;
+  --color-border-default: #b45309;
+  --color-border-settings: #7c2d12;
+  --color-border-subtle: #44312b;
+  --color-text-accent: #f59e0b;
+  --color-text-accent-bright: #fbbf24;
+  --color-pattern: #b45309;
+}
+
+// ─── Rose — dark with magenta/synthwave accent ───────────────────────────────
+[data-palette='rose'] {
+  --color-app: #160a1a;
+  --color-card: #1f0f26;
+  --color-card-hover: #2a1533;
+  --color-expand-panel: #130820;
+  --color-section: #271033;
+  --color-section-alt: #160a1a;
+  --color-divider: #6b21a8;
+  --color-border-card: #7e22ce;
+  --color-border-default: #a21caf;
+  --color-border-settings: #6b21a8;
+  --color-border-subtle: #3b2540;
+  --color-text-accent: #e879f9;
+  --color-text-accent-bright: #f0abfc;
+  --color-pattern: #c026d3;
+}
+
+// ─── Light — the one palette that flips text + color-scheme ───────────────────
+// "Basic light": backgrounds/borders/text are re-bound for contrast. The
+// status + button-variant colors (defined as Sass maps in _tokens.scss) stay
+// dark-saturated — they read fine as colored chips on light. ponytail: ship
+// basic light now; per-component contrast polish is a separate pass if wanted.
+[data-palette='light'] {
+  color-scheme: light;
+  --color-app: #f1f5f9;
+  --color-card: #ffffff;
+  --color-card-hover: #eef2f7;
+  --color-expand-panel: #f8fafc;
+  --color-section: #f1f5f9;
+  --color-section-alt: #e2e8f0;
+  --color-divider: #cbd5e1;
+  --color-border-card: #cbd5e1;
+  --color-border-default: #94a3b8;
+  --color-border-settings: #cbd5e1;
+  --color-border-subtle: #cbd5e1;
+  --color-text-primary: #1e293b;
+  --color-text-secondary: #334155;
+  --color-text-muted: #64748b;
+  --color-text-faint: #94a3b8;
+  --color-text-placeholder: #94a3b8;
+  --color-text-accent: #4f46e5;
+  --color-text-accent-bright: #6366f1;
+  --color-pattern: #6366f1;
+  // Light-specific contrast fixes (the dark defaults are unreadable on white):
+  --color-text-warning-badge: #b45309; // "Falta instalar" + uncommitted-files badge
+  --color-status-starting: #ca8a04; // yellow → darker amber
+  --color-status-stopped: #475569; // grey → darker for contrast on white
+  --color-status-running: #15803d; // green → deeper, readable as text/badge on white
+  // Docker buttons paint --color-text-primary (dark on light) over these bgs;
+  // the dark defaults would hide the text, so lighten them (coloured borders
+  // still signal state).
+  --color-docker-btn-active-fg: #e2e8f0;
+  --color-docker-btn-stopped-fg: #eef2f7;
+  --color-dirty-field: #fef3c7; // unsaved profile field → light amber, not dark
+  --color-selected-bg: #dbeafe; // selected list-item → light blue
+  --color-selected-fg: #1e293b; // …with dark text
+}
+
+// Light mode: button + icon-button variants ship dark-on-dark `fg` backgrounds
+// (Sass map in _tokens.scss) that look muddy on white. Re-base each to its
+// vivid `hover` colour (and a touch stronger on :hover). `.btn.btn--x` /
+// `.icon-btn.icon-btn--x` keep specificity above the components' scoped rules.
+// `toggle-expand` is skipped — it's a transparent chevron (accent-bright text).
+[data-palette='light'] {
+  @each $name, $variant in tokens.$btn-variants {
+    @if $name != 'toggle-expand' {
+      .btn.btn--#{$name},
+      .icon-btn.icon-btn--#{$name} {
+        background-color: map.get($variant, hover);
+
+        &:hover:not(:disabled) {
+          background-color: map.get($variant, border);
+        }
+      }
+    }
+  }
+}
