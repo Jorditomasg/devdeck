@@ -22,6 +22,7 @@ import { DialogBase } from '../dialog-base';
   selector: 'app-prompt-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ButtonComponent, DialogShellComponent, TPipe],
+  styleUrl: './prompt-dialog.component.scss',
   template: `
     <ui-dialog-shell
       [dialogTitle]="title()"

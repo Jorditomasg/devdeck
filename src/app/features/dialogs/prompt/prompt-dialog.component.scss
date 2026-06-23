@@ -1,0 +1,22 @@
+// Generic text prompt — message + single-line input (shared control look).
+@use '../shared/controls' as c;
+
+.prompt {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 320px;
+}
+
+.prompt__message {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-base);
+  line-height: 1.5;
+  white-space: pre-line;
+}
+
+.prompt__input {
+  @include c.text-input;
+  width: 100%;
+}

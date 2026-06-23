@@ -33,84 +33,66 @@ import { DialogBase } from '../dialog-base';
       (closed)="requestClose()"
     >
       <div class="profmgr">
-        <!-- Left panel: profile list -->
-        <div class="profmgr__left">
-          <p class="profmgr__heading">{{ 'dialog.command_profiles.window_title' | t : { name: repoName() } }}</p>
+        <!-- Add new (top) -->
+        <ui-button class="profmgr__new" variant="blue" size="sm" (clicked)="newConfig()">
+          {{ 'dialog.env_manager.btn_new' | t }}
+        </ui-button>
 
-          <div class="profmgr__list">
-            @for (name of names(); track name) {
-              <button
-                type="button"
-                class="profmgr__row"
-                [class.selected]="name === selected()"
-                (click)="selectName(name)"
-              >
-                {{ name }}
-              </button>
-            } @empty {
-              <p class="profmgr__empty">{{ 'dialog.env_manager.empty_list' | t }}</p>
-            }
-          </div>
-
-          <div class="profmgr__btn-col">
-            <ui-button variant="blue" size="sm" (clicked)="newConfig()">
-              {{ 'dialog.env_manager.btn_new' | t }}
-            </ui-button>
-          </div>
+        <!-- Profile list -->
+        <div class="profmgr__list">
+          @for (name of names(); track name) {
+            <button
+              type="button"
+              class="profmgr__row"
+              [class.selected]="name === selected()"
+              (click)="selectName(name)"
+            >
+              {{ name }}
+            </button>
+          } @empty {
+            <p class="profmgr__empty">{{ 'dialog.env_manager.empty_list' | t }}</p>
+          }
         </div>
 
-        <!-- Right panel: editor -->
-        <div class="profmgr__right">
-          <div class="profmgr__toolbar">
-            <span class="profmgr__editing">{{ editingTitle() }}</span>
-            <span class="profmgr__spacer"></span>
-            <ui-button
-              variant="neutral"
-              size="sm"
-              [disabled]="selected() === ''"
-              (clicked)="rename()"
-            >
+        <!-- Per-item actions + execution line (shown once a profile is picked) -->
+        @if (selected() !== '') {
+          <div class="profmgr__actions">
+            <ui-button variant="neutral" size="sm" (clicked)="rename()">
               {{ 'dialog.env_manager.btn_rename' | t }}
             </ui-button>
-            <ui-button
-              variant="neutral"
-              size="sm"
-              [disabled]="selected() === ''"
-              (clicked)="duplicate()"
-            >
+            <ui-button variant="neutral" size="sm" (clicked)="duplicate()">
               {{ 'dialog.env_manager.btn_duplicate' | t }}
             </ui-button>
-            <ui-button
-              variant="danger"
-              size="sm"
-              [disabled]="selected() === ''"
-              (clicked)="deleteConfig()"
-            >
+            <ui-button variant="danger" size="sm" (clicked)="deleteConfig()">
               {{ 'dialog.env_manager.btn_delete' | t }}
             </ui-button>
           </div>
 
-          <input
-            type="text"
-            class="profmgr__editor"
-            spellcheck="false"
-            [disabled]="selected() === ''"
-            [placeholder]="'dialog.command_profiles.placeholder' | t"
-            [value]="editorText()"
-            (input)="editorText.set($any($event.target).value)"
-          />
-
-          <div class="profmgr__save-row">
-            <ui-button
-              variant="success"
-              [loading]="saving()"
-              [disabled]="selected() === ''"
-              (clicked)="save()"
-            >
-              {{ 'dialog.env_manager.btn_save' | t }}
-            </ui-button>
+          <div class="profmgr__editor-block">
+            <label class="profmgr__editor-label" [for]="editorId">{{ editingTitle() }}</label>
+            <div class="profmgr__editor-row">
+              <input
+                [id]="editorId"
+                type="text"
+                class="profmgr__editor"
+                spellcheck="false"
+                [placeholder]="'dialog.command_profiles.placeholder' | t"
+                [value]="editorText()"
+                (input)="editorText.set($any($event.target).value)"
+                (keydown.enter)="save()"
+              />
+              <ui-button
+                variant="success"
+                size="sm"
+                [loading]="saving()"
+                [disabled]="!dirty()"
+                (clicked)="save()"
+              >
+                {{ 'dialog.env_manager.btn_save' | t }}
+              </ui-button>
+            </div>
           </div>
-        </div>
+        }
       </div>
 
       <div uiDialogFooter>
@@ -128,6 +110,9 @@ export class CommandProfileManagerDialogComponent extends DialogBase {
   private readonly i18n = inject(TranslationService);
   private readonly shell = viewChild.required<DialogShellComponent>('shell');
 
+  /** Stable id linking the editor <label> to its <input>. */
+  protected readonly editorId = 'cmd-profile-editor';
+
   protected readonly profiles = signal<Readonly<Record<string, string>>>({});
   protected readonly selected = signal('');
   protected readonly editorText = signal('');
@@ -142,9 +127,7 @@ export class CommandProfileManagerDialogComponent extends DialogBase {
   );
 
   protected readonly editingTitle = computed(() =>
-    this.selected() === ''
-      ? this.i18n.t('dialog.command_profiles.select_hint')
-      : this.i18n.t('dialog.command_profiles.editing', { name: this.selected() }),
+    this.i18n.t('dialog.command_profiles.editing', { name: this.selected() }),
   );
 
   /** Editor text differs from the stored value (unsaved tracking). */
@@ -274,6 +257,13 @@ export class CommandProfileManagerDialogComponent extends DialogBase {
   private async load(): Promise<void> {
     try {
       this.profiles.set(await this.commands.config.getCommandProfiles(this.repoName()));
+      // Open with the first profile already loaded, so the editor is usable
+      // straight away instead of greyed out waiting for a click.
+      const first = this.names()[0];
+      if (first !== undefined && this.selected() === '') {
+        this.selected.set(first);
+        this.editorText.set(this.profiles()[first] ?? '');
+      }
     } catch (err: unknown) {
       await this.dialogs.error(this.i18n.t('misc.error_title'), describe(err));
     }
