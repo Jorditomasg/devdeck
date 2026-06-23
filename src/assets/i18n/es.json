@@ -547,7 +547,16 @@
     "quit": "Salir",
     "start_selected": "Iniciar seleccionados ({count})",
     "stop_running": "Parar todos corriendo ({count})",
-    "tooltip_running": "DevDeck — {running}/{total} corriendo"
+    "tooltip_running": "DevDeck — {running}/{total} corriendo",
+    "panel": {
+      "summary": "{running}/{total} corriendo",
+      "start_all": "Arrancar todo",
+      "stop_all": "Parar todo",
+      "logs_btn": "Abrir logs",
+      "open_devdeck": "Abrir DevDeck",
+      "close_devdeck": "Cerrar DevDeck",
+      "empty": "Ningún servicio seleccionado"
+    }
   },
   "log": {
     "scanning": "Escaneando workspace...",

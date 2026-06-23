@@ -1,0 +1,112 @@
+// Frameless tray quick-control popup. Fills the webview window
+// (design doc 2026-06-23-tray-panel-design.md).
+:host {
+  display: block;
+  height: 100vh;
+  background: var(--color-app);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+  user-select: none;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 8px;
+  gap: 8px;
+}
+
+.panel__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 4px;
+}
+
+.panel__summary {
+  font-weight: 600;
+  color: var(--color-text-accent-bright);
+}
+
+.panel__profile {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel__bulk {
+  display: flex;
+  gap: 6px;
+
+  ui-button {
+    flex: 1;
+  }
+}
+
+.panel__list {
+  flex: 1;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: var(--geo-border-width) solid var(--color-divider);
+  border-bottom: var(--geo-border-width) solid var(--color-divider);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 4px;
+
+  & + .row {
+    border-top: var(--geo-border-width) solid var(--color-divider);
+  }
+}
+
+.row__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row__port {
+  border: none;
+  background: none;
+  padding: 0 2px;
+  cursor: pointer;
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-accent-bright);
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.row__actions {
+  display: flex;
+  gap: 4px;
+}
+
+.panel__empty {
+  padding: 16px 8px;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.panel__foot {
+  display: flex;
+  gap: 6px;
+
+  ui-button {
+    flex: 1;
+  }
+}

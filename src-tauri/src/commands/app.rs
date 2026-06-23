@@ -61,6 +61,34 @@ pub async fn app_hide_to_tray(app: tauri::AppHandle) -> CmdResult<()> {
     Ok(())
 }
 
+/// `show_main_window {}` (tray-panel "Open DevDeck"): restore + focus the main
+/// window and hide the tray quick-control panel. Mirrors the tray icon's
+/// restore behavior but exposed to the panel webview (which holds no
+/// `core:window:*` perms, so it cannot show/hide windows itself).
+#[tauri::command]
+pub async fn show_main_window(app: tauri::AppHandle) -> CmdResult<()> {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.unminimize();
+        let _ = window.set_focus();
+    }
+    if let Some(panel) = app.get_webview_window("tray-panel") {
+        let _ = panel.hide();
+    }
+    Ok(())
+}
+
+/// `request_quit {}` (tray-panel "Close DevDeck"): routes through the same
+/// confirm-running flow as the tray Quit menu — with active services it
+/// restores the main window and emits `app://close-requested` (the frontend
+/// shows the confirm dialog and answers via `app_exit { force }`); otherwise it
+/// exits. Showing the main window steals focus, so the panel auto-hides.
+#[tauri::command]
+pub async fn request_quit(app: tauri::AppHandle) -> CmdResult<()> {
+    crate::request_quit(&app);
+    Ok(())
+}
+
 /// `open_log_window { serviceId, title }` (lifecycle extension): open (or
 /// focus, when already open) a detached log window for one service — the v1
 /// detached CTkToplevel log (inventory-gui.md §5/§8), now a real OS window.

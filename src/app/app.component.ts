@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { DialogWindowHostComponent } from './features/dialogs/dialog-window-host.component';
 import { LogWindowComponent } from './features/workspace/log-window/log-window.component';
 import { TerminalWindowComponent } from './features/workspace/terminal-window/terminal-window.component';
+import { TrayPanelComponent } from './features/workspace/tray-panel/tray-panel.component';
 import { WorkspacePageComponent } from './features/workspace/workspace-page.component';
 
 /**
@@ -17,6 +18,8 @@ import { WorkspacePageComponent } from './features/workspace/workspace-page.comp
  *   `open_terminal_window` — only the xterm.js terminal (design doc 2026-06-14);
  * - `?dialog=<kind>`: a native dialog window created by `open_dialog_window`
  *   — only the dialog component for `<kind>` (docs/migration/dialogs-as-windows.md).
+ * - `?panel=1`: the frameless tray quick-control popup created on tray
+ *   left-click (docs/superpowers/specs/2026-06-23-tray-panel-design.md).
  *
  * This component stays a thin layout shell: no state, no IPC.
  */
@@ -27,6 +30,7 @@ import { WorkspacePageComponent } from './features/workspace/workspace-page.comp
     DialogWindowHostComponent,
     LogWindowComponent,
     TerminalWindowComponent,
+    TrayPanelComponent,
     WorkspacePageComponent,
   ],
   template: `
@@ -36,6 +40,8 @@ import { WorkspacePageComponent } from './features/workspace/workspace-page.comp
       <log-window />
     } @else if (isDialogWindow) {
       <app-dialog-window-host />
+    } @else if (isTrayPanel) {
+      <tray-panel />
     } @else {
       <workspace-page />
     }
@@ -47,4 +53,5 @@ export class AppComponent {
   protected readonly isLogWindow = this.params.has('log');
   protected readonly isTerminalWindow = this.params.has('terminal');
   protected readonly isDialogWindow = this.params.has('dialog');
+  protected readonly isTrayPanel = this.params.has('panel');
 }
