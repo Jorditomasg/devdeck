@@ -22,6 +22,7 @@ import type {
   ProfileDocument,
   RepoInfo,
   RepoProfile,
+  RepoState,
 } from '../../../core/ipc/tauri.types';
 import { ProfilesStore, normalizeJavaVersion } from '../../../core/state/profiles.store';
 import { ReposStore } from '../../../core/state/repos.store';
@@ -31,6 +32,8 @@ import { PROFILE_DEBOUNCE_MS } from '../workspace.constants';
 export interface CardState {
   /** Batch-selection checkbox (default checked — §3). */
   readonly selected: boolean;
+  /** Manual list position (persisted in `repo_state.order`); `null` = unordered. */
+  readonly order: number | null;
   /** Accordion expanded (persisted in `repo_state.expanded`). */
   readonly expanded: boolean;
   /** Current branch (badge events keep it fresh — §9). */
@@ -59,6 +62,7 @@ export interface CardState {
 
 export const DEFAULT_CARD_STATE: CardState = {
   selected: true,
+  order: null,
   expanded: false,
   branch: '',
   branches: [],
@@ -120,6 +124,10 @@ export class WorkspaceStore {
   >({});
   /** compose file path → parsed service names (per-file totals — §11). */
   private readonly _composeServices = signal<Readonly<Record<string, readonly string[]>>>({});
+  /** Live repo-list search query (ephemeral — never persisted). */
+  private readonly _repoFilter = signal('');
+  /** repo name → origin workspace group, captured at switch time (session). */
+  private readonly _serviceGroups = signal<Readonly<Record<string, string>>>({});
 
   /** v1 `_applying_profile`: suppress per-mutation dirty checks (§26). */
   private applyingProfile = false;
@@ -137,6 +145,47 @@ export class WorkspaceStore {
 
   /** Parsed compose service names per compose file path. */
   readonly composeServices = this._composeServices.asReadonly();
+
+  /** Live repo-list search query (drives the §4 list filter). */
+  readonly repoFilter = this._repoFilter.asReadonly();
+
+  /** repo name → origin workspace group (session map, for the orphan banner). */
+  readonly serviceGroups = this._serviceGroups.asReadonly();
+
+  setRepoFilter(query: string): void {
+    this._repoFilter.set(query);
+  }
+
+  /**
+   * Tag each repo with the workspace group it currently belongs to — called
+   * after every scan so a later switch can name where an orphan came from.
+   */
+  tagServiceGroups(group: string, repoNames: readonly string[]): void {
+    this._serviceGroups.update((map) => {
+      const next = { ...map };
+      for (const name of repoNames) {
+        next[name] = group;
+      }
+      return next;
+    });
+  }
+
+  /** Persist-shape `repo_state` for one card (shared by card + drag reorder). */
+  repoStatePatch(name: string): RepoState {
+    const state = this.card(name);
+    return {
+      selected: state.selected,
+      ...(state.selectedCommandProfile ? { command_profile: state.selectedCommandProfile } : {}),
+      ...(state.javaLabel ? { java_version: state.javaLabel } : {}),
+      expanded: state.expanded,
+      ...(state.order !== null ? { order: state.order } : {}),
+    };
+  }
+
+  /** Set a card's manual list position (UI-only — never marks the profile dirty). */
+  setCardOrder(name: string, order: number): void {
+    this.patchCard(name, { order }, { silent: true });
+  }
 
   constructor(
     private readonly commands: IpcCommands,

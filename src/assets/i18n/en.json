@@ -2,6 +2,9 @@
   "btn": {
     "start": "Start",
     "stop": "Stop",
+    "stop_orphans": "Stop them",
+    "reorder": "Reorder",
+    "reorder_done": "Done",
     "restart": "Restart",
     "pull": "Pull",
     "pull_all": "Pull All",
@@ -28,7 +31,7 @@
     "add_path": "Add Path",
     "remove_path": "Remove",
     "rename": "Rename",
-    "manage_groups": "Manage Groups",
+    "manage_groups": "Manage Environments",
     "add_group": "Add",
     "delete_group": "Delete",
     "accept": "Accept",
@@ -74,7 +77,7 @@
     },
     "ready": "Ready",
     "scanning_status": "Scanning repos...",
-    "group": "Group:",
+    "group": "Environment:",
     "java": "Java:",
     "java_default": "System (Default)",
     "java_recommended": "Recommended: Java {version}",
@@ -85,9 +88,13 @@
     "global_log_section": "Global Log",
     "statusbar_repos": "{count} repos",
     "statusbar_running": "{count} running",
-    "no_repos": "No repositories detected in this workspace"
+    "no_repos": "No repositories detected in this workspace",
+    "no_repos_match": "No repositories match your search",
+    "orphans_running": "{count} service(s) still running in another workspace"
   },
   "tooltip": {
+    "drag_reorder": "Drag to reorder",
+    "reorder_mode": "Toggle drag-to-reorder mode",
     "config_btn": "Edit configuration",
     "pending_pulls": "Commits available to pull from remote (last fetch). Click to pull.",
     "modified_files": "Unstaged / untracked files. Click to see list in log.",
@@ -126,7 +133,7 @@
     "profile_selector": "Select Workspace Profile",
     "manage_profiles": "Manage Profiles",
     "save_profile": "Save the current profile",
-    "manage_groups": "Manage workspace groups and directories",
+    "manage_groups": "Manage environments and directories",
     "modify_config": "Edit this configuration ({name})",
     "danger_env_badge": "Dangerous environment active",
     "seed_btn": "Run the Flyway seed services of this infrastructure",
@@ -228,19 +235,19 @@
       "dont_show_again": "Don't show this again"
     },
     "workspace_groups": {
-      "title": "Workspace Groups",
-      "groups_label": "Groups",
-      "name_label": "Group Name",
-      "name_placeholder": "Enter group name...",
+      "title": "Environments",
+      "groups_label": "Environments",
+      "name_label": "Environment Name",
+      "name_placeholder": "Enter environment name...",
       "paths_label": "Directories",
       "browse_title": "Select workspace directory",
-      "new_group_name": "New Group",
-      "error_empty_paths": "Every group must have at least one directory. Groups with no directories: {names}",
+      "new_group_name": "New Environment",
+      "error_empty_paths": "Every environment must have at least one directory. Environments with no directories: {names}",
       "active_badge": "(active)",
       "btn_set_active": "Set active",
-      "confirm_delete_title": "Delete group",
-      "confirm_delete_msg": "Delete the group '{name}'?",
-      "error_last_group": "Cannot delete the last remaining group."
+      "confirm_delete_title": "Delete environment",
+      "confirm_delete_msg": "Delete the environment '{name}'?",
+      "error_last_group": "Cannot delete the last remaining environment."
     },
     "clone": {
       "title": "Clone Repository",
@@ -675,6 +682,7 @@
   },
   "placeholder": {
     "search": "Search...",
+    "search_repos": "Search repositories...",
     "no_results": "No results",
     "more_items": "+{count} more — refine your search"
   },

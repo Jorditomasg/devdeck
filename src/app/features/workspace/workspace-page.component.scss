@@ -12,6 +12,172 @@
   background-color: transparent;
 }
 
+// Orphan banner — services left running in a workspace we switched away from.
+.page__orphans {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 10px 0;
+  padding: 6px 10px;
+  border: var(--geo-border-width) solid var(--color-warning, #c9922e);
+  border-radius: var(--geo-corner-card);
+  background-color: color-mix(in srgb, var(--color-warning, #c9922e) 12%, transparent);
+  color: var(--color-text-accent);
+  font-size: var(--font-size-md);
+}
+
+.page__orphans-text {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.page__orphans-stop {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  border: var(--geo-border-width) solid var(--color-warning, #c9922e);
+  border-radius: var(--geo-corner-button, 4px);
+  background-color: transparent;
+  color: var(--color-text-accent);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+
+  &:hover {
+    background-color: color-mix(in srgb, var(--color-warning, #c9922e) 22%, transparent);
+  }
+}
+
+// Repo-list toolbar — search + reorder encapsulated in one subtle bar so they
+// read as a single grouped control above the list.
+.page__toolbar {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 10px 2px;
+  padding: 2px 4px 2px 10px;
+  border: var(--geo-border-width) solid var(--color-border-card);
+  border-radius: var(--geo-corner-card);
+  background-color: color-mix(in srgb, var(--color-card) 55%, transparent);
+}
+
+.page__search {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 5px 2px;
+  border: none;
+  background-color: transparent;
+  color: var(--color-text);
+  font-size: var(--font-size-md);
+
+  &:focus {
+    outline: none;
+  }
+
+  &::placeholder {
+    color: var(--color-text-faint);
+  }
+}
+
+.page__search-count {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+}
+
+// Reorder-mode toggle — sits inside the toolbar bar, divided from the search.
+.page__reorder {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  margin-left: 2px;
+  padding: 5px 10px;
+  border: none;
+  border-left: var(--geo-border-width) solid var(--color-divider);
+  border-radius: 0 var(--geo-corner-card) var(--geo-corner-card) 0;
+  background-color: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--color-text);
+    background-color: color-mix(in srgb, var(--color-text) 6%, transparent);
+  }
+
+  &--on {
+    background-color: color-mix(in srgb, var(--color-accent, #4a8) 18%, transparent);
+    color: var(--color-text-accent);
+  }
+}
+
+// Drag slot — a dedicated grip handle keeps the card itself fully interactive
+// (a draggable=true card would block text selection in its log panel).
+.page__slot {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+
+  &--dragging {
+    opacity: 0.4;
+  }
+
+  // Drop-position indicator: an accent line on the side the card will land,
+  // depending on drag direction (before = above the target, after = below).
+  &--drop-before::before,
+  &--drop-after::after {
+    content: '';
+    position: absolute;
+    left: 28px;
+    right: 0;
+    height: 2px;
+    border-radius: 1px;
+    background-color: var(--color-accent, #4a8);
+    box-shadow: 0 0 6px var(--color-accent, #4a8);
+  }
+
+  &--drop-before::before {
+    top: -4px;
+  }
+
+  &--drop-after::after {
+    bottom: -4px;
+  }
+}
+
+.page__slot-card {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.page__grip {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  border-radius: var(--geo-corner-button, 4px);
+  color: var(--color-text-faint);
+  cursor: grab;
+  user-select: none;
+  transition:
+    color 120ms ease-out,
+    background-color 120ms ease-out;
+
+  &:active {
+    cursor: grabbing;
+  }
+
+  &:hover {
+    color: var(--color-text-accent);
+    background-color: color-mix(in srgb, var(--color-text) 8%, transparent);
+  }
+}
+
 // §4 scrollable card list — the only scrolling region of the shell.
 .page__cards {
   display: flex;
