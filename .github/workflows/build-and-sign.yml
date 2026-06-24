@@ -1,14 +1,16 @@
 # =============================================================================
 # DevDeck — Build & Release (Tauri 2 + Angular)
 # =============================================================================
-# Builds the NSIS installer and publishes it as a GitHub Release. The installer
-# is NOT Authenticode-signed (Windows SmartScreen will show "unknown publisher"
+# Builds the Windows NSIS installer AND the Linux bundles (AppImage portable +
+# .deb), then publishes them all in a single GitHub Release. The Windows
+# installer is NOT Authenticode-signed (SmartScreen shows "unknown publisher"
 # the first time) — code signing was removed.
 #
-# The installer IS minisign-signed for the in-app auto-updater: `tauri build`
-# (with createUpdaterArtifacts) emits "<installer>.sig", and the release job
-# publishes a `latest.json` carrying that signature so DevDeck can update itself
-# (the app verifies it against the public key in tauri.conf.json).
+# Every updater-capable artifact IS minisign-signed for the in-app auto-updater:
+# `tauri build` (with createUpdaterArtifacts) emits "<file>.sig", and the release
+# job publishes a `latest.json` carrying both the windows-x86_64 and
+# linux-x86_64 signatures so DevDeck can update itself on each platform (the app
+# verifies them against the public key in tauri.conf.json).
 
 name: Build and Release
 
@@ -106,10 +108,84 @@ jobs:
           if-no-files-found: error
 
   # ---------------------------------------------------------------------------
-  # Publish the installer + latest.json (updater manifest) as a GitHub Release.
+  # Build the Linux bundles: AppImage (portable, no installer) + .deb.
+  # Pinned to ubuntu-22.04 — AppImage/glibc built on a newer runner refuses to
+  # run on older distros. bundle.targets in tauri.conf.json also lists these,
+  # but --bundles makes this job deterministic regardless of host filtering.
+  # ---------------------------------------------------------------------------
+  build-linux:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node LTS
+        uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Setup Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      # Tauri 2 Linux system deps: webkit2gtk (webview), ayatana-appindicator
+      # (tray — the only working tray backend on Linux), librsvg (icons),
+      # patchelf (AppImage bundling).
+      - name: Install Linux system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libxdo-dev \
+            libssl-dev \
+            patchelf \
+            build-essential \
+            file wget
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      # Frontend tests already run in the Windows `build` job — not repeated.
+      - name: Build Angular frontend
+        run: npm run build
+
+      # AppImage + deb. The signing key signs the AppImage for the in-app
+      # updater (createUpdaterArtifacts emits "<file>.AppImage.sig").
+      - name: Build Tauri app (AppImage + deb)
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ''
+        run: npm run tauri build -- --bundles appimage,deb
+
+      - name: Verify bundles exist
+        run: |
+          set -euo pipefail
+          ls -lh src-tauri/target/release/bundle/appimage/*.AppImage
+          ls -lh src-tauri/target/release/bundle/deb/*.deb
+
+      - name: Upload Linux bundles + AppImage signature
+        uses: actions/upload-artifact@v6
+        with:
+          name: devdeck-linux
+          path: |
+            src-tauri/target/release/bundle/appimage/*.AppImage
+            src-tauri/target/release/bundle/appimage/*.AppImage.sig
+            src-tauri/target/release/bundle/deb/*.deb
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # Publish the installers + latest.json (updater manifest) as a GitHub Release.
   # ---------------------------------------------------------------------------
   release:
-    needs: build
+    needs: [build, build-linux]
     runs-on: ubuntu-latest
     permissions:
       contents: write # create the GitHub Release
@@ -117,10 +193,16 @@ jobs:
     steps:
       - uses: actions/checkout@v5 # for CHANGELOG.md (release notes)
 
-      - name: Download installer artifact
+      - name: Download Windows installer artifact
         uses: actions/download-artifact@v7
         with:
           name: devdeck-installer
+          path: dist
+
+      - name: Download Linux bundles artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: devdeck-linux
           path: dist
 
       - name: Generate latest.json (updater manifest)
@@ -128,11 +210,19 @@ jobs:
           REF_NAME: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || inputs.release-tag }}
         run: |
           set -euo pipefail
-          INSTALLER=$(ls dist/*-setup.exe | head -n1)
+          BASE="https://github.com/${GITHUB_REPOSITORY}/releases/download/${REF_NAME}"
           VERSION="${REF_NAME#v}"
 
-          # Minisign signature emitted by `tauri build` (createUpdaterArtifacts).
-          SIGNATURE=$(cat "$INSTALLER.sig")
+          # Windows: NSIS installer + its minisign sig (createUpdaterArtifacts).
+          INSTALLER=$(ls dist/*-setup.exe | head -n1)
+          WIN_SIG=$(cat "$INSTALLER.sig")
+          WIN_URL="$BASE/$(basename "$INSTALLER")"
+
+          # Linux: AppImage + its sig. Release assets are flat, so the updater
+          # URL is the AppImage basename regardless of the nested artifact path.
+          APPIMAGE=$(find dist -name '*.AppImage' | head -n1)
+          LINUX_SIG=$(cat "$APPIMAGE.sig")
+          LINUX_URL="$BASE/$(basename "$APPIMAGE")"
 
           # Release notes = this version's CHANGELOG.md section.
           NOTES=$(awk -v ver="$VERSION" '
@@ -144,16 +234,19 @@ jobs:
           # Same notes feed the GitHub Release body (softprops body_path below).
           printf '%s\n' "$NOTES" > dist/release-notes.md
 
-          ASSET="https://github.com/${GITHUB_REPOSITORY}/releases/download/${REF_NAME}/$(basename "$INSTALLER")"
-
           jq -n \
             --arg version "$VERSION" \
             --arg notes "$NOTES" \
             --arg pub_date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-            --arg signature "$SIGNATURE" \
-            --arg url "$ASSET" \
+            --arg win_sig "$WIN_SIG" \
+            --arg win_url "$WIN_URL" \
+            --arg linux_sig "$LINUX_SIG" \
+            --arg linux_url "$LINUX_URL" \
             '{version:$version, notes:$notes, pub_date:$pub_date,
-              platforms:{"windows-x86_64":{signature:$signature, url:$url}}}' \
+              platforms:{
+                "windows-x86_64":{signature:$win_sig, url:$win_url},
+                "linux-x86_64":{signature:$linux_sig, url:$linux_url}
+              }}' \
             > dist/latest.json
 
           echo "Generated latest.json for $VERSION"
@@ -170,5 +263,7 @@ jobs:
           body_path: dist/release-notes.md
           files: |
             dist/*-setup.exe
+            dist/**/*.AppImage
+            dist/**/*.deb
             dist/latest.json
           fail_on_unmatched_files: true

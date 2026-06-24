@@ -457,6 +457,34 @@ fn build_tray(
             }
             _ => {}
         });
+    // Linux (libayatana-appindicator) does NOT emit tray click events — the
+    // panel-on-click UX above is dead there. Attach a native menu instead so
+    // the window can always be restored and the app quit (the only platform
+    // where the custom panel is unreachable). Windows/macOS keep the panel.
+    #[cfg(target_os = "linux")]
+    {
+        use tauri::menu::{MenuBuilder, MenuItemBuilder};
+        let (show_label, quit_label) = crate::state::tray_menu_labels(tray.is_spanish());
+        let show = MenuItemBuilder::with_id("tray-show", show_label).build(app)?;
+        let quit = MenuItemBuilder::with_id("tray-quit", quit_label).build(app)?;
+        let menu = MenuBuilder::new(app).items(&[&show, &quit]).build()?;
+        builder = builder
+            .menu(&menu)
+            .show_menu_on_left_click(true)
+            .on_menu_event(|app, event| match event.id().as_ref() {
+                "tray-show" => {
+                    if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
+                        if window.is_visible().unwrap_or(false) {
+                            let _ = window.hide();
+                        } else {
+                            show_window(&window);
+                        }
+                    }
+                }
+                "tray-quit" => request_quit(app),
+                _ => {}
+            });
+    }
     if let Some(icon) = app.default_window_icon() {
         builder = builder.icon(icon.clone());
     }

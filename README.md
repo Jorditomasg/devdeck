@@ -19,27 +19,54 @@ more juggling a dozen terminals.
   points), stash and switch branches without leaving the app.
 - **Docker Compose** — bring a repo's compose services up or down and watch their status.
 - **Interactive terminals** — open a real PTY terminal scoped to any repository.
-- **Profiles** — snapshot your whole setup (selected branches, env files, which services are
-  running) and restore or share it later.
+- **Command profiles per repo** — save several named launch configurations for a service
+  (different args, env or start commands) and switch between them on the fly.
+- **Workspace profiles** — snapshot your whole setup (selected branches, env files, which
+  services are running) and restore or share it later.
+- **Multiple environments** — group your repos into environments and switch between them; a
+  banner warns you if services are still running in the one you left.
+- **Find and arrange** — a live search box filters the repository list by name, and you can
+  drag cards into a custom order that's remembered between sessions.
+- **Theming** — pick a color palette (Indigo, Slate, Emerald, Crimson, Rose or Light) and a
+  background pattern; the whole UI, including action buttons, adopts it instantly.
+- **System tray** — close to tray and reopen from a quick-control panel (Windows/macOS) or a
+  native tray menu (Linux).
 - **Config-driven detection** — repository types are described by YAML. Adding support for a
   new framework is a new YAML file, not a new build. Recognised out of the box:
   Spring Boot, Angular, React, Nx workspace, Maven library, Go, Rust, Python,
   Laravel, CodeIgniter, and Docker Compose infra.
+- **Cross-platform** — native builds for Windows and Linux.
 - **Bilingual UI** — English and Spanish.
 
 ## Install
 
-You don't need to build anything — just download the installer and run it.
+You don't need to build anything — grab the right file for your OS from the
+[Releases page](https://github.com/Jorditomasg/devdeck/releases) and run it.
 
-1. **Download** the latest `DevDeck_<version>_x64-setup.exe` from the
-   [Releases page](https://github.com/Jorditomasg/devdeck/releases).
-2. **Run it.** The installer isn't code-signed, so Windows SmartScreen may warn about an
-   "unknown publisher" — click **More info → Run anyway** to continue.
-3. **Launch DevDeck** and, on first run, **pick your workspace folder** — the directory that
-   holds your project repositories.
+**Windows**
+
+1. Download `DevDeck_<version>_x64-setup.exe` and run it. The installer isn't code-signed, so
+   Windows SmartScreen may warn about an "unknown publisher" — click **More info → Run anyway**.
+
+**Linux**
+
+- **Portable (no install):** download `DevDeck_<version>_amd64.AppImage`, make it executable
+  and run it:
+  ```bash
+  chmod +x DevDeck_*_amd64.AppImage
+  ./DevDeck_*_amd64.AppImage
+  ```
+- **Debian / Ubuntu:** install the `.deb`:
+  ```bash
+  sudo apt install ./DevDeck_*_amd64.deb
+  ```
+
+On **first run**, pick your workspace folder — the directory that holds your project
+repositories.
 
 DevDeck updates itself: when a new version is released, the app detects it and installs the
-update from within DevDeck — no need to re-download manually.
+update from within DevDeck — no manual re-download. (Self-update covers the Windows installer
+and the Linux AppImage; `.deb` installs update by re-downloading the package.)
 
 DevDeck scans the folder and shows one **card per repository**. From each card you can start,
 stop and restart the service, open a live log window, run git operations, bring Docker Compose
