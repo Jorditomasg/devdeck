@@ -5,6 +5,32 @@ All notable changes to DevDeck are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] - 2026-06-24
+
+### Added
+- Live search box to filter the repository list by name.
+- Manual drag-to-reorder for repositories (enabled via a toggle); your custom
+  order is remembered between sessions.
+- A banner that warns when services are still left running in another
+  environment after you switch.
+
+### Changed
+- Action buttons (clone, pull, branches, stash, merge, clean, log actions and
+  the colored dialog buttons) now adopt the colors of the active theme palette
+  instead of always appearing blue or purple.
+- Selected repositories are now visually accented while unselected ones are
+  dimmed, making the active selection clearer.
+- The repository list now refreshes automatically when the active environment's
+  folders change.
+- "Group" is now called "Environment" throughout the app (English and Spanish).
+- The command profile manager dialog now opens at a larger, more usable size.
+
+### Fixed
+- Branch operation messages now appear in the correct order, interleaved with
+  the live git output.
+- Imported command profiles are now saved immediately on import instead of only
+  after the next change.
+
 ## [2.0.0] - 2026-06-24
 
 ### Added
