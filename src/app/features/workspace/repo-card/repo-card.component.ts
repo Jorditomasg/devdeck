@@ -71,8 +71,9 @@ export function formatCardLine(entry: LogLine): string {
   imports: [CardExpandComponent, CardHeaderComponent, CardLogComponent],
   styleUrl: './repo-card.component.scss',
   host: {
-    // §accent: deselected repos dim so the marked set stands out (CSS-only).
-    '[class.card--dimmed]': '!state().selected',
+    // §accent: deselected repos recede so the marked set stands out — but a
+    // running repo stays accented even when unmarked (CSS-only).
+    '[class.card--dimmed]': '!state().selected && status() !== "running"',
   },
   template: `
     <app-card-header

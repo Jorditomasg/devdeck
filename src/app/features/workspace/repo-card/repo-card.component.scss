@@ -20,8 +20,9 @@
 
   // Unmarked (deselected) repos recede: marked ones read as the focus set.
   // Hover restores full presence so they stay fully operable.
+  // Light touch — they should fade back, not read as disabled.
   &.card--dimmed {
-    opacity: 0.5;
+    opacity: 0.72;
     transition:
       box-shadow 150ms ease-out,
       border-color 150ms ease-out,
