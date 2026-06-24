@@ -32,7 +32,7 @@ import {
   pageSlice,
 } from '../../../ui';
 import { DialogBase } from '../dialog-base';
-import { validateBranchName } from './branch.logic';
+import { mergeLog, validateBranchName } from './branch.logic';
 
 /** Rows shown per page in the branch table. */
 const PAGE_SIZE = 15;
@@ -217,8 +217,12 @@ export class BranchDialogComponent extends DialogBase {
   protected readonly checkoutAfter = signal(true);
   protected readonly busy = signal(false);
   protected readonly createError = signal('');
-  /** Local result notices, appended below the streamed git lines (like merge). */
-  private readonly extraLog = signal<readonly string[]>([]);
+  /**
+   * Local result notices, each anchored to the number of streamed git lines
+   * present when it was appended, so a burst of ops interleaves 1-to-1 with
+   * the git stream instead of all-lines-then-all-notices.
+   */
+  private readonly extraLog = signal<readonly { at: number; line: string }[]>([]);
   /** Length of the repo's git log when the dialog opened — show only newer lines. */
   private logBaseline = 0;
 
@@ -228,15 +232,19 @@ export class BranchDialogComponent extends DialogBase {
   /** Branches on the current page (clamped). */
   protected readonly visible = computed(() => pageSlice(this.branches(), this.page(), PAGE_SIZE));
 
-  /** Dialog log = git-stream lines since the dialog opened + local notices. */
-  protected readonly logLines = computed<readonly string[]>(() => {
-    const streamed = this.services
+  /** Git-stream lines since the dialog opened (the live op output). */
+  private readonly streamedGit = computed<readonly string[]>(() =>
+    this.services
       .logsFor(this.repoName())()
       .slice(this.logBaseline)
       .filter((l) => l.stream === 'git')
-      .map((l) => l.line);
-    return [...streamed, ...this.extraLog()];
-  });
+      .map((l) => l.line),
+  );
+
+  /** Dialog log = git-stream lines interleaved with local notices, in order. */
+  protected readonly logLines = computed<readonly string[]>(() =>
+    mergeLog(this.streamedGit(), this.extraLog()),
+  );
 
   constructor() {
     super();
@@ -426,7 +434,8 @@ export class BranchDialogComponent extends DialogBase {
   }
 
   private appendLog(line: string): void {
-    this.extraLog.update((lines) => [...lines, line]);
+    const at = this.streamedGit().length;
+    this.extraLog.update((lines) => [...lines, { at, line }]);
   }
 }
 
