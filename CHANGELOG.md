@@ -5,6 +5,18 @@ All notable changes to DevDeck are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.2] - 2026-06-24
+
+### Added
+- Linux builds: portable AppImage and `.deb` package, with a native system
+  tray menu.
+
+### Fixed
+- A running repository now stays highlighted even when it isn't selected, and
+  unselected repositories fade more gently instead of looking disabled.
+- While dragging to reorder, the dragged repository always shows as collapsed,
+  even if its panel was expanded.
+
 ## [2.0.1] - 2026-06-24
 
 ### Added
