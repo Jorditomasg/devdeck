@@ -257,23 +257,28 @@ export class WorkspacePageComponent {
   // -- drag reorder (§order) ----------------------------------------------------
 
   /**
-   * Start drag: set the ghost to the CARD (not the tiny grip icon), aligned
-   * under the cursor where it was grabbed, so it's obvious what's moving.
+   * Start drag: set the ghost to the card HEADER (not the tiny grip icon, nor
+   * the whole card) so an expanded card still drags as a closed one, aligned
+   * under the cursor where it was grabbed.
    */
   protected onDragStart(e: DragEvent, i: number): void {
     if (!this.dragEnabled()) {
       return;
     }
     this.dragIndex.set(i);
-    const card = (e.target as HTMLElement)
+    const header = (e.target as HTMLElement)
       .closest('.page__slot')
-      ?.querySelector('.page__slot-card') as HTMLElement | null;
+      ?.querySelector('app-card-header') as HTMLElement | null;
     if (e.dataTransfer) {
       e.dataTransfer.effectAllowed = 'move';
       e.dataTransfer.setData('text/plain', String(i)); // some browsers need data set
-      if (card) {
-        const r = card.getBoundingClientRect();
-        e.dataTransfer.setDragImage(card, e.clientX - r.left, e.clientY - r.top);
+      if (header) {
+        const r = header.getBoundingClientRect();
+        e.dataTransfer.setDragImage(
+          header,
+          e.clientX - r.left,
+          Math.max(0, Math.min(e.clientY - r.top, r.height)),
+        );
       }
     }
   }
