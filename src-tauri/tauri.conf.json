@@ -44,7 +44,7 @@
     },
     "windows": {
       "nsis": {
-        "installMode": "perMachine"
+        "installMode": "currentUser"
       }
     }
   },
