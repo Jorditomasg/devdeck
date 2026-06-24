@@ -70,6 +70,10 @@ export function formatCardLine(entry: LogLine): string {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CardExpandComponent, CardHeaderComponent, CardLogComponent],
   styleUrl: './repo-card.component.scss',
+  host: {
+    // §accent: deselected repos dim so the marked set stands out (CSS-only).
+    '[class.card--dimmed]': '!state().selected',
+  },
   template: `
     <app-card-header
       [name]="repo().name"
@@ -740,16 +744,8 @@ export class RepoCardComponent {
 
   /** Persist the `repo_state` (§34). */
   private persistRepoState(): Promise<void> {
-    const state = this.state();
     return this.settings
-      .setRepoState(this.repo().name, {
-        selected: state.selected,
-        ...(state.selectedCommandProfile
-          ? { command_profile: state.selectedCommandProfile }
-          : {}),
-        ...(state.javaLabel ? { java_version: state.javaLabel } : {}),
-        expanded: state.expanded,
-      })
+      .setRepoState(this.repo().name, this.ws.repoStatePatch(this.repo().name))
       .catch(() => undefined);
   }
 }

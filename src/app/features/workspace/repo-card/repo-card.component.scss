@@ -17,6 +17,20 @@
     border-color: var(--color-border-default);
     box-shadow: 0 4px 14px rgb(0 0 0 / 40%);
   }
+
+  // Unmarked (deselected) repos recede: marked ones read as the focus set.
+  // Hover restores full presence so they stay fully operable.
+  &.card--dimmed {
+    opacity: 0.5;
+    transition:
+      box-shadow 150ms ease-out,
+      border-color 150ms ease-out,
+      opacity 150ms ease-out;
+
+    &:hover {
+      opacity: 1;
+    }
+  }
 }
 
 // Smooth expand/collapse: grid-rows 0fr→1fr animates to the natural height

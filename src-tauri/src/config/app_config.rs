@@ -138,6 +138,10 @@ pub struct RepoState {
     /// Card expanded state (older v1 entries lack it).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub expanded: Option<bool>,
+    /// Manual list position (v2). Fractional so a drag reorder persists ONE
+    /// repo; `None` = unordered → sorts by the alphabetical baseline.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub order: Option<f64>,
     /// Lossless passthrough of unknown keys.
     #[serde(flatten)]
     pub extra: serde_json::Map<String, serde_json::Value>,

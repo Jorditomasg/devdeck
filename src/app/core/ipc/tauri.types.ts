@@ -356,6 +356,8 @@ export interface RepoState {
   /** Selected JDK display label; absent = system default (sentinel normalized). */
   readonly java_version?: string;
   readonly expanded?: boolean;
+  /** Manual list position (v2, fractional); absent = unordered (alphabetical). */
+  readonly order?: number;
 }
 
 /** v2 persisted window state (camelCase — a v2 addition, not a v1 key). */

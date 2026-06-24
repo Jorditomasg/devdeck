@@ -2,6 +2,9 @@
   "btn": {
     "start": "Iniciar",
     "stop": "Detener",
+    "stop_orphans": "Detenerlos",
+    "reorder": "Reordenar",
+    "reorder_done": "Listo",
     "restart": "Reiniciar",
     "pull": "Pull",
     "pull_all": "Pull All",
@@ -28,7 +31,7 @@
     "add_path": "Añadir ruta",
     "remove_path": "Eliminar",
     "rename": "Renombrar",
-    "manage_groups": "Gestionar grupos",
+    "manage_groups": "Gestionar entornos",
     "add_group": "Añadir",
     "delete_group": "Eliminar",
     "accept": "Aceptar",
@@ -74,7 +77,7 @@
     },
     "ready": "Listo",
     "scanning_status": "Escaneando repos...",
-    "group": "Grupo:",
+    "group": "Entorno:",
     "java": "Java:",
     "java_default": "Sistema (Por Defecto)",
     "java_recommended": "Recomendado: Java {version}",
@@ -85,9 +88,13 @@
     "global_log_section": "Log Global",
     "statusbar_repos": "{count} repos",
     "statusbar_running": "{count} en ejecución",
-    "no_repos": "No se detectaron repositorios en este workspace"
+    "no_repos": "No se detectaron repositorios en este workspace",
+    "no_repos_match": "Ningún repositorio coincide con la búsqueda",
+    "orphans_running": "{count} servicio(s) siguen activos en otro workspace"
   },
   "tooltip": {
+    "drag_reorder": "Arrastrar para reordenar",
+    "reorder_mode": "Activar/desactivar modo reordenar",
     "config_btn": "Editar configuración",
     "pending_pulls": "Commits disponibles para pull desde el remoto (último fetch). Clic para hacer pull.",
     "modified_files": "Ficheros sin stagear / sin seguimiento. Clic para ver la lista en el log.",
@@ -126,7 +133,7 @@
     "profile_selector": "Seleccionar Perfil de Workspace",
     "manage_profiles": "Gestionar Perfiles",
     "save_profile": "Guardar el perfil actual",
-    "manage_groups": "Gestionar grupos y directorios de workspace",
+    "manage_groups": "Gestionar entornos y directorios",
     "modify_config": "Modificar esta configuración ({name})",
     "danger_env_badge": "Entorno peligroso activo",
     "seed_btn": "Ejecutar los servicios seed de Flyway de esta infraestructura",
@@ -228,19 +235,19 @@
       "dont_show_again": "No volver a mostrar"
     },
     "workspace_groups": {
-      "title": "Grupos de Workspace",
-      "groups_label": "Grupos",
-      "name_label": "Nombre del grupo",
+      "title": "Entornos",
+      "groups_label": "Entornos",
+      "name_label": "Nombre del entorno",
       "name_placeholder": "Introduce un nombre...",
       "paths_label": "Directorios",
       "browse_title": "Selecciona directorio de workspace",
-      "new_group_name": "Nuevo Grupo",
-      "error_empty_paths": "Cada grupo debe tener al menos un directorio. Grupos sin directorios: {names}",
+      "new_group_name": "Nuevo Entorno",
+      "error_empty_paths": "Cada entorno debe tener al menos un directorio. Entornos sin directorios: {names}",
       "active_badge": "(activo)",
       "btn_set_active": "Marcar activo",
-      "confirm_delete_title": "Eliminar grupo",
-      "confirm_delete_msg": "¿Eliminar el grupo '{name}'?",
-      "error_last_group": "No se puede eliminar el último grupo."
+      "confirm_delete_title": "Eliminar entorno",
+      "confirm_delete_msg": "¿Eliminar el entorno '{name}'?",
+      "error_last_group": "No se puede eliminar el último entorno."
     },
     "clone": {
       "title": "Clonar Repositorio",
@@ -675,6 +682,7 @@
   },
   "placeholder": {
     "search": "Buscar...",
+    "search_repos": "Buscar repositorios...",
     "no_results": "Sin resultados",
     "more_items": "+{count} más — refiná la búsqueda"
   },
