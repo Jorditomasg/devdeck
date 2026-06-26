@@ -100,3 +100,9 @@ Windows installers will be signed with it. See the
 ## License
 
 DevDeck is released under the [MIT License](LICENSE).
+
+---
+
+[![Latest release](https://img.shields.io/github/v/release/Jorditomasg/devdeck)](https://github.com/Jorditomasg/devdeck/releases)
+[![Downloads](https://img.shields.io/github/downloads/Jorditomasg/devdeck/total)](https://github.com/Jorditomasg/devdeck/releases)
+![Platforms](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-lightgrey)
