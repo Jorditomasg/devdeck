@@ -2,6 +2,8 @@
 
 **Your whole local dev environment, in one window.**
 
+![DevDeck — control panel showing detected repositories with start/stop, git and Docker controls](docs/screenshot.png)
+
 DevDeck is a desktop app that turns a folder full of repositories into a control panel. Point
 it at your workspace and it figures out what each repo is (Spring Boot, Angular, React, Nx,
 Maven, Docker Compose, …) and gives you a card for each one with **start / stop / configure**
@@ -90,8 +92,10 @@ definition, a new id adds a type) — no code changes, no rebuild.
 
 ## Code signing
 
-The Windows installer is digitally signed. See the [Code Signing Policy](docs/code-signing.md)
-for details on how releases are signed and verified.
+DevDeck has applied to the [SignPath Foundation](https://signpath.org) free
+code-signing program for open source projects. Once the certificate is issued,
+Windows installers will be signed with it. See the
+[Code Signing Policy](docs/code-signing.md).
 
 ## License
 
