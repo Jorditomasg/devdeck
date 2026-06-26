@@ -2,9 +2,14 @@
 # DevDeck — Build & Release (Tauri 2 + Angular)
 # =============================================================================
 # Builds the Windows NSIS installer AND the Linux bundles (AppImage portable +
-# .deb), then publishes them all in a single GitHub Release. The Windows
-# installer is NOT Authenticode-signed (SmartScreen shows "unknown publisher"
-# the first time) — code signing was removed.
+# .deb), then publishes them all in a single GitHub Release.
+#
+# The Windows installer IS Authenticode-signed via SignPath (free OSS program):
+# the unsigned installer is uploaded as a workflow artifact, submitted to
+# SignPath (origin-verified against this repo) and the SIGNED exe comes back.
+# Because Authenticode rewrites the exe bytes, the updater's minisign signature
+# is RE-GENERATED over the SIGNED exe afterwards — otherwise the in-app
+# auto-updater would reject the download (sig over the old, unsigned bytes).
 #
 # Every updater-capable artifact IS minisign-signed for the in-app auto-updater:
 # `tauri build` (with createUpdaterArtifacts) emits "<file>.sig", and the release
@@ -43,6 +48,9 @@ jobs:
   # ---------------------------------------------------------------------------
   build:
     runs-on: windows-latest
+    permissions:
+      contents: read
+      actions: read # SignPath downloads the uploaded artifact via the Actions API
     defaults:
       run:
         shell: pwsh
@@ -97,14 +105,60 @@ jobs:
           if (-not $installer) { throw 'NSIS installer not found under src-tauri/target/release/bundle/nsis/' }
           Write-Host "Installer: $($installer.Name) ($([math]::Round($installer.Length / 1MB, 1)) MB)"
 
-      # Upload the installer AND its minisign signature for the release job.
-      - name: Upload installer + signature
+      # --- Authenticode signing via SignPath (free OSS program) -------------
+      # MUST sign BEFORE regenerating the updater (minisign) signature, because
+      # Authenticode rewrites the exe bytes. Order: sign -> minisign.
+
+      # Stage the UNSIGNED installer; SignPath needs it as a GitHub artifact so
+      # it can origin-verify that the binary came from this very workflow run.
+      - name: Stage unsigned installer
+        run: |
+          New-Item -ItemType Directory -Force -Path unsigned | Out-Null
+          Copy-Item 'src-tauri/target/release/bundle/nsis/*-setup.exe' unsigned/
+
+      - name: Upload unsigned installer (for SignPath origin verification)
+        id: upload-unsigned
+        uses: actions/upload-artifact@v6
+        with:
+          name: devdeck-installer-unsigned
+          path: unsigned/*-setup.exe
+          if-no-files-found: error
+
+      # Submits the artifact to SignPath, waits for the signed result and writes
+      # the SIGNED installer into ./signed. The release-signing policy has 0
+      # required approvals, so this completes unattended (free OSS program).
+      - name: Authenticode-sign installer (SignPath)
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: '566b6bce-16ea-4c67-80a2-1654b3efdef4'
+          project-slug: devdeck
+          signing-policy-slug: release-signing
+          artifact-configuration-slug: initial
+          github-artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: signed
+
+      # Authenticode changed the bytes, so the minisign sig from `tauri build`
+      # is now stale. Regenerate it over the SIGNED exe or the in-app updater
+      # will reject the download.
+      - name: Re-generate updater signature over the signed installer
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ''
+        run: |
+          $exe = Get-ChildItem 'signed/*-setup.exe' | Select-Object -First 1
+          if (-not $exe) { throw 'Signed installer not found under signed/' }
+          npx tauri signer sign --private-key "$env:TAURI_SIGNING_PRIVATE_KEY" --password "" "$($exe.FullName)"
+
+      # Upload the SIGNED installer + its regenerated minisign sig for release.
+      - name: Upload signed installer + signature
         uses: actions/upload-artifact@v6
         with:
           name: devdeck-installer
           path: |
-            src-tauri/target/release/bundle/nsis/*-setup.exe
-            src-tauri/target/release/bundle/nsis/*-setup.exe.sig
+            signed/*-setup.exe
+            signed/*-setup.exe.sig
           if-no-files-found: error
 
   # ---------------------------------------------------------------------------
