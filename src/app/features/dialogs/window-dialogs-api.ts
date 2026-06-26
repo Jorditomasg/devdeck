@@ -154,8 +154,8 @@ export class WindowDialogsApi implements DialogsApi {
   openDockerCompose(repoName: string, composeFile?: string): void {
     this.openKind('docker-compose', { repoName, composeFile: composeFile ?? '' });
   }
-  openRepoConfigManager(repoName: string): void {
-    this.openKind('repo-config-manager', { repoName });
+  openRepoConfigManager(repoName: string): Promise<unknown> {
+    return this.openKindForResult('repo-config-manager', { repoName }, null);
   }
   openCommandProfileManager(repoName: string): Promise<unknown> {
     return this.openKindForResult('command-profile-manager', { repoName }, null);

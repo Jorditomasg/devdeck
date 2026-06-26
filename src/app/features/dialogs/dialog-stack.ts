@@ -45,7 +45,8 @@ export interface DialogsApi {
   openStash(repoName: string): void;
   openBranches(repoName: string): void;
   openDockerCompose(repoName: string, composeFile?: string): void;
-  openRepoConfigManager(repoName: string): void;
+  /** Per-repo saved environments / app configs manager. Resolves when the window closes. */
+  openRepoConfigManager(repoName: string): Promise<unknown>;
   /** Per-repo start-command profiles manager. Resolves when the window closes. */
   openCommandProfileManager(repoName: string): Promise<unknown>;
   openConfigEditor(repoName: string, filePath: string): void;
