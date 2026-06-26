@@ -87,3 +87,12 @@ or reinstalling never touches your data.
 Drop a repo-type YAML file into the **overrides** dir to add or replace a detection rule: the
 files there are merged over the bundled set by `type` id (same id replaces a bundled
 definition, a new id adds a type) — no code changes, no rebuild.
+
+## Code signing
+
+The Windows installer is digitally signed. See the [Code Signing Policy](docs/code-signing.md)
+for details on how releases are signed and verified.
+
+## License
+
+DevDeck is released under the [MIT License](LICENSE).
