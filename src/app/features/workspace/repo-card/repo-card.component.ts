@@ -642,9 +642,15 @@ export class RepoCardComponent {
     for (const module of repo.modules) {
       void this.actions
         .loadEnvironmentNames(repo, module.key)
-        .then((names) =>
-          this.envOptions.update((all) => ({ ...all, [module.key]: names })),
-        )
+        .then((names) => {
+          this.envOptions.update((all) => ({ ...all, [module.key]: names }));
+          // A deleted/renamed config that was selected no longer exists →
+          // clear the stale selection so the combo falls back to "no selection".
+          const selected = this.ws.card(repo.name).configValues[module.key];
+          if (selected && !names.includes(selected)) {
+            void this.actions.applyConfigSelection(repo, module.key, '');
+          }
+        })
         .catch(() => undefined);
     }
   }
