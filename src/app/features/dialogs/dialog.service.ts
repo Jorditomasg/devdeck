@@ -105,9 +105,9 @@ export class DialogService implements DialogsApi {
     this.openKind('docker-compose', { repoName, composeFile: composeFile ?? '' });
   }
 
-  /** Per-repo saved environments / app configs manager (§23). */
-  openRepoConfigManager(repoName: string): void {
-    this.openKind('repo-config-manager', { repoName });
+  /** Per-repo saved environments / app configs manager (§23). Resolves when the window closes. */
+  openRepoConfigManager(repoName: string): Promise<unknown> {
+    return this.openKindForResult('repo-config-manager', { repoName }, null);
   }
 
   /** Per-repo start-command profiles manager. Resolves when the window closes. */

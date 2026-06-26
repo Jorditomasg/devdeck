@@ -632,8 +632,18 @@ export class RepoCardComponent {
     void this.actions.applyConfigSelection(this.repo(), event.moduleKey, name);
   }
 
-  protected onOpenConfigManager(_moduleKey: string): void {
-    this.dialogs.openRepoConfigManager(this.repo().name);
+  protected async onOpenConfigManager(_moduleKey: string): Promise<void> {
+    const repo = this.repo();
+    await this.dialogs.openRepoConfigManager(repo.name);
+    // Manager closed → reload the combo names (it may have added/renamed/deleted).
+    for (const module of repo.modules) {
+      void this.actions
+        .loadEnvironmentNames(repo, module.key)
+        .then((names) =>
+          this.envOptions.update((all) => ({ ...all, [module.key]: names })),
+        )
+        .catch(() => undefined);
+    }
   }
 
   protected onModuleTracked(event: { moduleKey: string; tracked: boolean }): void {
