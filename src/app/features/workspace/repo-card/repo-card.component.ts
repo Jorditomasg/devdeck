@@ -487,6 +487,9 @@ export class RepoCardComponent {
   }
 
   protected onToggleExpand(): void {
+    if (this.ws.reorderMode()) {
+      return; // reorder mode keeps the list collapsed for dragging
+    }
     const expanded = !this.state().expanded;
     this.ws.patchCard(this.repo().name, { expanded }, { silent: true });
     void this.persistRepoState();

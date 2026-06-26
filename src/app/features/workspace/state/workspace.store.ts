@@ -126,6 +126,8 @@ export class WorkspaceStore {
   private readonly _composeServices = signal<Readonly<Record<string, readonly string[]>>>({});
   /** Live repo-list search query (ephemeral — never persisted). */
   private readonly _repoFilter = signal('');
+  /** Drag-reorder mode (ephemeral): collapses cards on entry, gates expand. */
+  private readonly _reorderMode = signal(false);
   /** repo name → origin workspace group, captured at switch time (session). */
   private readonly _serviceGroups = signal<Readonly<Record<string, string>>>({});
 
@@ -154,6 +156,25 @@ export class WorkspaceStore {
 
   setRepoFilter(query: string): void {
     this._repoFilter.set(query);
+  }
+
+  /** True while drag-reorder mode is active (gates card expansion). */
+  readonly reorderMode = this._reorderMode.asReadonly();
+
+  /**
+   * Toggle reorder mode. Entering it collapses EVERY card so the list is a
+   * compact set of headers to drag — and `reorderMode` then blocks re-expanding
+   * (UI-only; `expanded` is silent so no profile dirty check fires).
+   */
+  setReorderMode(on: boolean): void {
+    this._reorderMode.set(on);
+    if (on) {
+      this._cards.update((cards) =>
+        Object.fromEntries(
+          Object.entries(cards).map(([name, card]) => [name, { ...card, expanded: false }]),
+        ),
+      );
+    }
   }
 
   /**
