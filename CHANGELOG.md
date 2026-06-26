@@ -5,6 +5,22 @@ All notable changes to DevDeck are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.4] - 2026-06-26
+
+### Fixed
+- Deleting or renaming a start configuration now clears it from the repo's
+  selector when it was the active one, instead of leaving a stale entry until
+  the next workspace rescan.
+
+### Changed
+- Reorder mode now collapses every card into a compact list and keeps cards
+  collapsed while you rearrange them, so dragging is no longer interrupted by
+  expanded panels.
+
+### Fixed
+- Start configuration options now refresh immediately after you close the
+  configuration manager, instead of showing stale choices.
+
 ## [2.0.3] - 2026-06-24
 
 ### Changed
