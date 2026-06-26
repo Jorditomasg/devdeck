@@ -1,13 +1,15 @@
 # Code Signing Policy
 
-DevDeck's Windows installer is digitally signed so you can verify it really comes
-from this project and has not been tampered with after release.
+This document describes how DevDeck's Windows installer is code-signed so users
+can verify it really comes from this project and has not been tampered with after
+release.
 
 ## Signing
 
-Free code signing for DevDeck is provided by [SignPath.io](https://signpath.io),
-using a free code signing certificate issued by the
-[SignPath Foundation](https://signpath.org).
+DevDeck has applied to the [SignPath Foundation](https://signpath.org) free
+code-signing program. Once approved, free code signing is provided by
+[SignPath.io](https://signpath.io) using a certificate issued by the SignPath
+Foundation. Until the certificate is issued, release installers are unsigned.
 
 ## Project roles
 
