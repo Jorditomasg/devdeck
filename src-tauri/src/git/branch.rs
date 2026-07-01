@@ -4,7 +4,7 @@
 
 use std::path::Path;
 
-use super::exec::{run_logged_op, T_BRANCH_OP, T_LONG};
+use super::exec::{is_option_like, run_logged_op, T_BRANCH_OP, T_LONG};
 use super::types::{LogSink, OpOutput};
 
 /// Reject a ref argument git would parse as an option (a leading `-`). The
@@ -13,9 +13,7 @@ use super::types::{LogSink, OpOutput};
 /// `checkout -b <name> <start-point>` base into a pathspec), so the start-point
 /// commands guard the value instead. Returns a failed `OpOutput` to surface.
 fn reject_option_like(value: &str) -> Option<OpOutput> {
-    value
-        .starts_with('-')
-        .then(|| OpOutput::fail(format!("invalid ref name: {value}")))
+    is_option_like(value).then(|| OpOutput::fail(format!("invalid ref name: {value}")))
 }
 
 /// `git checkout -b <name> [base]` when `checkout`, else `git branch <name>
