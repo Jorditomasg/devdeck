@@ -17,7 +17,10 @@ use std::process::Stdio;
 use tokio::io::AsyncReadExt;
 use tokio::process::Command;
 
-use super::exec::{repo_name, run_git, T_BRANCH_OP, T_FAST, T_FETCH, T_FETCH_QUIET, T_LONG, T_QUERY};
+use super::exec::{
+    is_option_like, repo_name, run_git, T_BRANCH_OP, T_FAST, T_FETCH, T_FETCH_QUIET, T_LONG,
+    T_QUERY,
+};
 use super::parse;
 use super::types::{
     emit, GitError, LogSink, MergeOutcome, MergeRequest, MergeStatus, OpOutput, OrderedBranches,
@@ -94,6 +97,9 @@ pub async fn get_current_branch(repo: &Path) -> String {
 
 /// Resolve `refname` to a full commit SHA, or `None` (v1 `get_commit_sha`).
 pub async fn get_commit_sha(repo: &Path, refname: &str) -> Option<String> {
+    if is_option_like(refname) {
+        return None;
+    }
     let out = run_git(repo, &["rev-parse", "--verify", "--quiet", refname], T_FAST)
         .await
         .ok()?;
@@ -242,6 +248,9 @@ pub async fn pull(repo: &Path, log: Option<&LogSink>) -> OpOutput {
 /// 3. on failure, `git checkout -b <branch> origin/<branch>` — creates a
 ///    local tracking branch from the remote (origin-only, §22.20).
 pub async fn checkout(repo: &Path, branch: &str, log: Option<&LogSink>) -> OpOutput {
+    if is_option_like(branch) {
+        return OpOutput::fail(format!("invalid ref name: {branch}"));
+    }
     let name = repo_name(repo);
     let current = get_current_branch(repo).await;
     if current == branch {
@@ -293,12 +302,16 @@ pub async fn clone(
     log: Option<&LogSink>,
     progress: Option<&ProgressSink>,
 ) -> OpOutput {
+    if is_option_like(url) {
+        return OpOutput::fail(format!("refusing to clone option-like URL: {url}"));
+    }
     let name = repo_name(dest);
     emit(log, &format!("[git] Cloning {url} into {name}..."));
 
     let mut cmd = Command::new("git");
     cmd.arg("clone")
         .arg("--progress")
+        .arg("--")
         .arg(url)
         .arg(dest)
         .stdin(Stdio::null())

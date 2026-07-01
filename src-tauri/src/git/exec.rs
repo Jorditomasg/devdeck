@@ -108,9 +108,34 @@ pub(crate) async fn run_logged_op(
     }
 }
 
+/// A ref/URL argument git would parse as an option (a leading `-`, e.g.
+/// `--upload-pack=<cmd>`). Guarded at every public entry point that forwards an
+/// untrusted ref, branch, or clone URL to git, so a value can never be promoted
+/// to a flag (argument injection). See `branch.rs` for why a uniform `--`
+/// end-of-options guard is not always usable.
+pub(crate) fn is_option_like(value: &str) -> bool {
+    value.starts_with('-')
+}
+
 /// Repo display name = directory basename (v1 `os.path.basename(repo_path)`).
 pub(crate) fn repo_name(repo: &Path) -> String {
     repo.file_name()
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_else(|| repo.display().to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_option_like;
+
+    #[test]
+    fn flags_leading_dash_as_option_like() {
+        // Argument-injection guard: these would be parsed as git flags.
+        assert!(is_option_like("--upload-pack=touch pwned"));
+        assert!(is_option_like("-x"));
+        // Legitimate refs / URLs must pass.
+        assert!(!is_option_like("main"));
+        assert!(!is_option_like("feature/x"));
+        assert!(!is_option_like("https://github.com/a/b.git"));
+    }
 }
