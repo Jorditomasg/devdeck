@@ -18,8 +18,8 @@ use tokio::io::AsyncReadExt;
 use tokio::process::Command;
 
 use super::exec::{
-    is_option_like, repo_name, run_git, T_BRANCH_OP, T_FAST, T_FETCH, T_FETCH_QUIET, T_LONG,
-    T_QUERY,
+    is_option_like, repo_name, run_git, wsl_path_for, T_BRANCH_OP, T_FAST, T_FETCH,
+    T_FETCH_QUIET, T_LONG, T_QUERY,
 };
 use super::parse;
 use super::types::{
@@ -308,13 +308,23 @@ pub async fn clone(
     let name = repo_name(dest);
     emit(log, &format!("[git] Cloning {url} into {name}..."));
 
-    let mut cmd = Command::new("git");
-    cmd.arg("clone")
-        .arg("--progress")
-        .arg("--")
-        .arg(url)
-        .arg(dest)
-        .stdin(Stdio::null())
+    // Dest on a WSL share → clone with the DISTRO's git (native ext4 writes;
+    // no `--cd`: dest does not exist yet). Same routing as exec::git_command.
+    let wsl = wsl_path_for(dest);
+    let mut cmd = match &wsl {
+        Some(w) => {
+            let mut c = Command::new("wsl.exe");
+            c.args(["-d", &w.distro, "--exec", "git"]).env("WSL_UTF8", "1");
+            c
+        }
+        None => Command::new("git"),
+    };
+    cmd.arg("clone").arg("--progress").arg("--").arg(url);
+    match &wsl {
+        Some(w) => cmd.arg(&w.linux_path),
+        None => cmd.arg(dest),
+    };
+    cmd.stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::piped())
         .kill_on_drop(true);

@@ -4,6 +4,12 @@
 //! `cwd=repo_path`, UTF-8 with lossy replacement, per-command timeout from
 //! the v1 table (§21.5), `CREATE_NO_WINDOW` on Windows. Parsing lives in
 //! [`super::parse`] so it stays pure and unit-testable.
+//!
+//! WSL routing (Windows only): a repo addressed through a WSL UNC share
+//! (`\\wsl.localhost\<distro>\...` or legacy `\\wsl$\...`) runs the DISTRO's
+//! git via `wsl.exe --exec` — native ext4 speed instead of Windows git over
+//! the 9P bridge. `--exec` (not `--`) is deliberate: it preserves argv
+//! without a shell, so refs/messages can never be shell-interpreted.
 
 use std::path::Path;
 use std::process::Stdio;
@@ -42,6 +48,68 @@ impl GitOutput {
     }
 }
 
+/// A repo living inside a WSL distro, addressed from Windows via its UNC
+/// share. `linux_path` is absolute inside the distro (`/home/...`).
+#[cfg_attr(not(windows), allow(dead_code))]
+pub(crate) struct WslPath {
+    pub distro: String,
+    pub linux_path: String,
+}
+
+/// [`parse_wsl_path`] on Windows; always `None` elsewhere — Linux builds
+/// never reroute (a Unix path can't be a WSL UNC share anyway).
+pub(crate) fn wsl_path_for(path: &Path) -> Option<WslPath> {
+    #[cfg(windows)]
+    return parse_wsl_path(path);
+    #[cfg(not(windows))]
+    {
+        let _ = path;
+        None
+    }
+}
+
+/// Parse `\\wsl.localhost\<distro>\<rest>` (or legacy `\\wsl$\...`, or the
+/// verbatim `\\?\UNC\...` form) into distro + absolute Linux path. `None` for
+/// anything else — drive letters, other UNC shares, Unix paths.
+#[cfg_attr(not(windows), allow(dead_code))]
+fn parse_wsl_path(path: &Path) -> Option<WslPath> {
+    let s = path.to_str()?.replace('/', "\\");
+    // Try the verbatim prefix FIRST — `\\?\UNC\...` also starts with `\\`.
+    let rest = s.strip_prefix(r"\\?\UNC\").or_else(|| s.strip_prefix(r"\\"))?;
+    let mut parts = rest.splitn(3, '\\');
+    let server = parts.next()?;
+    if !server.eq_ignore_ascii_case("wsl.localhost") && !server.eq_ignore_ascii_case("wsl$") {
+        return None;
+    }
+    let distro = parts.next()?;
+    let tail = parts.next()?;
+    if distro.is_empty() || tail.trim_end_matches('\\').is_empty() {
+        return None; // distro root is not a repo
+    }
+    Some(WslPath {
+        distro: distro.to_string(),
+        linux_path: format!("/{}", tail.trim_end_matches('\\').replace('\\', "/")),
+    })
+}
+
+/// The base `git` invocation for `repo`: the distro's git through
+/// `wsl.exe --exec` when the repo lives on a WSL share, plain `git` with
+/// `cwd=repo` otherwise. Callers append the git args.
+fn git_command(repo: &Path) -> Command {
+    #[cfg(windows)]
+    if let Some(wsl) = wsl_path_for(repo) {
+        let mut cmd = Command::new("wsl.exe");
+        // WSL_UTF8: wsl.exe's OWN diagnostics (bad distro, --cd failure) are
+        // UTF-16 by default; force UTF-8 so they survive from_utf8_lossy.
+        cmd.args(["-d", &wsl.distro, "--cd", &wsl.linux_path, "--exec", "git"])
+            .env("WSL_UTF8", "1");
+        return cmd;
+    }
+    let mut cmd = Command::new("git");
+    cmd.current_dir(repo);
+    cmd
+}
+
 /// Run `git <args>` in `repo` with a timeout. The child is killed if the
 /// timeout elapses (`kill_on_drop`).
 pub(crate) async fn run_git(
@@ -49,9 +117,8 @@ pub(crate) async fn run_git(
     args: &[&str],
     timeout_secs: u64,
 ) -> Result<GitOutput, GitError> {
-    let mut cmd = Command::new("git");
+    let mut cmd = git_command(repo);
     cmd.args(args)
-        .current_dir(repo)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -126,7 +193,65 @@ pub(crate) fn repo_name(repo: &Path) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::is_option_like;
+    use super::{is_option_like, parse_wsl_path};
+    use std::path::Path;
+
+    /// `(distro, linux_path)` or `None` — thin harness over the parser.
+    fn parse(s: &str) -> Option<(String, String)> {
+        parse_wsl_path(Path::new(s)).map(|w| (w.distro, w.linux_path))
+    }
+
+    #[test]
+    fn parses_wsl_localhost_share() {
+        assert_eq!(
+            parse(r"\\wsl.localhost\Ubuntu\home\jordi\api"),
+            Some(("Ubuntu".into(), "/home/jordi/api".into()))
+        );
+    }
+
+    #[test]
+    fn parses_legacy_wsl_dollar_share() {
+        assert_eq!(
+            parse(r"\\wsl$\Debian\srv\app"),
+            Some(("Debian".into(), "/srv/app".into()))
+        );
+    }
+
+    #[test]
+    fn parses_verbatim_unc_form() {
+        // std::fs::canonicalize yields this form on Windows.
+        assert_eq!(
+            parse(r"\\?\UNC\wsl.localhost\Ubuntu\home\jordi\api"),
+            Some(("Ubuntu".into(), "/home/jordi/api".into()))
+        );
+    }
+
+    #[test]
+    fn normalizes_forward_slashes_and_trailing_separator() {
+        assert_eq!(
+            parse(r"//wsl.localhost/Ubuntu/home/jordi/api/"),
+            Some(("Ubuntu".into(), "/home/jordi/api".into()))
+        );
+    }
+
+    #[test]
+    fn server_match_is_case_insensitive() {
+        assert_eq!(
+            parse(r"\\WSL.LOCALHOST\Ubuntu\home\x"),
+            Some(("Ubuntu".into(), "/home/x".into()))
+        );
+    }
+
+    #[test]
+    fn rejects_non_wsl_paths() {
+        assert_eq!(parse(r"C:\proyectos\api"), None); // drive letter
+        assert_eq!(parse(r"\\fileserver\share\repo"), None); // other UNC
+        assert_eq!(parse(r"\\?\C:\proyectos\api"), None); // verbatim drive
+        assert_eq!(parse("/home/jordi/api"), None); // unix path
+        assert_eq!(parse(r"\\wsl.localhost\Ubuntu"), None); // distro root
+        assert_eq!(parse(r"\\wsl.localhost\Ubuntu\"), None); // distro root
+        assert_eq!(parse(r"\\wsl.localhost\\home\x"), None); // empty distro
+    }
 
     #[test]
     fn flags_leading_dash_as_option_like() {

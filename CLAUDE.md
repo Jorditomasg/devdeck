@@ -44,6 +44,7 @@ Cross-compiling the Windows exe from WSL works via `cargo-xwin` (see the engram 
 - Config lives in the OS config dir (`dirs::config_dir()/devdeck/`), profiles in `dirs::data_dir()/devdeck/profiles/`. Config readers stay tolerant of v1 Spanish sentinel values (like `"- Sin Seleccionar -"`) forever via `AppConfig::normalize_sentinels`.
 - Detached log windows: `open_log_window` creates a `log-<id>` webview loading `?log=<serviceId>`; backlog comes from the Rust `LogCache` (fed by the event emitter), live lines from `service://log-line`. Capability `windows` includes `"log-*"`.
 - `Cargo.lock` pins `time 0.3.47` — 0.3.48 breaks `cookie 0.18.1` (E0119). Do not blindly `cargo update`.
+- Git auto-routes per repo path (Windows only): a repo under `\\wsl.localhost\<distro>\...` (or `\\wsl$`) runs git INSIDE the distro via `wsl.exe -d <distro> --cd <path> --exec git` (`git/exec.rs`); `--exec` is mandatory (no shell → no injection). Everything else uses Windows git unchanged. Start/stop of services does NOT route through WSL — that is a separate future feature with its own kill path.
 
 ## Versioning & changelog (Claude-owned)
 
