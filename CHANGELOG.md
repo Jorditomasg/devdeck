@@ -5,19 +5,25 @@ All notable changes to DevDeck are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-07-02
+
+### Added
+
+- Repos located inside WSL (added via `\\wsl.localhost\<distro>\...` or
+  `\\wsl$\...` paths) now run all git operations — status badges, pull, fetch,
+  branches, stash, clone — natively inside the distro. This makes git far
+  faster for WSL repos and avoids antivirus scanning overhead. Repos on
+  regular Windows drives are unaffected; no configuration needed — the repo
+  path decides.
+
 ## [2.0.5] - 2026-07-01
 
-### Security
+### Fixed
 
 - Hardened git operations so branch names and clone URLs that begin with a dash
   can no longer be misinterpreted as git command-line options.
 
 ## [2.0.4] - 2026-06-26
-
-### Fixed
-- Deleting or renaming a start configuration now clears it from the repo's
-  selector when it was the active one, instead of leaving a stale entry until
-  the next workspace rescan.
 
 ### Changed
 - Reorder mode now collapses every card into a compact list and keeps cards
@@ -25,6 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   expanded panels.
 
 ### Fixed
+- Deleting or renaming a start configuration now clears it from the repo's
+  selector when it was the active one, instead of leaving a stale entry until
+  the next workspace rescan.
 - Start configuration options now refresh immediately after you close the
   configuration manager, instead of showing stale choices.
 
