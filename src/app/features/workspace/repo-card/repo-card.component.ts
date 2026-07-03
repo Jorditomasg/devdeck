@@ -528,18 +528,13 @@ export class RepoCardComponent {
     void this.actions.pull(this.repo());
   }
 
-  /** 📝 badge click — list the modified files (v1 logged them; v2 dialog, §9). */
-  protected async onShowChanges(): Promise<void> {
-    const files = await this.commands.git
-      .localChanges(this.repo().path, [])
-      .catch(() => [] as string[]);
-    const body =
-      files.length > 0
-        ? this.i18n.t('log.modified_files_header', { count: files.length }) +
-          '\n' +
-          files.map((f) => `  ${f}`).join('\n')
-        : this.i18n.t('log.no_changes_local');
-    await this.dialogs.info(this.i18n.t('dialog.changes.title'), body);
+  /** 📝 badge click — detached changes window (design doc 2026-07-03). */
+  protected onShowChanges(): void {
+    void this.commands.git
+      .openWindow(this.repo().name, `${this.repo().name} — ${this.i18n.t('git.title_changes')}`, {
+        tab: 'changes',
+      })
+      .catch((err: unknown) => console.error('open git window failed', err));
   }
 
   /** ⚠️ badge click — conflict summary (no per-file IPC; count only). */
@@ -597,7 +592,7 @@ export class RepoCardComponent {
   /** Detached git history window (git suite phase 1, `open_git_window`). */
   protected onHistory(): void {
     void this.commands.git
-      .openWindow(this.repo().name, `${this.repo().name} — ${this.i18n.t('git.window_title')}`)
+      .openWindow(this.repo().name, `${this.repo().name} — ${this.i18n.t('git.title_history')}`)
       .catch((err: unknown) => console.error('open git window failed', err));
   }
 

@@ -100,4 +100,24 @@ export class FakeTauriBridge implements TauriBridge {
       }
     });
   }
+
+  /** Captured close-prevented handlers — specs invoke to simulate ✕. */
+  readonly windowClosePreventedHandlers: Array<() => void> = [];
+
+  onWindowClosePrevented(handler: () => void): Promise<UnlistenFn> {
+    this.windowClosePreventedHandlers.push(handler);
+    return Promise.resolve(() => {
+      const idx = this.windowClosePreventedHandlers.indexOf(handler);
+      if (idx >= 0) {
+        this.windowClosePreventedHandlers.splice(idx, 1);
+      }
+    });
+  }
+
+  /** Settable per spec; defaults to the main window. */
+  windowLabel = 'main';
+
+  currentWindowLabel(): string {
+    return this.windowLabel;
+  }
 }

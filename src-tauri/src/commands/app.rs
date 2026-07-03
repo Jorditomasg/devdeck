@@ -135,9 +135,13 @@ pub async fn open_log_window(
 /// design doc 2026-07-02): open (or focus, when already open) the detached
 /// git window of one repo. The window loads the SPA with `?git=<repoId>`
 /// plus the optional view params — `branch` preselects the branch filter
-/// (branch-dialog entry), `tab`/`stash` open the stash viewer (stash-dialog
-/// entry). An already-open window is only focused; it does NOT re-navigate
-/// (accepted limitation, phase-2 decisions).
+/// (branch-dialog entry), `tab: "stashes"`/`stash` open the stash viewer
+/// (stash-dialog entry), `tab: "changes"` the working-tree changes window
+/// (changes-badge entry, design doc 2026-07-03). Each MODE gets its own
+/// label (`git-`, `git-stashes-`, `git-changes-`; all match the `git-*`
+/// capability/handler patterns) so focusing one never hijacks another. An
+/// already-open window of the same mode is only focused; it does NOT
+/// re-navigate (accepted limitation, phase-2 decisions).
 #[tauri::command]
 pub async fn open_git_window(
     app: tauri::AppHandle,
@@ -147,7 +151,12 @@ pub async fn open_git_window(
     tab: Option<String>,
     stash: Option<u32>,
 ) -> CmdResult<()> {
-    let label = window_label("git", &repo_id);
+    let prefix = match tab.as_deref() {
+        Some("stashes") => "git-stashes",
+        Some("changes") => "git-changes",
+        _ => "git",
+    };
+    let label = window_label(prefix, &repo_id);
     if let Some(existing) = app.get_webview_window(&label) {
         let _ = existing.unminimize();
         let _ = existing.set_focus();

@@ -6,7 +6,6 @@ import { IpcEvents } from '../ipc/events';
 import { FakeTauriBridge } from '../ipc/tauri-bridge.fake';
 import type { ProfileDocument, RepoProfile } from '../ipc/tauri.types';
 import {
-  JAVA_SYSTEM_DEFAULT_SENTINEL,
   ProfilesStore,
   normalizeJavaVersion,
   profileReposEqual,
@@ -34,9 +33,8 @@ function makeStore(bridge: FakeTauriBridge): ProfilesStore {
   return new ProfilesStore(new IpcCommands(bridge), new IpcEvents(bridge));
 }
 
-describe('normalizeJavaVersion (v1 sentinel tolerance — accepted forever)', () => {
-  it('folds the Spanish sentinel and empties into undefined', () => {
-    expect(normalizeJavaVersion(JAVA_SYSTEM_DEFAULT_SENTINEL)).toBeUndefined();
+describe('normalizeJavaVersion', () => {
+  it('folds empties into undefined', () => {
     expect(normalizeJavaVersion('')).toBeUndefined();
     expect(normalizeJavaVersion(undefined)).toBeUndefined();
   });
@@ -47,12 +45,9 @@ describe('normalizeJavaVersion (v1 sentinel tolerance — accepted forever)', ()
 });
 
 describe('repoProfileEquals', () => {
-  it('treats the java sentinel as equal to absent (system default)', () => {
+  it('treats an empty java label as equal to absent (system default)', () => {
     expect(
-      repoProfileEquals(
-        repoProfile({ java_version: JAVA_SYSTEM_DEFAULT_SENTINEL }),
-        repoProfile(),
-      ),
+      repoProfileEquals(repoProfile({ java_version: '' }), repoProfile()),
     ).toBe(true);
   });
 

@@ -468,3 +468,84 @@ pub async fn git_working_diff(
     let _permit = acquire(&state.badge_semaphore).await?;
     git::get_working_diff(&PathBuf::from(repo_path), &path, staged).await.map_err(git_err)
 }
+
+// ---------------------------------------------------------------------------
+// Changes window — working-tree surface (ipc-contract.md §2.4 #103–#108;
+// design doc 2026-07-03-git-changes-window-design.md).
+// ---------------------------------------------------------------------------
+
+/// #103 `git_changes_list { repoPath }` → `ChangeEntry[]` — both groups of
+/// the changes window (`status --porcelain -z`; `MM` yields two entries).
+#[tauri::command]
+pub async fn git_changes_list(
+    state: State<'_, AppState>,
+    repo_path: String,
+) -> CmdResult<Vec<git::ChangeEntry>> {
+    let _permit = acquire(&state.badge_semaphore).await?;
+    git::get_changes(&PathBuf::from(repo_path)).await.map_err(git_err)
+}
+
+/// #104 `git_stage_file { repoPath, path }` → `OpOutput` (`git add -- <p>`).
+#[tauri::command]
+pub async fn git_stage_file(
+    app: tauri::AppHandle,
+    repo_path: String,
+    path: String,
+) -> CmdResult<OpOutput> {
+    let repo = PathBuf::from(repo_path);
+    let sink = op_log_sink(app, path_basename(&repo), LogStream::Git);
+    Ok(git::stage_file(&repo, &path, Some(&sink)).await)
+}
+
+/// #105 `git_unstage_file { repoPath, path }` → `OpOutput`
+/// (`git restore --staged -- <p>`).
+#[tauri::command]
+pub async fn git_unstage_file(
+    app: tauri::AppHandle,
+    repo_path: String,
+    path: String,
+) -> CmdResult<OpOutput> {
+    let repo = PathBuf::from(repo_path);
+    let sink = op_log_sink(app, path_basename(&repo), LogStream::Git);
+    Ok(git::unstage_file(&repo, &path, Some(&sink)).await)
+}
+
+/// #106 `git_discard_file { repoPath, path, untracked }` → `OpOutput` —
+/// tracked: `git restore -- <p>`; untracked: `git clean -f -- <p>`.
+/// DESTRUCTIVE; the frontend confirms before calling.
+#[tauri::command]
+pub async fn git_discard_file(
+    app: tauri::AppHandle,
+    repo_path: String,
+    path: String,
+    untracked: bool,
+) -> CmdResult<OpOutput> {
+    let repo = PathBuf::from(repo_path);
+    let sink = op_log_sink(app, path_basename(&repo), LogStream::Git);
+    Ok(git::discard_file(&repo, &path, untracked, Some(&sink)).await)
+}
+
+/// #107 `git_read_working_file { repoPath, path }` → `FileAtCommit` — current
+/// working-tree contents, same caps as `git_file_at_commit`. Path guarded to
+/// stay inside the repo (`worktree::resolve_in_repo`).
+#[tauri::command]
+pub async fn git_read_working_file(
+    state: State<'_, AppState>,
+    repo_path: String,
+    path: String,
+) -> CmdResult<git::FileAtCommit> {
+    let _permit = acquire(&state.badge_semaphore).await?;
+    git::read_working_file(&PathBuf::from(repo_path), &path).await.map_err(git_err)
+}
+
+/// #108 `git_write_working_file { repoPath, path, content }` → `void` — save
+/// an edited working-tree file (changes-window editor). Same path guard;
+/// never creates files.
+#[tauri::command]
+pub async fn git_write_working_file(
+    repo_path: String,
+    path: String,
+    content: String,
+) -> CmdResult<()> {
+    git::write_working_file(&PathBuf::from(repo_path), &path, &content).await.map_err(git_err)
+}

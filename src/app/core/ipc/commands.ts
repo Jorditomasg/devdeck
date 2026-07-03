@@ -18,6 +18,7 @@ import type {
   GitAuthor,
   GitBadge,
   GitCommitFileStat,
+  GitChangeEntry,
   GitFileAtCommit,
   GitFileDiff,
   GitLogFilter,
@@ -118,6 +119,13 @@ export const CMD = {
   gitLsFiles: 'git_ls_files',
   gitCommitBody: 'git_commit_body',
   gitTags: 'git_tags',
+  // git changes window (working tree, design doc 2026-07-03)
+  gitChangesList: 'git_changes_list',
+  gitStageFile: 'git_stage_file',
+  gitUnstageFile: 'git_unstage_file',
+  gitDiscardFile: 'git_discard_file',
+  gitReadWorkingFile: 'git_read_working_file',
+  gitWriteWorkingFile: 'git_write_working_file',
   // config
   getAppConfig: 'get_app_config',
   setLanguage: 'set_language',
@@ -482,7 +490,7 @@ export class IpcCommands {
     openWindow: (
       repoId: string,
       title: string,
-      view?: { branch?: string; tab?: 'history' | 'stashes'; stash?: number },
+      view?: { branch?: string; tab?: 'history' | 'stashes' | 'changes'; stash?: number },
     ): Promise<void> =>
       this.bridge.invoke<void>(CMD.openGitWindow, { repoId, title, ...view }),
 
@@ -559,6 +567,40 @@ export class IpcCommands {
       staged: boolean,
     ): Promise<GitFileDiff> =>
       this.bridge.invoke<GitFileDiff>(CMD.gitWorkingDiff, { repoPath, path, staged }),
+
+    // -- changes window (working tree, design doc 2026-07-03) --
+
+    /** Working-tree changes, both groups (`MM` yields two entries). */
+    changesList: (repoPath: string): Promise<GitChangeEntry[]> =>
+      this.bridge.invoke<GitChangeEntry[]>(CMD.gitChangesList, { repoPath }),
+
+    /** `git add -- <path>` — also marks a conflicted file resolved. */
+    stageFile: (repoPath: string, path: string): Promise<OpOutput> =>
+      this.bridge.invoke<OpOutput>(CMD.gitStageFile, { repoPath, path }),
+
+    /** `git restore --staged -- <path>`. */
+    unstageFile: (repoPath: string, path: string): Promise<OpOutput> =>
+      this.bridge.invoke<OpOutput>(CMD.gitUnstageFile, { repoPath, path }),
+
+    /** DESTRUCTIVE (confirm first): restore tracked / clean untracked. */
+    discardFile: (
+      repoPath: string,
+      path: string,
+      untracked: boolean,
+    ): Promise<OpOutput> =>
+      this.bridge.invoke<OpOutput>(CMD.gitDiscardFile, { repoPath, path, untracked }),
+
+    /** Working-tree file contents (same caps as `fileAtCommit`). */
+    readWorkingFile: (repoPath: string, path: string): Promise<GitFileAtCommit> =>
+      this.bridge.invoke<GitFileAtCommit>(CMD.gitReadWorkingFile, { repoPath, path }),
+
+    /** Save the changes-window editor (path guarded inside the repo). */
+    writeWorkingFile: (
+      repoPath: string,
+      path: string,
+      content: string,
+    ): Promise<void> =>
+      this.bridge.invoke<void>(CMD.gitWriteWorkingFile, { repoPath, path, content }),
   };
 
   // -- config (§2.5) ----------------------------------------------------------
@@ -567,7 +609,7 @@ export class IpcCommands {
     getAppConfig: (): Promise<AppConfig> =>
       this.bridge.invoke<AppConfig>(CMD.getAppConfig),
 
-    /** v1 language codes (`en_EN`, `es_ES`) persisted. */
+    /** Language codes `en_EN` / `es_ES` persisted. */
     setLanguage: (language: string): Promise<void> =>
       this.bridge.invoke<void>(CMD.setLanguage, { language }),
 
@@ -615,7 +657,7 @@ export class IpcCommands {
     ): Promise<void> =>
       this.bridge.invoke<void>(CMD.saveCommandProfiles, { repo, profiles }),
 
-    /** `null` drops the key (v1 `"- Sin Seleccionar -"` normalized). */
+    /** `null` or `""` drops the key. */
     setActiveConfig: (configKey: string, name: string | null): Promise<void> =>
       this.bridge.invoke<void>(CMD.setActiveConfig, { configKey, name }),
 

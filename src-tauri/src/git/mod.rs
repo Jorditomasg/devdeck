@@ -28,6 +28,7 @@ pub mod parse;
 pub mod poll;
 pub mod stash;
 pub mod types;
+pub mod worktree;
 
 pub use ops::{
     capture_revert_point, checkout, clean_repo, clone, count_modified_files, fetch, fetch_quiet,
@@ -43,6 +44,10 @@ pub use history::{
 };
 pub use poll::{refresh_badge, spawn_badge_poller, BadgePoller, BADGE_REFRESH};
 pub use stash::{stash_apply, stash_drop, stash_list, stash_pop, stash_push};
+pub use worktree::{
+    discard_file, get_changes, read_working_file, stage_file, unstage_file, write_working_file,
+    ChangeEntry,
+};
 pub use branch::{
     create_branch, delete_branch, delete_remote_branch, publish_branch, rename_branch,
 };

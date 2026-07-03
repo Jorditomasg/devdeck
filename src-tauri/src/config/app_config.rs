@@ -1,23 +1,10 @@
 //! Typed serde model of the application config (`config.json`).
 //!
-//! Field-for-field port of the v1 config schema
-//! (inventory-backend.md §8.3, inventory-config-ci.md §4.1) plus the v2
-//! additions (window state, recent workspaces). Unknown keys are preserved
-//! through the flattened `extra` map so v1 files and future versions
-//! round-trip losslessly.
+//! Unknown keys are preserved through the flattened `extra` map so files
+//! written by future versions round-trip losslessly.
 
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-
-/// v1 Spanish sentinel meaning "no saved environment selected" — a persisted
-/// MAGIC VALUE inside user config files (§22.8 backend). v2 normalizes it to
-/// an absent key, but readers MUST keep accepting it forever
-/// (architecture-v2.md §6).
-pub const SENTINEL_NOT_SELECTED: &str = "- Sin Seleccionar -";
-
-/// v1 Spanish sentinel meaning "system-default Java". v2 normalizes it to
-/// `None`; readers keep accepting it forever.
-pub const SENTINEL_SYSTEM_DEFAULT: &str = "Sistema (Por Defecto)";
 
 /// Module key used in `"repo::module"` config keys when the env files live
 /// in the repo root.
@@ -34,10 +21,6 @@ pub type RepoConfigsMap = BTreeMap<String, BTreeMap<String, BTreeMap<String, Str
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct AppConfig {
-    /// Legacy single workspace root (pre-groups); kept in sync for
-    /// backward compatibility.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub workspace_dir: Option<String>,
     /// UI language code (`en_EN`, `es_ES`). Applied on next start.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub language: Option<String>,
@@ -48,29 +31,22 @@ pub struct AppConfig {
     /// User-managed JDK registry: display label → JAVA_HOME path.
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub java_versions: BTreeMap<String, String>,
-    /// LEGACY last loaded profile name; folded into
-    /// `last_profile_by_group["Default"]` by the migrator.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub last_profile: Option<String>,
     /// Last loaded profile per workspace group; `""` = none.
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub last_profile_by_group: BTreeMap<String, String>,
-    /// Named groups of workspace roots. When empty, a virtual `Default`
-    /// group is synthesized from `workspace_dir`
-    /// (see [`AppConfig::workspace_groups_or_default`]).
+    /// Named groups of workspace roots.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub workspace_groups: Vec<WorkspaceGroup>,
     /// Name of the active workspace group; may reference a group that no
-    /// longer exists (v1 tolerated this — readers must fall back to the
-    /// first group, §8.3 backend).
+    /// longer exists (e.g. deleted while active) — readers fall back to the
+    /// first group.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub active_group: Option<String>,
     /// Per-repo UI state keyed by repo name.
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub repo_state: BTreeMap<String, RepoState>,
     /// Currently-selected saved environment per config key
-    /// (`"repo::module"`). v1 stored the [`SENTINEL_NOT_SELECTED`] magic
-    /// value for "none"; v2 drops the key instead (normalized on load).
+    /// (`"repo::module"`); absent key = none selected.
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub active_configs: BTreeMap<String, String>,
     /// Saved alternative config-file contents ("environments"):
@@ -85,25 +61,22 @@ pub struct AppConfig {
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub command_profiles: BTreeMap<String, BTreeMap<String, String>>,
 
-    // ---- v2 additions -------------------------------------------------
-    /// v2: recently used workspace roots (most recent first). v1 had no
-    /// equivalent.
+    /// Recently used workspace roots (most recent first).
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub recent_workspaces: Vec<String>,
-    /// v2: persisted window state. v1 never persisted geometry
-    /// (fixed 1300x900 — §8.3 backend note); v2 decides to persist it.
+    /// Persisted window state.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub window: Option<WindowState>,
-    /// v2: shell command/path for new interactive terminals. `None` / empty
+    /// Shell command/path for new interactive terminals. `None` / empty
     /// → the per-platform default (`terminal::shell::default_shell`). Set from
     /// Settings; one of the detected shells or a custom path.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub terminal_shell: Option<String>,
-    /// v2: last app version the user saw the "What's new" popup for. `None`
+    /// Last app version the user saw the "What's new" popup for. `None`
     /// on a fresh install (suppresses the popup until the FIRST update).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub whats_new_seen_version: Option<String>,
-    /// v2: user opted out of the "What's new" popup permanently.
+    /// User opted out of the "What's new" popup permanently.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub whats_new_disabled: Option<bool>,
 
@@ -131,14 +104,13 @@ pub struct RepoState {
     /// (Profile lines live in `AppConfig::command_profiles`.)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub command_profile: Option<String>,
-    /// Selected JDK display label; `None` = system default. v1 persisted the
-    /// [`SENTINEL_SYSTEM_DEFAULT`] string instead (normalized on load).
+    /// Selected JDK display label; `None` = system default.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub java_version: Option<String>,
-    /// Card expanded state (older v1 entries lack it).
+    /// Card expanded state.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub expanded: Option<bool>,
-    /// Manual list position (v2). Fractional so a drag reorder persists ONE
+    /// Manual list position. Fractional so a drag reorder persists ONE
     /// repo; `None` = unordered → sorts by the alphabetical baseline.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub order: Option<f64>,
@@ -147,7 +119,7 @@ pub struct RepoState {
     pub extra: serde_json::Map<String, serde_json::Value>,
 }
 
-/// v2 persisted window state.
+/// Persisted window state.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct WindowState {
@@ -162,60 +134,14 @@ pub struct WindowState {
 }
 
 impl AppConfig {
-    /// `minimize_to_tray` with the v1 default (`true`).
+    /// `minimize_to_tray` with its default (`true`).
     pub fn minimize_to_tray_or_default(&self) -> bool {
         self.minimize_to_tray.unwrap_or(true)
     }
 
-    /// Stored groups, or the synthesized virtual `Default` group built from
-    /// `workspace_dir` (NOT persisted — v1 `get_workspace_groups`,
-    /// §8.7 backend). Empty when neither exists.
-    pub fn workspace_groups_or_default(&self) -> Vec<WorkspaceGroup> {
-        if !self.workspace_groups.is_empty() {
-            return self.workspace_groups.clone();
-        }
-        match &self.workspace_dir {
-            Some(dir) if !dir.is_empty() => vec![WorkspaceGroup {
-                name: "Default".to_string(),
-                paths: vec![dir.clone()],
-            }],
-            _ => Vec::new(),
-        }
-    }
-
-    /// The effective active group: `active_group` when it names an existing
-    /// group, otherwise the first group (v1 tolerance for dangling
-    /// `active_group` — §8.3 backend).
-    pub fn effective_active_group(&self) -> Option<WorkspaceGroup> {
-        let groups = self.workspace_groups_or_default();
-        if let Some(name) = &self.active_group {
-            if let Some(group) = groups.iter().find(|g| &g.name == name) {
-                return Some(group.clone());
-            }
-        }
-        groups.into_iter().next()
-    }
-
-    /// Normalize the v1 Spanish sentinels into typed absence
-    /// (architecture-v2.md §6). Idempotent; called on every load and during
-    /// migration. The raw sentinels remain accepted as input forever.
-    pub fn normalize_sentinels(&mut self) {
-        self.active_configs
-            .retain(|_, v| v != SENTINEL_NOT_SELECTED);
-        for state in self.repo_state.values_mut() {
-            if state.java_version.as_deref() == Some(SENTINEL_SYSTEM_DEFAULT) {
-                state.java_version = None;
-            }
-        }
-    }
-
-    /// Active saved-environment name for a config key (`None` when unset or
-    /// when the v1 sentinel is stored).
+    /// Active saved-environment name for a config key (`None` when unset).
     pub fn active_config(&self, config_key: &str) -> Option<&str> {
-        self.active_configs
-            .get(config_key)
-            .map(String::as_str)
-            .filter(|v| *v != SENTINEL_NOT_SELECTED)
+        self.active_configs.get(config_key).map(String::as_str)
     }
 
     /// Saved environments for one config key (`{name: content}`).
@@ -228,9 +154,9 @@ impl AppConfig {
             .unwrap_or_default()
     }
 
-    /// Replace the saved environments of one config key wholesale
-    /// (v1 `save_repo_configs`, §8.6 backend). An empty map removes the
-    /// module entry (and the repo entry when it becomes empty).
+    /// Replace the saved environments of one config key wholesale. An empty
+    /// map removes the module entry (and the repo entry when it becomes
+    /// empty).
     pub fn set_repo_configs_for(
         &mut self,
         config_key: &str,
@@ -266,11 +192,10 @@ impl AppConfig {
         }
     }
 
-    /// Smart merge used by profile import (v1 `merge_repo_configs`,
-    /// §8.6 backend): incoming name absent → add; present with identical
-    /// content → skip; present with different content → store under the
-    /// first free `repetidoN` name. Returns `{original: stored_as}` for the
-    /// renamed entries.
+    /// Smart merge used by profile import: incoming name absent → add;
+    /// present with identical content → skip; present with different content
+    /// → store under the first free `repetidoN` name. Returns
+    /// `{original: stored_as}` for the renamed entries.
     pub fn merge_repo_configs(
         &mut self,
         config_key: &str,
@@ -309,7 +234,7 @@ impl AppConfig {
     }
 
     /// Store the danger set for a config key (sorted; key removed when
-    /// empty — v1 `save_danger_configs`, §8.8 backend).
+    /// empty).
     pub fn set_danger_configs(&mut self, config_key: &str, mut names: Vec<String>) {
         if names.is_empty() {
             self.repo_config_danger.remove(config_key);
@@ -323,7 +248,7 @@ impl AppConfig {
 }
 
 /// Build the `"repo::module"` config key. An empty or `"."` module dir maps
-/// to the literal `root` (inventory-config-ci.md §4.1).
+/// to the literal `root`.
 pub fn config_key(repo: &str, module_dir: &str) -> String {
     let module = if module_dir.is_empty() || module_dir == "." {
         ROOT_MODULE_KEY
@@ -333,8 +258,8 @@ pub fn config_key(repo: &str, module_dir: &str) -> String {
     format!("{repo}::{module}")
 }
 
-/// Split a config key into `(repo, module)`. A legacy key without `::` (v1
-/// "flat" form) maps to module `root`.
+/// Split a config key into `(repo, module)`. A key without `::` maps to
+/// module `root` (defensive: keys arrive as free-form strings over IPC).
 pub fn split_config_key(key: &str) -> (&str, &str) {
     match key.split_once("::") {
         Some((repo, module)) => (repo, module),
@@ -342,9 +267,8 @@ pub fn split_config_key(key: &str) -> (&str, &str) {
     }
 }
 
-/// First free `repetidoN` name (N starting at 1) — the v1 conflict-rename
-/// strategy for imported saved environments (`_next_repetido_name`,
-/// §8.6 backend).
+/// First free `repetidoN` name (N starting at 1) — the conflict-rename
+/// strategy for imported saved environments.
 fn next_repetido_name(existing: &BTreeMap<String, String>) -> String {
     let mut n: u32 = 1;
     loop {
@@ -360,20 +284,17 @@ fn next_repetido_name(existing: &BTreeMap<String, String>) -> String {
 mod tests {
     use super::*;
 
-    /// Sanitized real-file excerpt from inventory-config-ci.md §4.1.
-    const V1_SAMPLE: &str = r##"{
-      "workspace_dir": "C:\\Users\\Jordi\\PROYECTOS\\BOA2",
-      "last_profile": "ghf",
+    const SAMPLE: &str = r##"{
       "repo_state": {
-        "spring-petclinic": { "selected": true, "custom_command": "", "java_version": "Sistema (Por Defecto)" }
+        "spring-petclinic": { "selected": true, "java_version": "Java 17 (jdk-17)" }
       },
-      "active_configs": { "spring-petclinic::src/main/resources": "- Sin Seleccionar -" },
+      "active_configs": { "spring-petclinic::src/main/resources": "mysql" },
       "language": "es_ES",
       "java_versions": { "Java 17 (jdk-17)": "C:\\Program Files\\Java\\jdk-17" },
       "minimize_to_tray": true,
       "workspace_groups": [ { "name": "Default", "paths": ["C:\\Users\\Jordi\\PROYECTOS\\BOA2"] } ],
-      "active_group": "Nuevo Grupo",
-      "last_profile_by_group": { "Default": "KLK2", "Nuevo Grupo": "" },
+      "active_group": "Default",
+      "last_profile_by_group": { "Default": "KLK2" },
       "repo_configs": {
         "spring-petclinic": {
           "src/main/resources": {
@@ -386,11 +307,14 @@ mod tests {
     }"##;
 
     #[test]
-    fn parses_the_full_v1_schema() {
-        let cfg: AppConfig = serde_json::from_str(V1_SAMPLE).unwrap();
+    fn parses_the_full_schema() {
+        let cfg: AppConfig = serde_json::from_str(SAMPLE).unwrap();
         assert_eq!(cfg.language.as_deref(), Some("es_ES"));
-        assert_eq!(cfg.last_profile.as_deref(), Some("ghf"));
         assert_eq!(cfg.workspace_groups.len(), 1);
+        assert_eq!(
+            cfg.active_config("spring-petclinic::src/main/resources"),
+            Some("mysql")
+        );
         assert_eq!(
             cfg.repo_configs["spring-petclinic"]["src/main/resources"]["mysql"],
             "# mysql content"
@@ -412,57 +336,12 @@ mod tests {
     }
 
     #[test]
-    fn normalize_drops_spanish_sentinels_idempotently() {
-        let mut cfg: AppConfig = serde_json::from_str(V1_SAMPLE).unwrap();
-        cfg.normalize_sentinels();
-        assert!(cfg.active_configs.is_empty());
-        assert_eq!(
-            cfg.repo_state["spring-petclinic"].java_version, None,
-            "java sentinel must become None"
-        );
-        // Idempotent.
-        let snapshot = cfg.clone();
-        cfg.normalize_sentinels();
-        assert_eq!(cfg, snapshot);
-    }
-
-    #[test]
-    fn active_config_reader_tolerates_sentinel_forever() {
-        let cfg: AppConfig = serde_json::from_str(V1_SAMPLE).unwrap();
-        // Sentinel present in storage but reader reports "none selected".
-        assert_eq!(cfg.active_config("spring-petclinic::src/main/resources"), None);
-    }
-
-    #[test]
-    fn dangling_active_group_falls_back_to_first() {
-        let cfg: AppConfig = serde_json::from_str(V1_SAMPLE).unwrap();
-        // active_group = "Nuevo Grupo" does not exist in workspace_groups.
-        let group = cfg.effective_active_group().expect("a group");
-        assert_eq!(group.name, "Default");
-    }
-
-    #[test]
-    fn groups_synthesized_from_workspace_dir() {
-        let cfg = AppConfig {
-            workspace_dir: Some("/ws".into()),
-            ..Default::default()
-        };
-        let groups = cfg.workspace_groups_or_default();
-        assert_eq!(groups.len(), 1);
-        assert_eq!(groups[0].name, "Default");
-        assert_eq!(groups[0].paths, vec!["/ws"]);
-        // And it is virtual: serializing must not persist it.
-        let json = serde_json::to_value(&cfg).unwrap();
-        assert!(json.get("workspace_groups").is_none());
-    }
-
-    #[test]
     fn config_key_conventions() {
         assert_eq!(config_key("repo", "src/main/resources"), "repo::src/main/resources");
         assert_eq!(config_key("repo", ""), "repo::root");
         assert_eq!(config_key("repo", "."), "repo::root");
         assert_eq!(split_config_key("a::b/c"), ("a", "b/c"));
-        assert_eq!(split_config_key("legacy-flat"), ("legacy-flat", "root"));
+        assert_eq!(split_config_key("no-separator"), ("no-separator", "root"));
     }
 
     #[test]

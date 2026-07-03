@@ -77,4 +77,13 @@ export class TauriBridge {
       handler();
     });
   }
+
+  /**
+   * Label of THIS window (`main`, `git-*`, `dlg-*`, …). Detached windows use
+   * it as `parentLabel` when opening child dialogs (e.g. the changes window's
+   * discard confirm), keeping the `@tauri-apps/api` import confined here.
+   */
+  currentWindowLabel(): string {
+    return getCurrentWindow().label;
+  }
 }

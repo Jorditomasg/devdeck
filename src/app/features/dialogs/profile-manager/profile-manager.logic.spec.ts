@@ -2,7 +2,6 @@
 import { describe, expect, it } from 'vitest';
 
 import type { ProfileDocument, RepoProfile } from '../../../core/ipc/tauri.types';
-import { JAVA_SYSTEM_DEFAULT_SENTINEL } from '../../../core/state/profiles.store';
 import {
   applyJavaMappings,
   buildChangePlan,
@@ -127,8 +126,8 @@ describe('javaMappingsNeeded', () => {
     ]);
   });
 
-  it('never asks to map the v1 system-default sentinel', () => {
-    const d = doc({ api: repo({ java_version: JAVA_SYSTEM_DEFAULT_SENTINEL }) });
+  it('never asks to map an empty java label (system default)', () => {
+    const d = doc({ api: repo({ java_version: '' }) });
     expect(javaMappingsNeeded(d, [])).toEqual([]);
   });
 });

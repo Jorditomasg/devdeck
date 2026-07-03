@@ -1,9 +1,9 @@
 //! Config commands (ipc-contract.md §2.5) — persistence through
 //! `ConfigStore` (atomic write-through, no mtime gymnastics).
 //!
-//! `AppConfig` / `RepoState` / `WorkspaceGroup` keep their v1 snake_case
-//! wire keys verbatim (ipc-contract.md §1.2 deliberate exceptions) — they
-//! are persisted v1-compatible documents.
+//! `AppConfig` / `RepoState` / `WorkspaceGroup` keep their snake_case wire
+//! keys verbatim (ipc-contract.md §1.2 deliberate exceptions) — they are
+//! persisted documents.
 
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -11,19 +11,16 @@ use std::path::Path;
 use tauri::State;
 
 use super::error::CmdResult;
-use crate::config::{
-    self, AppConfig, RepoState, WorkspaceGroup, DEFAULT_GROUP_NAME, SENTINEL_NOT_SELECTED,
-};
+use crate::config::{self, AppConfig, RepoState, WorkspaceGroup, DEFAULT_GROUP_NAME};
 use crate::state::AppState;
 
-/// #23 `get_app_config` → `AppConfig` (sentinels normalized on load;
-/// v1 keys accepted forever).
+/// #23 `get_app_config` → `AppConfig`.
 #[tauri::command]
 pub async fn get_app_config(state: State<'_, AppState>) -> CmdResult<AppConfig> {
     Ok(state.config.load()?)
 }
 
-/// #24 `set_language { language }` — v1 codes (`en_EN`, `es_ES`) persisted.
+/// #24 `set_language { language }` — codes `en_EN` / `es_ES` persisted.
 /// Also retargets the Rust-side tray strings (state.rs `TrayStatus`) and
 /// retranslates the live tray menu/tooltip (the menu is built once at
 /// startup, so it would otherwise stay in the boot language).
@@ -126,16 +123,15 @@ pub async fn save_command_profiles(
     Ok(())
 }
 
-/// #31 `set_active_config { configKey, name }` — `null` drops the key.
-/// The v1 sentinel `"- Sin Seleccionar -"` is normalized to a drop too
-/// (ipc-contract.md §2.5).
+/// #31 `set_active_config { configKey, name }` — `null` or `""` drops the
+/// key (ipc-contract.md §2.5).
 #[tauri::command]
 pub async fn set_active_config(
     state: State<'_, AppState>,
     config_key: String,
     name: Option<String>,
 ) -> CmdResult<()> {
-    let name = name.filter(|n| !n.is_empty() && n != SENTINEL_NOT_SELECTED);
+    let name = name.filter(|n| !n.is_empty());
     state.config.update(|c| match name {
         Some(n) => {
             c.active_configs.insert(config_key, n);

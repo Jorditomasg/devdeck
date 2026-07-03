@@ -16,6 +16,9 @@
  *   `&stash=<n>`) shows the SAME full-window files+code detail with a back
  *   button returning to the stash list. Same behavior as history, separate
  *   surface.
+ * - `&tab=changes` → CHANGES: working-tree changes with stage/unstage/
+ *   discard/edit (changes-badge entry) — fully owned by the embedded
+ *   `git-changes-view` container (design doc 2026-07-03).
  */
 import {
   ChangeDetectionStrategy,
@@ -44,6 +47,7 @@ import {
   SpinnerComponent,
 } from '../../../ui';
 import { OpenerService } from '../opener.service';
+import { ChangesViewComponent } from './changes-view.component';
 import { commitWebUrl } from './commit-web-url';
 import { FileDiffPanelComponent, type FileDiffPanelText } from './file-diff-panel.component';
 import { GraphCellComponent } from './graph-cell.component';
@@ -73,6 +77,7 @@ type PanelSource = 'ref' | 'range';
     AvatarComponent,
     BadgeComponent,
     ButtonComponent,
+    ChangesViewComponent,
     FileDiffPanelComponent,
     GraphCellComponent,
     IconComponent,
@@ -133,7 +138,7 @@ type PanelSource = 'ref' | 'range';
             [value]="filters().until"
             (change)="onFilter('until', $any($event.target).value)"
           />
-          <ui-button variant="neutral" size="sm" (clicked)="onClearFilters()">
+          <ui-button variant="log-action" size="sm" (clicked)="onClearFilters()">
             {{ 'git.filter_clear' | t }}
           </ui-button>
           <ui-button variant="purple-alt" size="sm" (clicked)="openCompare()">
@@ -213,7 +218,7 @@ type PanelSource = 'ref' | 'range';
               @if (hasMore()) {
                 <div class="gitwin__more">
                   <ui-button
-                    variant="neutral"
+                    variant="log-action"
                     size="sm"
                     [disabled]="loading()"
                     (clicked)="onLoadMore()"
@@ -224,7 +229,7 @@ type PanelSource = 'ref' | 'range';
               }
             }
           </section>
-        } @else {
+        } @else if (mode === 'stashes') {
           <section class="gitwin__surface gitwin__commits">
             @if (stashes().length === 0) {
               <div class="gitwin__center gitwin__muted">{{ 'git.no_stashes' | t }}</div>
@@ -246,11 +251,13 @@ type PanelSource = 'ref' | 'range';
               </ul>
             }
           </section>
+        } @else if (repoPath()) {
+          <git-changes-view [repoPath]="repoPath()" />
         }
       }
       @case ('compare') {
         <div class="gitwin__crumb">
-          <ui-button variant="neutral" size="sm" (clicked)="closeCompare()">
+          <ui-button variant="log-action" size="sm" (clicked)="closeCompare()">
             ← {{ 'git.back' | t }}
           </ui-button>
           <ui-searchable-select
@@ -270,7 +277,7 @@ type PanelSource = 'ref' | 'range';
             [noResultsText]="'placeholder.no_results' | t"
             (selectionChange)="onCompareTarget($event)"
           />
-          <ui-button variant="neutral" size="sm" (clicked)="onSwapCompare()">
+          <ui-button variant="log-action" size="sm" (clicked)="onSwapCompare()">
             <ui-icon name="refresh" [size]="14" /> {{ 'git.swap' | t }}
           </ui-button>
           <span class="gitwin__muted gitwin__compare-hint">{{
@@ -331,7 +338,7 @@ type PanelSource = 'ref' | 'range';
              each stash opens its own window straight into this detail. -->
         @if (mode === 'history') {
           <div class="gitwin__crumb">
-            <ui-button variant="neutral" size="sm" (clicked)="onBack()">
+            <ui-button variant="log-action" size="sm" (clicked)="onBack()">
               ← {{ 'git.back' | t }}
             </ui-button>
             @if (detailCommit(); as commit) {
@@ -345,11 +352,11 @@ type PanelSource = 'ref' | 'range';
                 <span>{{ date(commit.date) }}</span>
               </span>
               <span class="gitwin__spacer"></span>
-              <ui-button variant="neutral" size="sm" (clicked)="onCopySha()">
+              <ui-button variant="log-action" size="sm" (clicked)="onCopySha()">
                 <ui-icon name="copy" [size]="14" /> {{ 'git.copy_sha' | t }}
               </ui-button>
               @if (webUrl()) {
-                <ui-button variant="neutral" size="sm" (clicked)="onOpenWeb()">
+                <ui-button variant="log-action" size="sm" (clicked)="onOpenWeb()">
                   <ui-icon name="external-link" [size]="14" /> {{ 'git.view_web' | t }}
                 </ui-button>
               }
@@ -386,11 +393,11 @@ export class GitWindowComponent implements OnInit {
 
   /** Repo id from `?git=` — the repo NAME (repo-card passes `repo.name`). */
   private readonly repoId = signal('');
-  private readonly repoPath = signal('');
+  protected readonly repoPath = signal('');
   private readonly remoteUrl = signal('');
 
-  /** Window mode, fixed at open time by the URL (`&tab=stashes`). */
-  protected mode: 'history' | 'stashes' = 'history';
+  /** Window mode, fixed at open time by the URL (`&tab=stashes|changes`). */
+  protected mode: 'history' | 'stashes' | 'changes' = 'history';
   protected readonly view = signal<View>('list');
   private detailOrigin: DetailOrigin = 'list';
 
@@ -509,10 +516,14 @@ export class GitWindowComponent implements OnInit {
     const params = new URLSearchParams(window.location.search);
     const id = params.get('git') ?? '';
     this.repoId.set(id);
-    this.mode = params.get('tab') === 'stashes' ? 'stashes' : 'history';
-    document.title = `${id} — ${this.i18n.t(
-      this.mode === 'stashes' ? 'git.stashes_title' : 'git.window_title',
-    )}`;
+    const tab = params.get('tab');
+    this.mode = tab === 'stashes' ? 'stashes' : tab === 'changes' ? 'changes' : 'history';
+    const titleKey = {
+      history: 'git.title_history',
+      stashes: 'git.title_stashes',
+      changes: 'git.title_changes',
+    }[this.mode];
+    document.title = `${id} — ${this.i18n.t(titleKey)}`;
 
     const presetBranch = params.get('branch') ?? '';
     if (presetBranch) {
@@ -531,6 +542,10 @@ export class GitWindowComponent implements OnInit {
     } catch (err: unknown) {
       this.error.set(this.messageOf(err));
       return;
+    }
+
+    if (this.mode === 'changes') {
+      return; // the embedded changes view owns its own loading
     }
 
     if (this.mode === 'stashes') {

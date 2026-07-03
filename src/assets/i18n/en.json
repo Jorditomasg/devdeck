@@ -573,9 +573,6 @@
     "config": {
       "write_error": "Could not write to '{path}'"
     },
-    "changes": {
-      "title": "Modified files"
-    },
     "conflicts": {
       "title": "Conflicted files"
     }
@@ -601,8 +598,6 @@
     "repos_detected": "Detected {count} repos: {names}",
     "config_applied": "[config] Configuration applied to all repos",
     "profile_saved": "Profile '{name}' saved successfully",
-    "no_changes_local": "No local changes.",
-    "modified_files_header": "{count} modified file(s):",
     "import_cloning": "[import] Cloning {name}...",
     "import_clone_error": "[import] Error cloning {name}: {msg}",
     "import_starting": "[import] Starting clone: {names}",
@@ -693,7 +688,9 @@
     "more_items": "+{count} more — refine your search"
   },
   "git": {
-    "window_title": "Git history",
+    "title_history": "Git: History",
+    "title_stashes": "Git: Stashes",
+    "title_changes": "Git: Changes",
     "repo_not_found": "Repository '{name}' not found in the current workspace scan",
     "filter_text": "Message contains...",
     "filter_path": "Path",
@@ -715,13 +712,24 @@
     "all_authors": "All authors",
     "back": "Back",
     "no_stashes": "This repository has no stashes",
-    "stashes_title": "Stashes",
     "compare": "Compare",
     "swap": "Swap",
     "compare_hint": "{count} incoming commits",
     "view_web": "View on web",
     "copy_sha": "Copy SHA",
     "all_paths": "All paths",
-    "file_history": "File history"
+    "file_history": "File history",
+    "no_changes": "No local changes",
+    "changes_staged": "Staged",
+    "changes_unstaged": "Changes",
+    "stage": "Stage",
+    "unstage": "Unstage",
+    "discard": "Discard changes",
+    "discard_confirm_title": "Discard changes",
+    "discard_confirm_msg": "Discard the changes to '{path}'? This cannot be undone.",
+    "edit_file": "Edit file",
+    "save": "Save",
+    "unsaved_title": "Unsaved changes",
+    "unsaved_msg": "Discard the unsaved edits?"
   }
 }

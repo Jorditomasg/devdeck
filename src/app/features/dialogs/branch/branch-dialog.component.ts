@@ -281,7 +281,7 @@ export class BranchDialogComponent extends DialogBase {
   /** Detached git window scoped to this branch (git suite phase 2). */
   protected openHistory(branch: string): void {
     void this.commands.git
-      .openWindow(this.repoName(), `${this.repoName()} — ${this.i18n.t('git.window_title')}`, {
+      .openWindow(this.repoName(), `${this.repoName()} — ${this.i18n.t('git.title_history')}`, {
         branch,
       })
       .catch((err: unknown) => console.error('open git window failed', err));

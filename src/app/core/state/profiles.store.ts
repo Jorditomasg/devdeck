@@ -8,10 +8,7 @@
  * live card state and deciding WHEN to compare (the 300 ms debounce of
  * inventory-gui.md §28) belongs to the workspace feature task.
  *
- * v1 semantics preserved: profiles live per group with the Default group at
- * the store root (inventory-backend.md §15.1); the java sentinel
- * `"Sistema (Por Defecto)"` compares equal to "system default"
- * (architecture-v2.md §6).
+ * Profiles live per group with the Default group at the store root.
  */
 import { Injectable, computed, signal } from '@angular/core';
 
@@ -24,21 +21,15 @@ import type {
   RepoProfile,
 } from '../ipc/tauri.types';
 
-/** v1 Spanish sentinel for "system-default Java" — accepted forever. */
-export const JAVA_SYSTEM_DEFAULT_SENTINEL = 'Sistema (Por Defecto)';
-
-/** Fold the v1 java sentinel and empty string into `undefined`. */
+/** Fold the empty string into `undefined` (= system-default Java). */
 export function normalizeJavaVersion(value: string | undefined): string | undefined {
-  if (!value || value === JAVA_SYSTEM_DEFAULT_SENTINEL) {
-    return undefined;
-  }
-  return value;
+  return value || undefined;
 }
 
 /**
- * Semantic equality of two per-repo profile entries: java sentinel
- * normalized, array order significant for tracked files (v1 captured them in
- * a stable order), object key order NOT significant.
+ * Semantic equality of two per-repo profile entries: empty java label
+ * normalized, array order significant for tracked files, object key order
+ * NOT significant.
  */
 export function repoProfileEquals(a: RepoProfile, b: RepoProfile): boolean {
   return (
@@ -61,7 +52,7 @@ export function repoProfileEquals(a: RepoProfile, b: RepoProfile): boolean {
 /**
  * Current-vs-snapshot comparison primitive for dirty detection. Compares the
  * `repos` maps only — `name`/`created` metadata and config-file snapshots are
- * ignored (v1 dirty check compared live card state, not file contents).
+ * ignored (the dirty check compares live card state, not file contents).
  */
 export function profileReposEqual(
   a: ProfileDocument | null,

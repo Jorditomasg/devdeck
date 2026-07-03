@@ -103,6 +103,7 @@ impl Pty {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(unix)]
     use super::*;
 
     /// Spike smoke test: a PTY opens, a shell spawns, and it reports a pid.

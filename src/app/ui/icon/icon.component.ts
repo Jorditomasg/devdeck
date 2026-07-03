@@ -56,6 +56,7 @@ export type IconName =
   | 'external-link'
   | 'copy'
   | 'plus'
+  | 'minus'
   | 'search'
   | 'rotate-ccw'
   | 'globe'
@@ -268,6 +269,9 @@ export type IconName =
         @case ('plus') {
           <path d="M5 12h14" />
           <path d="M12 5v14" />
+        }
+        @case ('minus') {
+          <path d="M5 12h14" />
         }
         @case ('search') {
           <circle cx="11" cy="11" r="8" />

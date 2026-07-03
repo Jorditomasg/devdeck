@@ -5,16 +5,19 @@ import { CMD, IpcCommands } from './commands';
 import { FakeTauriBridge } from './tauri-bridge.fake';
 
 describe('CMD registry', () => {
-  it('contains the 101 contract commands, all snake_case and unique', () => {
+  it('contains the 107 contract commands, all snake_case and unique', () => {
     // 86 prior + show_main_window / request_quit (tray quick-control panel)
     // + whats_new_on_startup / disable_whats_new (post-update popup)
     // + open_git_window / git_log / git_commit_files / git_commit_file_diff
     //   / git_file_at_commit / git_working_diff (git suite phase 1)
     // + git_authors (phase 2 author filter)
     // + git_diff_range / git_diff_range_file (phase 3 compare view)
-    // + git_ls_files / git_commit_body (path autocomplete + full message).
+    // + git_ls_files / git_commit_body (path autocomplete + full message)
+    // + git_changes_list / git_stage_file / git_unstage_file
+    //   / git_discard_file / git_read_working_file / git_write_working_file
+    //   (changes window, design doc 2026-07-03).
     const names = Object.values(CMD);
-    expect(names.length).toBe(101);
+    expect(names.length).toBe(107);
     expect(new Set(names).size).toBe(names.length);
     for (const name of names) {
       expect(name).toMatch(/^[a-z][a-z0-9_]*$/);
@@ -207,6 +210,50 @@ describe('IpcCommands wrappers', () => {
       repoPath: '/ws/api',
       path: 'src/main.rs',
       staged: true,
+    });
+  });
+
+  it('changes-window wrappers carry the payloads verbatim (2026-07-03)', async () => {
+    const bridge = new FakeTauriBridge();
+    const api = new IpcCommands(bridge);
+
+    await api.git.openWindow('api', 'api — Git: Cambios', { tab: 'changes' });
+    await api.git.changesList('/ws/api');
+    await api.git.stageFile('/ws/api', 'src/a.ts');
+    await api.git.unstageFile('/ws/api', 'src/a.ts');
+    await api.git.discardFile('/ws/api', 'new.txt', true);
+    await api.git.readWorkingFile('/ws/api', 'src/a.ts');
+    await api.git.writeWorkingFile('/ws/api', 'src/a.ts', 'edited');
+
+    expect(bridge.invokesOf(CMD.openGitWindow)[0]?.args).toEqual({
+      repoId: 'api',
+      title: 'api — Git: Cambios',
+      tab: 'changes',
+    });
+    expect(bridge.invokesOf(CMD.gitChangesList)[0]?.args).toEqual({
+      repoPath: '/ws/api',
+    });
+    expect(bridge.invokesOf(CMD.gitStageFile)[0]?.args).toEqual({
+      repoPath: '/ws/api',
+      path: 'src/a.ts',
+    });
+    expect(bridge.invokesOf(CMD.gitUnstageFile)[0]?.args).toEqual({
+      repoPath: '/ws/api',
+      path: 'src/a.ts',
+    });
+    expect(bridge.invokesOf(CMD.gitDiscardFile)[0]?.args).toEqual({
+      repoPath: '/ws/api',
+      path: 'new.txt',
+      untracked: true,
+    });
+    expect(bridge.invokesOf(CMD.gitReadWorkingFile)[0]?.args).toEqual({
+      repoPath: '/ws/api',
+      path: 'src/a.ts',
+    });
+    expect(bridge.invokesOf(CMD.gitWriteWorkingFile)[0]?.args).toEqual({
+      repoPath: '/ws/api',
+      path: 'src/a.ts',
+      content: 'edited',
     });
   });
 

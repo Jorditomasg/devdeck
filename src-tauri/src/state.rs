@@ -111,7 +111,14 @@ impl DialogManager {
             .lock()
             .expect("dialog registry poisoned")
             .iter()
-            .find(|(token, slot_args)| token.starts_with(&prefix) && *slot_args == args)
+            .find(|(token, slot_args)| {
+                // Only the numeric counter may follow the prefix — otherwise
+                // `dlg-merge-` would also match `dlg-merge-branch-1`.
+                token
+                    .strip_prefix(&prefix)
+                    .is_some_and(|rest| !rest.is_empty() && rest.bytes().all(|b| b.is_ascii_digit()))
+                    && *slot_args == args
+            })
             .map(|(token, _)| token.clone())
     }
 

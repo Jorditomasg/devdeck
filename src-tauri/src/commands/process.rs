@@ -12,7 +12,7 @@ use std::time::Duration;
 use tauri::State;
 
 use super::error::{AppError, CmdResult};
-use crate::config::{AppConfig, SENTINEL_SYSTEM_DEFAULT};
+use crate::config::AppConfig;
 use crate::domain::RepoInfo;
 use crate::java;
 use crate::process::constants::SHUTDOWN_ALL_CAP;
@@ -243,15 +243,14 @@ fn load_config(state: &State<'_, AppState>) -> AppConfig {
 }
 
 /// Resolve a JDK display label to launch-env overrides through the
-/// `java_versions` registry (ipc-contract.md §2.3 #3). Unknown labels and
-/// the v1 sentinel `"Sistema (Por Defecto)"` mean system default → no
-/// overrides (inventory-backend.md §13).
+/// `java_versions` registry (ipc-contract.md §2.3 #3). Unknown labels mean
+/// system default → no overrides.
 pub(crate) fn java_env_from_config(
     config: &AppConfig,
     java_label: Option<&str>,
 ) -> HashMap<String, String> {
     match java_label {
-        Some(label) if !label.is_empty() && label != SENTINEL_SYSTEM_DEFAULT => config
+        Some(label) if !label.is_empty() => config
             .java_versions
             .get(label)
             .map(|home| java::build_java_env(home))
@@ -395,17 +394,16 @@ mod tests {
     }
 
     #[test]
-    fn java_env_ignores_sentinel_and_unknown_labels() {
+    fn java_env_ignores_unknown_labels() {
         let mut config = AppConfig::default();
         config
             .java_versions
             .insert("Java 17 (jdk-17)".into(), "/nonexistent/jdk".into());
 
         assert!(java_env_from_config(&config, None).is_empty());
-        assert!(java_env_from_config(&config, Some(SENTINEL_SYSTEM_DEFAULT)).is_empty());
         assert!(java_env_from_config(&config, Some("Java 99")).is_empty());
-        // Known label but invalid dir → build_java_env returns empty (v1:
-        // unmodified environment, inventory-backend.md §13).
+        // Known label but invalid dir → build_java_env returns empty
+        // (unmodified environment).
         assert!(java_env_from_config(&config, Some("Java 17 (jdk-17)")).is_empty());
     }
 

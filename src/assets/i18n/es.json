@@ -573,9 +573,6 @@
     "config": {
       "write_error": "No se pudo escribir en '{path}'"
     },
-    "changes": {
-      "title": "Archivos modificados"
-    },
     "conflicts": {
       "title": "Archivos en conflicto"
     }
@@ -601,8 +598,6 @@
     "repos_detected": "Detectados {count} repos: {names}",
     "config_applied": "[config] Configuración aplicada a todos los repos",
     "profile_saved": "Perfil '{name}' guardado correctamente",
-    "no_changes_local": "Sin cambios locales.",
-    "modified_files_header": "{count} fichero(s) modificado(s):",
     "import_cloning": "[import] Clonando {name}...",
     "import_clone_error": "[import] Error al clonar {name}: {msg}",
     "import_starting": "[import] Iniciando clonación: {names}",
@@ -693,7 +688,9 @@
     "more_items": "+{count} más — refiná la búsqueda"
   },
   "git": {
-    "window_title": "Historial Git",
+    "title_history": "Git: Historial",
+    "title_stashes": "Git: Stashes",
+    "title_changes": "Git: Cambios",
     "repo_not_found": "El repositorio '{name}' no está en el escaneo actual del workspace",
     "filter_text": "El mensaje contiene...",
     "filter_path": "Ruta",
@@ -715,13 +712,24 @@
     "all_authors": "Todos los autores",
     "back": "Volver",
     "no_stashes": "Este repositorio no tiene stashes",
-    "stashes_title": "Stashes",
     "compare": "Comparar",
     "swap": "Invertir",
     "compare_hint": "{count} commits entrantes",
     "view_web": "Ver en la web",
     "copy_sha": "Copiar SHA",
     "all_paths": "Todas las rutas",
-    "file_history": "Historial del fichero"
+    "file_history": "Historial del fichero",
+    "no_changes": "No hay cambios locales",
+    "changes_staged": "Preparados",
+    "changes_unstaged": "Cambios",
+    "stage": "Preparar",
+    "unstage": "Quitar de preparados",
+    "discard": "Descartar cambios",
+    "discard_confirm_title": "Descartar cambios",
+    "discard_confirm_msg": "¿Descartar los cambios de '{path}'? No se puede deshacer.",
+    "edit_file": "Editar fichero",
+    "save": "Guardar",
+    "unsaved_title": "Cambios sin guardar",
+    "unsaved_msg": "¿Descartar la edición sin guardar?"
   }
 }

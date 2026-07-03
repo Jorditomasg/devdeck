@@ -4,9 +4,8 @@
  * the local signal in sync after every granular setter (the Rust
  * `ConfigStore` is the source of truth; this is a write-through mirror).
  *
- * The group-fallback semantics replicate `AppConfig::workspace_groups_or_default`
- * / `effective_active_group` (inventory-backend.md §8.3, §8.7) as exported
- * pure functions so they stay unit-testable.
+ * The group-fallback semantics live here as exported pure functions so they
+ * stay unit-testable.
  */
 import { Injectable, computed, signal } from '@angular/core';
 
@@ -19,28 +18,16 @@ import type {
   WorkspaceGroup,
 } from '../ipc/tauri.types';
 
-/**
- * Stored groups, or a virtual `Default` group synthesized from
- * `workspace_dir` (v1 `get_workspace_groups`, inventory-backend.md §8.7).
- */
+/** The stored workspace groups (empty until configured). */
 export function workspaceGroupsOrDefault(
   config: AppConfig | null,
 ): readonly WorkspaceGroup[] {
-  if (!config) {
-    return [];
-  }
-  if (config.workspace_groups && config.workspace_groups.length > 0) {
-    return config.workspace_groups;
-  }
-  if (config.workspace_dir) {
-    return [{ name: 'Default', paths: [config.workspace_dir] }];
-  }
-  return [];
+  return config?.workspace_groups ?? [];
 }
 
 /**
- * `active_group` when it names an existing group, otherwise the first group —
- * v1 tolerated dangling `active_group` values (inventory-backend.md §8.3).
+ * `active_group` when it names an existing group, otherwise the first group
+ * (tolerates a dangling `active_group`, e.g. a group deleted while active).
  */
 export function effectiveActiveGroup(
   config: AppConfig | null,

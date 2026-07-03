@@ -334,9 +334,7 @@ export class WorkspaceStore {
         }
         const trackedModules: Record<string, boolean> = {};
         for (const key of moduleKeys) {
-          trackedModules[key] = rp.profile_tracked
-            ? rp.profile_tracked.includes(key)
-            : true; // legacy profiles without the list ⇒ all tracked (§26)
+          trackedModules[key] = rp.profile_tracked.includes(key);
         }
         this.patchCard(
           name,

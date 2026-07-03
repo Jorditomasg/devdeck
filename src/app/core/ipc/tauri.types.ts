@@ -273,6 +273,21 @@ export interface GitFileAtCommit {
   readonly size: number;
 }
 
+/**
+ * One row of the changes window (`git_changes_list`; git/worktree.rs). A
+ * partially staged file yields TWO entries — one per group.
+ */
+export interface GitChangeEntry {
+  /** Path relative to the repo root (rename target for renames). */
+  readonly path: string;
+  /** Pre-rename path when the row is a staged rename. */
+  readonly oldPath?: string;
+  /** `true` = staged group (index vs HEAD); `false` = changes group. */
+  readonly staged: boolean;
+  /** Porcelain letter (`M`/`A`/`D`/`R`…, `U` untracked, `C` conflicted). */
+  readonly status: string;
+}
+
 /** Where a merge lands (git/types.rs `TargetMode`). */
 export type MergeTargetMode = 'current' | 'existing' | 'new';
 
@@ -435,14 +450,14 @@ export interface RepoState {
   readonly selected?: boolean;
   /** Active command-profile name; absent = repo-type default command. */
   readonly command_profile?: string;
-  /** Selected JDK display label; absent = system default (sentinel normalized). */
+  /** Selected JDK display label; absent = system default. */
   readonly java_version?: string;
   readonly expanded?: boolean;
-  /** Manual list position (v2, fractional); absent = unordered (alphabetical). */
+  /** Manual list position (fractional); absent = unordered (alphabetical). */
   readonly order?: number;
 }
 
-/** v2 persisted window state (camelCase — a v2 addition, not a v1 key). */
+/** Persisted window state (camelCase). */
 export interface WindowState {
   readonly width: number;
   readonly height: number;
@@ -453,23 +468,19 @@ export interface WindowState {
 }
 
 /**
- * The application config document — the v1 config schema
- * (inventory-backend.md §8.3, inventory-config-ci.md §4.1) with v1
- * snake_case keys preserved verbatim. Spanish sentinels are normalized by
- * the Rust reader before this reaches the frontend.
+ * The application config document — snake_case keys preserved verbatim
+ * (persisted document, ipc-contract.md §1.2 deliberate exceptions).
  */
 export interface AppConfig {
-  readonly workspace_dir?: string;
-  /** v1 language code: `en_EN` / `es_ES`. Applied on next start in v1; live in v2. */
+  /** Language code: `en_EN` / `es_ES`. */
   readonly language?: string;
-  /** v1 default when absent: `true`. */
+  /** Default when absent: `true`. */
   readonly minimize_to_tray?: boolean;
   /** JDK registry: display label → JAVA_HOME path. */
   readonly java_versions?: Readonly<Record<string, string>>;
-  readonly last_profile?: string;
   readonly last_profile_by_group?: Readonly<Record<string, string>>;
   readonly workspace_groups?: readonly WorkspaceGroup[];
-  /** May reference a missing group — fall back to the first group (§8.3). */
+  /** May reference a missing group — fall back to the first group. */
   readonly active_group?: string;
   readonly repo_state?: Readonly<Record<string, RepoState>>;
   /** Selected saved environment per `"repo::module"` key (absent = none). */
@@ -481,7 +492,7 @@ export interface AppConfig {
   readonly repo_config_danger?: Readonly<Record<string, readonly string[]>>;
   readonly recent_workspaces?: readonly string[];
   readonly window?: WindowState;
-  /** v2: shell command for new terminals (undefined → per-platform default). */
+  /** Shell command for new terminals (undefined → per-platform default). */
   readonly terminal_shell?: string;
 }
 
@@ -492,7 +503,7 @@ export interface ShellInfo {
 }
 
 // ---------------------------------------------------------------------------
-// Profiles (profiles/types.rs — v1 snake_case JSON keys VERBATIM)
+// Profiles (profiles/types.rs — snake_case JSON keys VERBATIM)
 // ---------------------------------------------------------------------------
 
 /** `config_files` snapshot: module dir (`""` = root) → filename → raw content. */
@@ -506,9 +517,8 @@ export type SavedEnvironmentsMap = Readonly<
 >;
 
 /**
- * Per-repo entry of a profile (inventory-backend.md §15.3 — v1 JSON schema,
- * snake_case + `"type"`). `java_version` may carry the v1 sentinel
- * `"Sistema (Por Defecto)"` (= system default) forever.
+ * Per-repo entry of a profile (snake_case + `"type"`). `java_version` absent
+ * = system default.
  */
 export interface RepoProfile {
   readonly git_url: string;

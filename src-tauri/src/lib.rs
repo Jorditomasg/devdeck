@@ -270,6 +270,13 @@ pub fn run() {
             commands::git::git_ls_files,
             commands::git::git_commit_body,
             commands::git::git_tags,
+            // §2.4 git — changes window (working tree)
+            commands::git::git_changes_list,
+            commands::git::git_stage_file,
+            commands::git::git_unstage_file,
+            commands::git::git_discard_file,
+            commands::git::git_read_working_file,
+            commands::git::git_write_working_file,
             // §2.5 config
             commands::config::get_app_config,
             commands::config::set_language,

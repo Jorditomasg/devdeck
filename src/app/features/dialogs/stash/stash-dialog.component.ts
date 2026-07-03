@@ -244,7 +244,7 @@ export class StashDialogComponent extends DialogBase {
   /** Detached git window on the Stashes tab with this entry selected. */
   protected viewFiles(entry: StashEntry): void {
     void this.commands.git
-      .openWindow(this.repoName(), `${this.repoName()} — ${this.i18n.t('git.window_title')}`, {
+      .openWindow(this.repoName(), `${this.repoName()} — ${this.i18n.t('git.title_stashes')}`, {
         tab: 'stashes',
         stash: entry.index,
       })

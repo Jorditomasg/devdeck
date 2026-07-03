@@ -15,30 +15,23 @@ function makeStore(bridge: FakeTauriBridge): SettingsStore {
   return new SettingsStore(new IpcCommands(bridge), new IpcEvents(bridge));
 }
 
-describe('workspaceGroupsOrDefault (v1 §8.7 semantics)', () => {
+describe('workspaceGroupsOrDefault', () => {
   it('returns stored groups when present', () => {
     const config: AppConfig = {
       workspace_groups: [{ name: 'Work', paths: ['/a'] }],
-      workspace_dir: '/legacy',
     };
     expect(workspaceGroupsOrDefault(config)).toEqual([
       { name: 'Work', paths: ['/a'] },
     ]);
   });
 
-  it('synthesizes a virtual Default group from workspace_dir', () => {
-    expect(workspaceGroupsOrDefault({ workspace_dir: '/legacy' })).toEqual([
-      { name: 'Default', paths: ['/legacy'] },
-    ]);
-  });
-
-  it('is empty when neither exists (or config not loaded)', () => {
+  it('is empty when no groups exist (or config not loaded)', () => {
     expect(workspaceGroupsOrDefault({})).toEqual([]);
     expect(workspaceGroupsOrDefault(null)).toEqual([]);
   });
 });
 
-describe('effectiveActiveGroup (v1 §8.3 dangling tolerance)', () => {
+describe('effectiveActiveGroup (dangling tolerance)', () => {
   const config: AppConfig = {
     workspace_groups: [
       { name: 'A', paths: ['/a'] },
@@ -59,7 +52,7 @@ describe('effectiveActiveGroup (v1 §8.3 dangling tolerance)', () => {
 });
 
 describe('SettingsStore', () => {
-  it('loads the config mirror and exposes v1 defaults', async () => {
+  it('loads the config mirror and exposes defaults', async () => {
     const bridge = new FakeTauriBridge().whenInvoked(CMD.getAppConfig, {
       language: 'es_ES',
       workspace_groups: [{ name: 'Main', paths: ['/ws'] }],
@@ -70,7 +63,7 @@ describe('SettingsStore', () => {
     await store.init();
 
     expect(store.language()).toBe('es_ES');
-    expect(store.minimizeToTray()).toBe(true); // v1 default when absent
+    expect(store.minimizeToTray()).toBe(true); // default when absent
     expect(store.activeGroup()?.paths).toEqual(['/ws']);
     expect(store.javaVersions()['Java 17 (jdk-17)']).toBe('/jdk17');
   });

@@ -62,16 +62,16 @@ export interface FileDiffPanelText {
           <span class="fdp__name" [title]="selectedPath()">{{ selectedPath() }}</span>
           <span class="fdp__spacer"></span>
           @if (showFileHistory()) {
-            <ui-button variant="neutral" size="sm" (clicked)="fileHistory.emit(selectedPath())">
+            <ui-button variant="log-action" size="sm" (clicked)="fileHistory.emit(selectedPath())">
               {{ text().fileHistory }}
             </ui-button>
           }
           @if (mode() === 'diff') {
-            <ui-button variant="neutral" size="sm" (clicked)="viewFile.emit()">
+            <ui-button variant="log-action" size="sm" (clicked)="viewFile.emit()">
               {{ text().viewFile }}
             </ui-button>
           } @else if (mode() === 'file') {
-            <ui-button variant="neutral" size="sm" (clicked)="backToDiff.emit()">
+            <ui-button variant="log-action" size="sm" (clicked)="backToDiff.emit()">
               {{ text().backToDiff }}
             </ui-button>
           }

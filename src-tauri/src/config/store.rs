@@ -1,13 +1,10 @@
 //! Config persistence: OS config dir, atomic writes, in-memory cache.
 //!
-//! Replaces v1's install-dir config file + module-level mtime cache
-//! (`core/config_manager.py` §8.1-8.2 backend). v2 differences:
-//! - the file lives in `dirs::config_dir()/devdeck/config.json`
-//!   (architecture-v2.md §7 fix 5 — writable under Program Files installs);
-//! - writes are atomic (temp file + rename) instead of in-place `json.dump`;
-//! - the cache hands out clones, never shared mutable state (fixes the
-//!   §22.9 backend hazard), and read-modify-write goes through
-//!   [`ConfigStore::update`] under a write lock.
+//! - The file lives in `dirs::config_dir()/devdeck/config.json`
+//!   (writable under Program Files installs).
+//! - Writes are atomic (temp file + rename).
+//! - The cache hands out clones, never shared mutable state; read-modify-write
+//!   goes through [`ConfigStore::update`] under a write lock.
 
 use crate::config::app_config::AppConfig;
 use crate::domain::{DomainError, DomainResult};
@@ -83,20 +80,10 @@ impl ConfigStore {
         &self.path
     }
 
-    /// Whether the backing file exists on disk (used by the migrator's
-    /// idempotency check).
-    pub fn exists(&self) -> bool {
-        self.path.is_file()
-    }
-
     /// Load the config, served from the in-memory cache while the file's
-    /// mtime is unchanged (v1 `_load_config_cached` semantics, §8.1 backend).
-    /// A missing file yields `AppConfig::default()`; a corrupt file is an
-    /// error (v1 silently returned `{}` — v2 surfaces it so the commands
-    /// layer can warn instead of silently wiping user data).
-    ///
-    /// Spanish sentinels are normalized on every load; the on-disk file is
-    /// left as-is until the next save.
+    /// mtime is unchanged. A missing file yields `AppConfig::default()`; a
+    /// corrupt file is backed up to `config.json.corrupt` and replaced with
+    /// defaults so the UI never wedges.
     pub fn load(&self) -> DomainResult<AppConfig> {
         let mtime = fs::metadata(&self.path).and_then(|m| m.modified()).ok();
 
@@ -108,7 +95,7 @@ impl ConfigStore {
             }
         }
 
-        let mut config = if self.path.is_file() {
+        let config = if self.path.is_file() {
             let raw = fs::read_to_string(&self.path)
                 .map_err(|e| DomainError::io(self.path.display().to_string(), e))?;
             match serde_json::from_str::<AppConfig>(&raw) {
@@ -134,7 +121,6 @@ impl ConfigStore {
         } else {
             AppConfig::default()
         };
-        config.normalize_sentinels();
 
         if let Ok(mut guard) = self.cache.write() {
             *guard = Some(Cached {
@@ -147,8 +133,7 @@ impl ConfigStore {
 
     /// Atomically persist the config: serialize pretty JSON to a sibling
     /// temp file, then rename over the target (rename replaces on both
-    /// Windows and POSIX). The cache is refreshed — never left stale
-    /// (fixes v1's §22.10 mtime-granularity risk for our own writes).
+    /// Windows and POSIX). The cache is refreshed — never left stale.
     pub fn save(&self, config: &AppConfig) -> DomainResult<()> {
         if let Some(parent) = self.path.parent() {
             fs::create_dir_all(parent)
@@ -209,7 +194,6 @@ impl ConfigStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::app_config::SENTINEL_NOT_SELECTED;
 
     fn temp_store(test: &str) -> (PathBuf, ConfigStore) {
         let dir = std::env::temp_dir().join(format!(
@@ -239,7 +223,7 @@ mod tests {
         cfg.java_versions
             .insert("Java 17 (jdk-17)".into(), "/opt/jdk-17".into());
         store.save(&cfg).unwrap();
-        assert!(store.exists());
+        assert!(store.path().is_file());
         // Loads (likely from cache) the same value.
         assert_eq!(store.load().unwrap(), cfg);
         // No temp file left behind.
@@ -268,19 +252,6 @@ mod tests {
     }
 
     #[test]
-    fn load_normalizes_sentinels_from_disk() {
-        let (dir, store) = temp_store("sentinels");
-        fs::write(
-            store.path(),
-            format!(r#"{{ "active_configs": {{ "r::root": "{SENTINEL_NOT_SELECTED}" }} }}"#),
-        )
-        .unwrap();
-        let cfg = store.load().unwrap();
-        assert!(cfg.active_configs.is_empty());
-        let _ = fs::remove_dir_all(dir);
-    }
-
-    #[test]
     fn update_is_read_modify_write() {
         let (dir, store) = temp_store("update");
         store
@@ -299,10 +270,12 @@ mod tests {
     }
 
     #[test]
-    fn corrupt_file_is_an_error_not_a_wipe() {
+    fn corrupt_file_is_backed_up_and_reset_to_defaults() {
         let (dir, store) = temp_store("corrupt");
         fs::write(store.path(), "{ not json").unwrap();
-        assert!(store.load().is_err());
+        let cfg = store.load().unwrap();
+        assert_eq!(cfg, AppConfig::default());
+        assert!(dir.join("config.json.corrupt").is_file());
         let _ = fs::remove_dir_all(dir);
     }
 }

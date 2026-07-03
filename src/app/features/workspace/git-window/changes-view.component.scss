@@ -1,0 +1,177 @@
+@use '../../../../styles/mixins' as mx;
+
+:host {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.chg__error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  border: var(--geo-border-width) solid var(--color-status-error);
+  border-radius: var(--geo-corner-panel);
+  color: var(--color-status-error);
+  font-size: var(--font-size-sm);
+  background: var(--color-card);
+}
+
+.chg__layout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  // Solid surface — framed look, same rationale as file-diff-panel.
+  background: var(--color-card);
+  border: var(--geo-border-width) solid var(--color-border-card);
+  border-radius: var(--geo-corner-panel);
+  overflow: hidden;
+}
+
+.chg__files {
+  display: flex;
+  flex-direction: column;
+  width: 36%;
+  min-width: 220px;
+  max-width: 420px;
+  overflow-y: auto;
+  border-right: var(--geo-border-width) solid var(--color-border-default);
+}
+
+.chg__group {
+  margin: 0;
+  padding: 8px 10px 4px;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.chg__list {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 4px;
+}
+
+.chg__file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-size: var(--font-size-xs);
+  font-family: var(--font-family-mono);
+  color: var(--color-text-secondary);
+
+  &:hover {
+    background: var(--color-card-hover);
+  }
+
+  // Row actions surface on hover/selection (VS Code style).
+  .chg__action {
+    visibility: hidden;
+  }
+  &:hover .chg__action,
+  &.chg__file--selected .chg__action {
+    visibility: visible;
+  }
+}
+
+.chg__file--selected {
+  background: var(--color-selected-bg);
+  color: var(--color-selected-fg);
+}
+
+.chg__status {
+  flex: none;
+  width: 16px;
+  text-align: center;
+  font-weight: 700;
+
+  // Status letter colors: modified amber, added/untracked green,
+  // deleted/conflicted red, renamed/type-changed accent.
+  &--M { color: var(--color-status-starting); }
+  &--A, &--U { color: var(--color-status-running); }
+  &--D, &--C { color: var(--color-status-error); }
+  &--R, &--T { color: var(--color-text-accent-bright); }
+}
+
+.chg__path {
+  @include mx.ellipsis;
+  flex: 1;
+  min-width: 0;
+  direction: rtl;
+  text-align: left;
+}
+
+.chg__old {
+  color: var(--color-text-muted);
+}
+
+.chg__action {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: var(--geo-corner-btn);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+
+  &:hover {
+    background: var(--color-section);
+    color: var(--color-text-primary);
+  }
+}
+
+.chg__viewer {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+}
+
+.chg__bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 8px;
+}
+
+.chg__name {
+  @include mx.ellipsis;
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.chg__spacer {
+  flex: 1;
+}
+
+.chg__pane {
+  flex: 1;
+  min-height: 0;
+}
+
+.chg__center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 24px;
+}
+
+.chg__muted {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}

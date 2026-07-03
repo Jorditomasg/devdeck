@@ -85,12 +85,13 @@ literal `root` (`config::ROOT_MODULE_KEY`).
 
 ## 2. Commands
 
-101 commands across 9 groups (55 core + the 2 app-lifecycle extensions in §2.1
+107 commands across 9 groups (55 core + the 2 app-lifecycle extensions in §2.1
 + the 2 review additions: `set_last_profile` #58 in §2.5, `is_installed` #59
 in §2.3, + the post-v1 extensions numbered 60+ in their sections — detached
 log/terminal/dialog windows, tray panel, updates §2.9, stash/branch
-management, and the git-history queries #91–#102 in §2.4). The authoritative
-count assertion lives in `src/app/core/ipc/commands.spec.ts`.
+management, the git-history queries #91–#102 and the changes-window
+working-tree commands #103–#108 in §2.4). The authoritative count assertion
+lives in `src/app/core/ipc/commands.spec.ts`.
 
 ### 2.1 App lifecycle (`commands/app.rs`, wired in `lib.rs`)
 
@@ -237,7 +238,7 @@ Operation logs flow through `service://log-line` with `stream: "git"` and `name`
 | 69 | `git_delete_remote_branch` | `{ repoPath: string, name: string }` | `OpOutput` | `git::delete_remote_branch` — `push origin --delete` |
 | 70 | `git_rename_branch` | `{ repoPath: string, from?: string, to: string }` | `OpOutput` | `git::rename_branch` — `branch -m` |
 | 71 | `git_publish_branch` | `{ repoPath: string, name: string }` | `OpOutput` | `git::publish_branch` — `push -u origin` |
-| 91 | `open_git_window` | `{ repoId: string, title: string, branch?: string, tab?: "history"\|"stashes", stash?: number }` | `void` | opens (or focuses) the detached git window of a repo. Loads the SPA with `?git=<repoId>` + the optional view params (`branch` preselects the filter — branch-dialog entry; `tab`/`stash` open the stash viewer — stash-dialog entry). An already-open window is only focused. Window label `git-<sanitized id>` (capability `windows: [..., "git-*"]`). Git suite (design doc 2026-07-02) |
+| 91 | `open_git_window` | `{ repoId: string, title: string, branch?: string, tab?: "history"\|"stashes"\|"changes", stash?: number }` | `void` | opens (or focuses) the detached git window of a repo. Loads the SPA with `?git=<repoId>` + the optional view params (`branch` preselects the filter — branch-dialog entry; `tab: "stashes"`/`stash` open the stash viewer — stash-dialog entry; `tab: "changes"` the working-tree changes window — changes-badge entry, design doc 2026-07-03). Per-mode window label `git-`/`git-stashes-`/`git-changes-<sanitized id>` (all matched by capability `windows: [..., "git-*"]`), so focusing one mode never hijacks another. An already-open window of the same mode is only focused. Git suite (design doc 2026-07-02) |
 | 92 | `git_log` | `{ repoPath: string, filter: GitLogFilter }` | `GitLogPage` | `git::get_log` — paginated (50 + `hasMore` look-ahead, `skip` cursor); filters (`branch`, `author`, `since`, `until`, `grep`, `path`) applied BY GIT. Badge semaphore (3) |
 | 93 | `git_commit_files` | `{ repoPath: string, sha: string }` | `GitCommitFileStat[]` | `git::get_commit_files` — `diff-tree -r --root -m --first-parent --numstat -M` (merges diff against first parent). Badge semaphore |
 | 94 | `git_commit_file_diff` | `{ repoPath: string, sha: string, path: string }` | `GitFileDiff` | `git::get_commit_file_diff` — ONE file per call; > 512 KiB ⇒ `{ tooLarge: true }`, binary ⇒ `{ binary: true }`. Badge semaphore |
@@ -249,8 +250,15 @@ Operation logs flow through `service://log-line` with `stream: "git"` and `name`
 | 100 | `git_ls_files` | `{ repoPath: string }` | `string[]` | `git::list_files` — tracked files, capped at 5000; path-filter autocomplete. Badge semaphore |
 | 101 | `git_commit_body` | `{ repoPath: string, sha: string }` | `string` | `git::get_commit_body` — full `%B` message on demand (the log format carries only the subject). Badge semaphore |
 | 102 | `git_tags` | `{ repoPath: string }` | `string[]` | `git::list_tags` — tags newest first (capped at 1000); the history rev filter lists them with a `tag:` prefix so tag filtering is visually distinct from branches. Badge semaphore |
+| 103 | `git_changes_list` | `{ repoPath: string }` | `GitChangeEntry[]` | `git::get_changes` — `status --porcelain -z` parsed into per-group rows (a partially staged `MM` file yields one staged + one unstaged entry). Changes window (design doc 2026-07-03). Badge semaphore |
+| 104 | `git_stage_file` | `{ repoPath: string, path: string }` | `OpOutput` | `git::stage_file` — `git add -- <path>` (also marks a conflicted file resolved) |
+| 105 | `git_unstage_file` | `{ repoPath: string, path: string }` | `OpOutput` | `git::unstage_file` — `git restore --staged -- <path>` |
+| 106 | `git_discard_file` | `{ repoPath: string, path: string, untracked: boolean }` | `OpOutput` | `git::discard_file` — tracked: `git restore -- <path>`; untracked: `git clean -f -- <path>`. DESTRUCTIVE; the frontend confirms first |
+| 107 | `git_read_working_file` | `{ repoPath: string, path: string }` | `GitFileAtCommit` | `git::read_working_file` — working-tree contents, same caps as #95 (512 KiB ⇒ `tooLarge`, NUL ⇒ `binary`). Path guarded inside the repo (canonicalized prefix check, no `..`/absolute/symlink escapes). Badge semaphore |
+| 108 | `git_write_working_file` | `{ repoPath: string, path: string, content: string }` | `void` | `git::write_working_file` — saves the changes-window editor. Same path guard; only writes files that already exist |
 
 > `StashEntry` type (§1.2): `{ index: number, message: string, branch: string }` (camelCase wire).
+> `GitChangeEntry` (§1.2, camelCase wire): `{ path, oldPath?, staged: boolean, status }` — `status` is the porcelain letter (`M`/`A`/`D`/`R`/`T`…) with `??` folded to `U` and conflict states to `C`.
 > History types (§1.2, camelCase wire): `GitCommitInfo { sha, parents: string[], authorName, authorEmail, date /* ISO 8601 */, subject, refs: string[] }`, `GitLogPage { commits: GitCommitInfo[], hasMore }`, `GitLogFilter { all?, branch?, author?, since?, until?, grep?, path?, skip? }` (`all` walks every ref — whole-repo flow view; log always runs `--topo-order` for the lane graph), `GitCommitFileStat { path, oldPath?, additions, deletions, binary }`, `GitFileDiff { content?, binary, tooLarge }`, `GitFileAtCommit { content?, binary, tooLarge, size }`, `GitAuthor { name, email, commits }`. Stash contents reuse #93/#94 with `sha: "stash@{n}"` (a stash IS a commit; first-parent diff = `stash show`).
 
 ### 2.5 Config (`config/`)

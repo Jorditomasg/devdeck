@@ -178,12 +178,9 @@ export class ProfileManagerDialogComponent extends DialogBase {
     return name === undefined || name === 'Default' ? undefined : name;
   });
 
-  /** Workspace root: clone destination + env-apply target (v1 workspace dir). */
+  /** Workspace root: clone destination + env-apply target. */
   private readonly workspaceDir = computed(
-    () =>
-      this.settings.activeGroup()?.paths[0] ??
-      this.settings.config()?.workspace_dir ??
-      '',
+    () => this.settings.activeGroup()?.paths[0] ?? '',
   );
 
   constructor() {

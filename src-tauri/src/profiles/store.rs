@@ -1,11 +1,7 @@
-//! Profile storage — CRUD over `<data_dir>/devdeck/profiles/`
-//! (v1 `core/profile_manager.py` §15.1-15.2, relocated from the install-dir
-//! `.devops-profiles/` per architecture-v2.md §7.5; the migrator copies the
-//! v1 tree preserving this exact layout).
+//! Profile storage — CRUD over `<data_dir>/devdeck/profiles/`.
 //!
-//! Layout: the root dir holds the `Default` group's profiles (backwards
-//! compat); every other group gets a sanitized subdirectory. One
-//! `<name>.json` per profile.
+//! Layout: the root dir holds the `Default` group's profiles; every other
+//! group gets a sanitized subdirectory. One `<name>.json` per profile.
 
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
@@ -15,10 +11,10 @@ use regex::Regex;
 
 use super::types::{ProfileDocument, ProfileError};
 
-/// Profile file extension (v1 `PROFILE_EXT`).
+/// Profile file extension.
 pub const PROFILE_EXT: &str = ".json";
 
-/// Group name that maps to the root profiles dir (v1: `None` or `"Default"`).
+/// Group name that maps to the root profiles dir.
 pub const DEFAULT_GROUP: &str = "Default";
 
 fn sanitize_re() -> &'static Regex {
@@ -26,9 +22,8 @@ fn sanitize_re() -> &'static Regex {
     RE.get_or_init(|| Regex::new(r#"[<>:"/\\|?*]"#).expect("static regex"))
 }
 
-/// Convert a group name to a safe directory name (v1 `_sanitize_group_name`):
-/// replace `<>:"/\|?*` with `_`, strip leading/trailing `.`/`_`,
-/// empty → `default`.
+/// Convert a group name to a safe directory name: replace `<>:"/\|?*` with
+/// `_`, strip leading/trailing `.`/`_`, empty → `default`.
 pub fn sanitize_group_name(name: &str) -> String {
     let replaced = sanitize_re().replace_all(name, "_");
     let trimmed = replaced.trim_matches(|c| c == '.' || c == '_');
@@ -39,7 +34,7 @@ pub fn sanitize_group_name(name: &str) -> String {
     }
 }
 
-/// Profile store rooted at one directory (injectable for tests/migration).
+/// Profile store rooted at one directory (injectable for tests).
 #[derive(Debug, Clone)]
 pub struct ProfileStore {
     root: PathBuf,

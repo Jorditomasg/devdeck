@@ -159,10 +159,7 @@ export class TopbarComponent {
   );
 
   protected readonly workspacePath = computed(
-    () =>
-      this.settings.activeGroup()?.paths[0] ??
-      this.settings.config()?.workspace_dir ??
-      '',
+    () => this.settings.activeGroup()?.paths[0] ?? '',
   );
 
   /** Active name with the no-profile sentinel folded in (§26). */
