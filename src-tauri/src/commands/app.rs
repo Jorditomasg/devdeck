@@ -127,6 +127,7 @@ pub async fn open_log_window(
             })?;
     #[cfg(windows)]
     force_taskbar_button(&window);
+    center_on_cursor_monitor(&app, &window);
     let _ = window.show();
     Ok(())
 }
@@ -186,6 +187,7 @@ pub async fn open_git_window(
             })?;
     #[cfg(windows)]
     force_taskbar_button(&window);
+    center_on_cursor_monitor(&app, &window);
     let _ = window.show();
     Ok(())
 }
@@ -209,6 +211,46 @@ fn force_taskbar_button(window: &tauri::WebviewWindow) {
             SetWindowLongPtrW(hwnd, GWL_EXSTYLE, ex);
         }
     }
+}
+
+/// Center a (still hidden) secondary window on the monitor under the cursor —
+/// i.e. the screen where the user just clicked the button that opened it.
+/// Best-effort: any failure (no cursor, headless, unresolved monitor) keeps
+/// the placement the window already has. Shared by the log/git windows here,
+/// the terminal windows ([`super::terminal`]) and the dialogs
+/// ([`super::dialog`]).
+pub(crate) fn center_on_cursor_monitor(app: &tauri::AppHandle, window: &tauri::WebviewWindow) {
+    let Some(monitor) = app
+        .cursor_position()
+        .ok()
+        .and_then(|p| app.monitor_from_point(p.x, p.y).ok().flatten())
+    else {
+        return;
+    };
+    let Ok(size) = window.outer_size() else {
+        return;
+    };
+    // ponytail: physical-pixel math; on mixed-DPI Windows rescales after the
+    // move so the window can land slightly off-center — accepted in the
+    // design doc, a second re-center pass is not worth it.
+    let (x, y) = centered_origin(
+        (monitor.position().x, monitor.position().y),
+        (monitor.size().width, monitor.size().height),
+        (size.width, size.height),
+    );
+    let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
+}
+
+/// Origin that centers a `window`-sized rect inside a monitor rect, clamped
+/// to the monitor origin when the window is larger than the monitor.
+fn centered_origin(
+    monitor_pos: (i32, i32),
+    monitor_size: (u32, u32),
+    window_size: (u32, u32),
+) -> (i32, i32) {
+    let x = monitor_pos.0 + ((monitor_size.0 as i32 - window_size.0 as i32) / 2).max(0);
+    let y = monitor_pos.1 + ((monitor_size.1 as i32 - window_size.1 as i32) / 2).max(0);
+    (x, y)
 }
 
 /// `get_log_backlog { serviceId }` → recent lines for a service (or the
@@ -270,6 +312,17 @@ mod tests {
         assert_eq!(log_window_label("repo::module"), "log-repo::module");
         assert_eq!(log_window_label("__global__"), "log-__global__");
         assert_eq!(log_window_label("a b.c"), "log-a-b-c");
+    }
+
+    #[test]
+    fn centered_origin_centers_and_clamps() {
+        // Secondary monitor to the left of the primary (negative origin).
+        assert_eq!(
+            centered_origin((-1920, 0), (1920, 1080), (900, 620)),
+            (-1410, 230)
+        );
+        // Window larger than the monitor → clamp to the monitor origin.
+        assert_eq!(centered_origin((0, 0), (800, 600), (1150, 760)), (0, 0));
     }
 
     #[test]

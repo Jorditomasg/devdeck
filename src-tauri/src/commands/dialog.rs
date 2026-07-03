@@ -86,7 +86,11 @@ pub async fn open_dialog_window(
             // bottom-corner stub with no way back — so disable both buttons.
             .minimizable(false)
             .maximizable(false)
-            .center();
+            // Fallback placement; overridden below by the cursor-monitor
+            // centering when the cursor/monitor can be resolved.
+            .center()
+            // Hidden-then-show so the re-centering happens off-screen.
+            .visible(false);
     if let Some(parent) = parent_label.as_deref() {
         if let Some(parent_window) = app.get_webview_window(parent) {
             builder = builder.parent(&parent_window).map_err(|err| AppError {
@@ -95,10 +99,12 @@ pub async fn open_dialog_window(
             })?;
         }
     }
-    builder.build().map_err(|err| AppError {
+    let window = builder.build().map_err(|err| AppError {
         kind: "io".into(),
         message: format!("open dialog window: {err}"),
     })?;
+    super::app::center_on_cursor_monitor(&app, &window);
+    let _ = window.show();
     Ok(token)
 }
 

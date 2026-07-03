@@ -9,7 +9,7 @@
 
 use tauri::ipc::{Channel, InvokeResponseBody};
 
-use super::app::{urlencode_component, window_label};
+use super::app::{center_on_cursor_monitor, urlencode_component, window_label};
 use super::error::{AppError, CmdResult};
 use crate::state::AppState;
 use crate::terminal::shell::{detect_shells, resolve_shell, ShellInfo};
@@ -46,15 +46,20 @@ pub async fn open_terminal_window(
 
     let label = window_label("term", &id);
     let url = format!("index.html?terminal={}", urlencode_component(&id));
-    tauri::WebviewWindowBuilder::new(&app, &label, tauri::WebviewUrl::App(url.into()))
-        .title(&title)
-        .inner_size(900.0, 560.0)
-        .min_inner_size(420.0, 240.0)
-        .build()
-        .map_err(|err| AppError {
-            kind: "io".into(),
-            message: format!("open terminal window: {err}"),
-        })?;
+    // Hidden-then-show so the cursor-monitor centering happens off-screen.
+    let window =
+        tauri::WebviewWindowBuilder::new(&app, &label, tauri::WebviewUrl::App(url.into()))
+            .title(&title)
+            .inner_size(900.0, 560.0)
+            .min_inner_size(420.0, 240.0)
+            .visible(false)
+            .build()
+            .map_err(|err| AppError {
+                kind: "io".into(),
+                message: format!("open terminal window: {err}"),
+            })?;
+    center_on_cursor_monitor(&app, &window);
+    let _ = window.show();
     Ok(id)
 }
 
