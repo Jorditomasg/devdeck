@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-**DevDeck** is a Tauri 2 desktop app for managing and launching multiple development services (Spring Boot, Angular, React, Nx, Maven, Docker Compose) from a single interface. It scans a workspace directory, detects repository types via config-driven YAML rules, and provides start/stop/configure controls per repo, with git badges, profiles, docker compose management and detached log windows.
+**DevDeck** is a Tauri 2 desktop app for managing and launching multiple development services (Spring Boot, Angular, React, Nx, Maven, Docker Compose) from a single interface. It scans a workspace directory, detects repository types via config-driven YAML rules, and provides start/stop/configure controls per repo, with git badges, profiles, docker compose management and detached log windows. Since v3 it also ships a per-repo **git window**: a labeled branch-lane commit graph with filters and per-file diffs, a compare view, and a stash file viewer (design doc `docs/superpowers/specs/2026-07-02-git-suite-design.md`).
 
 It is the full rewrite of the Python/customtkinter app at [Jorditomasg/devops-manager](https://github.com/Jorditomasg/devops-manager) (now in maintenance). The migration contract — exhaustive v1 feature inventories, architecture decisions, and the IPC contract — lives in `docs/migration/` and is the authoritative spec.
 
@@ -12,7 +12,7 @@ It is the full rewrite of the Python/customtkinter app at [Jorditomasg/devops-ma
 
 - **Rust core** (`src-tauri/`): ALL side effects — process supervision (tokio), repo detection, git (CLI shell-outs), java discovery, profiles, docker compose, config persistence in OS dirs, tray, single-instance.
 - **Angular 22 frontend** (`src/`): zoneless, signals, standalone components, strict TS. Pure UI over a typed IPC contract — no business logic.
-- **IPC**: 61 commands + 7 events, documented in `docs/migration/ipc-contract.md`. The Rust command names are snake_case; arg keys camelCase on the wire. Error envelope: `{ kind, message }`.
+- **IPC**: 100 commands + 7 events, documented in `docs/migration/ipc-contract.md` (the authoritative count assertion lives in `src/app/core/ipc/commands.spec.ts`). The Rust command names are snake_case; arg keys camelCase on the wire. Error envelope: `{ kind, message }`.
 
 ## Commands
 
@@ -33,7 +33,7 @@ Cross-compiling the Windows exe from WSL works via `cargo-xwin` (see the engram 
 - **Layering**: `src/app/core/` (typed IPC wrappers, signal stores, i18n runtime) → `src/app/ui/` (pure presentational atoms/molecules, zero store/IPC imports) → `src/app/features/` (containers that inject stores and translate ALL text). Containers translate; presentational components receive plain inputs/outputs.
 - **No ESM cycles**: `dialog-base.ts` must NEVER import `dialog.service.ts` (it injects the `DIALOGS` token from `dialog-stack.ts`; the alias lives in `app.config.ts`). A static cycle here shipped a blank-window crash once ("class extends value undefined"). Run `npx madge --circular --extensions ts src/app` before structural changes.
 - **Wire names live in one place**: `core/ipc/commands.ts` (`CMD`) and `core/ipc/events.ts` (`EVT`) mirror `src-tauri/src/events.rs` and the `#[tauri::command]` fns registered in `lib.rs`. Update contract doc + both sides + the count assertions in `commands.spec.ts`/`events.spec.ts` together.
-- **Window handlers are main-only**: `on_window_event` in `lib.rs` early-returns for non-`"main"` labels — detached log windows (`log-*`) must close/minimize normally. `frontend_ready` no-ops for non-main windows.
+- **Window handlers are main-only**: `on_window_event` in `lib.rs` early-returns for non-`"main"` labels — detached log/terminal/git windows (`log-*`, `term-*`, `git-*`) must close/minimize normally. `frontend_ready` no-ops for non-main windows.
 - **i18n**: every user-visible string via `t('key')` / `| t` pipe; keys in `src/assets/i18n/{en,es}.json` — the two files MUST keep identical key structure (CI-able check: recursive key-set compare).
 - **Timing constants** (inherited from v1, inventory-gui.md §28 — do not lower): git badge poll 30 s with concurrency cap 3 (ONE semaphore shared between poller and on-demand queries), docker poll 15 s, profile dirty debounce 300 ms, log caps 500/service + 1000 global.
 - **Repo detection is config-driven**: adding a framework = adding a YAML under `config/repo-types/` (bundled as Tauri resource; user overrides in the OS config dir). No code changes.
@@ -43,6 +43,7 @@ Cross-compiling the Windows exe from WSL works via `cargo-xwin` (see the engram 
 - Processes spawn in their OWN process group (Unix `process_group(0)`, Windows `CREATE_NO_WINDOW` + job-style `taskkill /F /T`); stop escalates stop_cmd → SIGTERM (10 s) → SIGKILL (5 s). This deliberately fixes a v1 bug — do not "simplify" it.
 - Config lives in the OS config dir (`dirs::config_dir()/devdeck/`), profiles in `dirs::data_dir()/devdeck/profiles/`. Config readers stay tolerant of v1 Spanish sentinel values (like `"- Sin Seleccionar -"`) forever via `AppConfig::normalize_sentinels`.
 - Detached log windows: `open_log_window` creates a `log-<id>` webview loading `?log=<serviceId>`; backlog comes from the Rust `LogCache` (fed by the event emitter), live lines from `service://log-line`. Capability `windows` includes `"log-*"`.
+- Git window (v3): `open_git_window` creates `git-<repoId>` loading `?git=<repoId>` (+ optional `branch`/`tab`/`stash` view params). Backend queries live in `src-tauri/src/git/history.rs` (8-field log format incl. `%S` source; first-parent diffs — NEVER `diff-tree -m`, multi-parent commits duplicate sections); every read shares the badge semaphore. Frontend graph: `git-window/graph.ts` (lane algorithm, branch-identity labels/colors, linear mode when author/text/path/date filters fragment topology). CodeMirror is imported DIRECTLY by its consumers, never re-exported from the `ui` barrel (initial-bundle budget).
 - `Cargo.lock` pins `time 0.3.47` — 0.3.48 breaks `cookie 0.18.1` (E0119). Do not blindly `cargo update`.
 - Git auto-routes per repo path (Windows only): a repo under `\\wsl.localhost\<distro>\...` (or `\\wsl$`) runs git INSIDE the distro via `wsl.exe -d <distro> --cd <path> --exec git` (`git/exec.rs`); `--exec` is mandatory (no shell → no injection). Everything else uses Windows git unchanged. Start/stop of services does NOT route through WSL — that is a separate future feature with its own kill path.
 

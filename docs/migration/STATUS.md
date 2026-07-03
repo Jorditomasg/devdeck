@@ -1,5 +1,17 @@
 # Engineering Status — DevDeck v2
 
+> **2026-07-04 update (v3.0.0):** this document below is the HISTORICAL
+> snapshot of the v1→v2 migration (2026-06-12) — everything in the
+> "UNVERIFIED" section has since been resolved: builds run routinely
+> (native Windows and WSL via `cargo-xwin`, see CLAUDE.md), lockfiles are
+> committed, vitest runs 350+ specs green, and releases ship signed
+> through CI. The IPC surface has grown to 100 commands (authoritative
+> count: `src/app/core/ipc/commands.spec.ts`), most notably the v3 **git
+> suite** — per-repo git window with a labeled branch-lane commit graph,
+> per-file diffs, compare view and stash file viewer
+> (`docs/superpowers/specs/2026-07-02-git-suite-design.md`). Kept for
+> historical reference; do not use as current state.
+
 Last updated: 2026-06-12. Companion docs: [`architecture-v2.md`](architecture-v2.md),
 [`ipc-contract.md`](ipc-contract.md), [`ci-v2.md`](ci-v2.md),
 [`migration-guide.md`](migration-guide.md).

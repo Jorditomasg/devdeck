@@ -19,6 +19,16 @@ more juggling a dozen terminals.
   monitor.
 - **Git at a glance** — branch badges and status on every card; pull, merge (with revert
   points), stash and switch branches without leaving the app.
+- **Git history window** (v3) — a full commit graph per repository: colored branch lanes
+  with merges, branch names on every line and dot (hover to see them, click to filter),
+  author avatars, and filters by branch, author, message, file path and date range. Open
+  any commit to browse its files with syntax-highlighted diffs, view the whole file as of
+  that commit, jump to a file's history, copy the SHA or open the commit on GitHub/GitLab/
+  Bitbucket.
+- **Compare view** (v3) — pick any two branches (local or remote) and see the incoming
+  commits plus the full file-by-file diff between them.
+- **Stash file viewer** (v3) — every stash entry has a Files button that opens its changes
+  side by side with the diff viewer.
 - **Docker Compose** — bring a repo's compose services up or down and watch their status.
 - **Interactive terminals** — open a real PTY terminal scoped to any repository.
 - **Command profiles per repo** — save several named launch configurations for a service
