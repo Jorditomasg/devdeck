@@ -32,8 +32,8 @@ function repo(name: string, extra?: Partial<RepoInfo>): RepoInfo {
   };
 }
 
-function badge(name: string): GitBadgeEvent {
-  return { name, branch: 'develop', behind: 1, staged: 0, unstaged: 2, conflicts: 0 };
+function badge(name: string, path = `/ws/${name}`): GitBadgeEvent {
+  return { name, path, branch: 'develop', behind: 1, staged: 0, unstaged: 2, conflicts: 0 };
 }
 
 function makeStore(bridge: FakeTauriBridge): ReposStore {
@@ -77,6 +77,23 @@ describe('ReposStore', () => {
       unstaged: 2,
       conflicts: 0,
     });
+  });
+
+  it('routes badges by path so duplicate basenames hit the right card', async () => {
+    const bridge = new FakeTauriBridge().whenInvoked(CMD.scanWorkspace, [
+      repo('api (backend)', { path: '/ws/backend/api' }),
+      repo('api (fork)', { path: '/ws/fork/api' }),
+    ]);
+    const store = makeStore(bridge);
+    await store.init();
+    await store.scan(['/ws/backend', '/ws/fork']);
+
+    // The Rust poller derives the payload name from the path basename.
+    bridge.emit(EVT.gitBadge, badge('api', '/ws/fork/api'));
+
+    expect(store.badges()['api (fork)']).toBeDefined();
+    expect(store.badges()['api (backend)']).toBeUndefined();
+    expect(store.badges()['api']).toBeUndefined();
   });
 
   it('prunes badges of repos that disappeared on rescan', async () => {

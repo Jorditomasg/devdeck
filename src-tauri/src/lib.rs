@@ -269,6 +269,7 @@ pub fn run() {
             commands::git::git_diff_range_file,
             commands::git::git_ls_files,
             commands::git::git_commit_body,
+            commands::git::git_tags,
             // §2.5 config
             commands::config::get_app_config,
             commands::config::set_language,

@@ -176,10 +176,19 @@ pub async fn apply_profile_environments(
 
     // 1. Disk writes (outside the config lock — they don't touch config).
     //    Bulk env-file overwrites are chunky sync fs — off the async runtime.
+    //    Resolve each repo's real path from the last scan (names may be
+    //    disambiguated basenames and roots may be multiple); the v1
+    //    `workspace/<name>` join stays as fallback for unscanned repos.
+    let repos = state.repos_snapshot();
     let doc = tauri::async_runtime::spawn_blocking(move || {
         for (repo_name, entry) in &doc.repos {
             if let Some(config_files) = &entry.config_files {
-                profiles::apply_config_files(&workspace.join(repo_name), config_files);
+                let repo_path = repos
+                    .iter()
+                    .find(|r| &r.name == repo_name)
+                    .map(|r| PathBuf::from(&r.path))
+                    .unwrap_or_else(|| workspace.join(repo_name));
+                profiles::apply_config_files(&repo_path, config_files);
             }
         }
         doc

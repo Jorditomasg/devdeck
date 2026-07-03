@@ -161,7 +161,11 @@ pub struct ScanProgressPayload {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GitBadgePayload {
+    /// Basename fallback; repos with duplicate basenames get disambiguated
+    /// `RepoInfo.name`s, so the frontend routes by `path` first.
     pub name: String,
+    /// Absolute repo path — the collision-proof routing key.
+    pub path: String,
     pub branch: String,
     pub behind: u32,
     pub staged: u32,

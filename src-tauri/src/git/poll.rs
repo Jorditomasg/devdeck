@@ -119,6 +119,7 @@ pub async fn refresh_badge(emitter: &dyn EventEmitter, repo: &std::path::Path) {
     let summary = get_status_summary(repo).await;
     let payload = GitBadgePayload {
         name: repo_name(repo),
+        path: repo.display().to_string(),
         branch: summary.branch,
         behind: summary.behind,
         staged: summary.staged,

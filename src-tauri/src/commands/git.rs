@@ -391,6 +391,17 @@ pub async fn git_ls_files(
     git::list_files(&PathBuf::from(repo_path)).await.map_err(git_err)
 }
 
+/// `git_tags { repoPath }` → `string[]` — repo tags, newest first (capped
+/// at 1000); the history rev filter lists them with a `tag:` prefix.
+#[tauri::command]
+pub async fn git_tags(
+    state: State<'_, AppState>,
+    repo_path: String,
+) -> CmdResult<Vec<String>> {
+    let _permit = acquire(&state.badge_semaphore).await?;
+    git::list_tags(&PathBuf::from(repo_path)).await.map_err(git_err)
+}
+
 /// `git_commit_body { repoPath, sha }` → `string` — full commit message
 /// (`%B`), fetched on demand by the detail view.
 #[tauri::command]

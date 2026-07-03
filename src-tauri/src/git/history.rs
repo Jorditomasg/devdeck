@@ -168,6 +168,27 @@ pub async fn list_files(repo: &Path) -> Result<Vec<String>, String> {
         .collect())
 }
 
+/// Cap for the tag list (`git_tags`).
+pub const TAGS_CAP: usize = 1000;
+
+/// Repo tags, newest first (`git tag --sort=-creatordate`) — the history
+/// rev filter lists them with a `tag:` prefix so filtering by a tag is
+/// visually distinct from a branch (user 2026-07-04).
+pub async fn list_tags(repo: &Path) -> Result<Vec<String>, String> {
+    let args = ["tag", "--list", "--sort=-creatordate"];
+    let out = run_git(repo, &args, T_QUERY).await.map_err(|e| e.to_string())?;
+    if !out.success {
+        return Err(out.error_message());
+    }
+    Ok(out
+        .stdout
+        .lines()
+        .filter(|l| !l.is_empty())
+        .take(TAGS_CAP)
+        .map(str::to_string)
+        .collect())
+}
+
 /// Full commit message (`%B`, subject + body) — the log format carries only
 /// the subject; the detail view fetches the rest on demand.
 pub async fn get_commit_body(repo: &Path, sha: &str) -> Result<String, String> {

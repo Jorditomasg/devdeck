@@ -397,6 +397,7 @@ export class GitWindowComponent implements OnInit {
   // -- filters (history list) --------------------------------------------------
   protected readonly filters = signal<FilterFormState>(EMPTY_FILTERS);
   private readonly branches = signal<readonly string[]>([]);
+  private readonly tags = signal<readonly string[]>([]);
   private readonly recentCount = signal(0);
   private readonly authors = signal<readonly GitAuthor[]>([]);
   private readonly currentBranch = signal('');
@@ -413,11 +414,19 @@ export class GitWindowComponent implements OnInit {
   protected readonly branchOptions = computed(() => [
     this.i18n.t('git.all_branches'),
     ...this.branches(),
+    // Tags carry git's own decoration prefix so they never read as branches.
+    ...this.tags().map((t) => `tag: ${t}`),
   ]);
   protected readonly recentBranchCount = computed(() => this.recentCount() + 1);
-  protected readonly branchValue = computed(
-    () => this.filters().branch || this.i18n.t('git.all_branches'),
-  );
+  protected readonly branchValue = computed(() => {
+    const branch = this.filters().branch;
+    if (!branch) {
+      return this.i18n.t('git.all_branches');
+    }
+    // A tag rev displays as `tag: X` — clicking a tag chip/dot sets the
+    // bare name, but it must not read as a branch (user 2026-07-04).
+    return this.tags().includes(branch) ? `tag: ${branch}` : branch;
+  });
   protected readonly authorOptions = computed(() => [
     this.i18n.t('git.all_authors'),
     ...this.authors().map((a) => authorLabel(a.name, a.email)),
@@ -537,6 +546,7 @@ export class GitWindowComponent implements OnInit {
     }
 
     void this.loadBranches();
+    void this.loadTags();
     void this.loadAuthors();
     void this.commands.git
       .currentBranch(this.repoPath())
@@ -557,7 +567,8 @@ export class GitWindowComponent implements OnInit {
   }
 
   protected onBranchSelected(value: string): void {
-    const branch = value === this.i18n.t('git.all_branches') ? '' : value;
+    const branch =
+      value === this.i18n.t('git.all_branches') ? '' : value.replace(/^tag: /, '');
     this.onFilter('branch', branch);
   }
 
@@ -795,6 +806,14 @@ export class GitWindowComponent implements OnInit {
       this.recentCount.set(ordered.recentCount);
     } catch {
       // Branch dropdown is a convenience — history still works without it.
+    }
+  }
+
+  private async loadTags(): Promise<void> {
+    try {
+      this.tags.set(await this.commands.git.tags(this.repoPath()));
+    } catch {
+      // Tag section is a convenience — the rev filter still accepts refs.
     }
   }
 

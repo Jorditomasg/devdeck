@@ -117,6 +117,7 @@ export const CMD = {
   gitDiffRangeFile: 'git_diff_range_file',
   gitLsFiles: 'git_ls_files',
   gitCommitBody: 'git_commit_body',
+  gitTags: 'git_tags',
   // config
   getAppConfig: 'get_app_config',
   setLanguage: 'set_language',
@@ -496,6 +497,10 @@ export class IpcCommands {
     /** Full commit message (`%B`), fetched on demand by the detail view. */
     commitBody: (repoPath: string, sha: string): Promise<string> =>
       this.bridge.invoke<string>(CMD.gitCommitBody, { repoPath, sha }),
+
+    /** Repo tags, newest first (capped) — the rev filter's tag section. */
+    tags: (repoPath: string): Promise<string[]> =>
+      this.bridge.invoke<string[]>(CMD.gitTags, { repoPath }),
 
     /** Files changed between two revs (`base...target`, compare view). */
     diffRange: (

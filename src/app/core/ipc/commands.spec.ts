@@ -14,7 +14,7 @@ describe('CMD registry', () => {
     // + git_diff_range / git_diff_range_file (phase 3 compare view)
     // + git_ls_files / git_commit_body (path autocomplete + full message).
     const names = Object.values(CMD);
-    expect(names.length).toBe(100);
+    expect(names.length).toBe(101);
     expect(new Set(names).size).toBe(names.length);
     for (const name of names) {
       expect(name).toMatch(/^[a-z][a-z0-9_]*$/);
@@ -178,6 +178,8 @@ describe('IpcCommands wrappers', () => {
 
     await api.git.lsFiles('/ws/api');
     await api.git.commitBody('/ws/api', 'abc123');
+    await api.git.tags('/ws/api');
+    expect(bridge.invokesOf(CMD.gitTags)[0]?.args).toEqual({ repoPath: '/ws/api' });
     expect(bridge.invokesOf(CMD.gitLsFiles)[0]?.args).toEqual({ repoPath: '/ws/api' });
     expect(bridge.invokesOf(CMD.gitCommitBody)[0]?.args).toEqual({
       repoPath: '/ws/api',

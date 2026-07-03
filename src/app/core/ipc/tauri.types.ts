@@ -127,7 +127,10 @@ export interface ScanProgressEvent {
  * staged files (§22.19, a deliberate keep).
  */
 export interface GitBadgeEvent {
+  /** Basename fallback — repos with duplicate basenames get disambiguated names. */
   readonly name: string;
+  /** Absolute repo path — the collision-proof routing key. */
+  readonly path: string;
   readonly branch: string;
   readonly behind: number;
   readonly staged: number;

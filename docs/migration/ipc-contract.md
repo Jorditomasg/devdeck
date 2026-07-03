@@ -89,7 +89,7 @@ literal `root` (`config::ROOT_MODULE_KEY`).
 + the 2 review additions: `set_last_profile` #58 in §2.5, `is_installed` #59
 in §2.3, + the post-v1 extensions numbered 60+ in their sections — detached
 log/terminal/dialog windows, tray panel, updates §2.9, stash/branch
-management, and the git-history queries #91–#101 in §2.4). The authoritative
+management, and the git-history queries #91–#102 in §2.4). The authoritative
 count assertion lives in `src/app/core/ipc/commands.spec.ts`.
 
 ### 2.1 App lifecycle (`commands/app.rs`, wired in `lib.rs`)
@@ -248,6 +248,7 @@ Operation logs flow through `service://log-line` with `stream: "git"` and `name`
 | 99 | `git_diff_range_file` | `{ repoPath: string, base: string, target: string, path: string }` | `GitFileDiff` | `git::get_range_file_diff` — one file, `diff -M base...target -- <path>`, usual caps. Commit list of a range rides `git_log` with `branch: "base..target"`. Badge semaphore |
 | 100 | `git_ls_files` | `{ repoPath: string }` | `string[]` | `git::list_files` — tracked files, capped at 5000; path-filter autocomplete. Badge semaphore |
 | 101 | `git_commit_body` | `{ repoPath: string, sha: string }` | `string` | `git::get_commit_body` — full `%B` message on demand (the log format carries only the subject). Badge semaphore |
+| 102 | `git_tags` | `{ repoPath: string }` | `string[]` | `git::list_tags` — tags newest first (capped at 1000); the history rev filter lists them with a `tag:` prefix so tag filtering is visually distinct from branches. Badge semaphore |
 
 > `StashEntry` type (§1.2): `{ index: number, message: string, branch: string }` (camelCase wire).
 > History types (§1.2, camelCase wire): `GitCommitInfo { sha, parents: string[], authorName, authorEmail, date /* ISO 8601 */, subject, refs: string[] }`, `GitLogPage { commits: GitCommitInfo[], hasMore }`, `GitLogFilter { all?, branch?, author?, since?, until?, grep?, path?, skip? }` (`all` walks every ref — whole-repo flow view; log always runs `--topo-order` for the lane graph), `GitCommitFileStat { path, oldPath?, additions, deletions, binary }`, `GitFileDiff { content?, binary, tooLarge }`, `GitFileAtCommit { content?, binary, tooLarge, size }`, `GitAuthor { name, email, commits }`. Stash contents reuse #93/#94 with `sha: "stash@{n}"` (a stash IS a commit; first-parent diff = `stash show`).
@@ -311,7 +312,6 @@ Compose operation logs flow through `service://log-line` with `stream: "docker"`
 | 52 | `docker_compose_status` | `{ composeFile: string, services: string[] }` | `Record<string, DockerServiceState>` | `docker::get_compose_service_status` (on-demand; 15 s poll also pushes `docker://status`) |
 | 53 | `docker_compose_logs` | `{ composeFile: string, service: string, tail: number }` | `string` | `docker::docker_compose_logs` |
 | 54 | `docker_refresh_status` | `{ repoName: string, composeFile: string, services: string[] }` | `void` | `docker::refresh_status` — forces one poll; result arrives as `docker://status` |
-| 55 | ~~`run_flyway_seeds`~~ | — | — | REMOVED (v2.2): the seed button was dropped; flyway services are started individually from the compose dialog (`docker_compose_up` with a service list) |
 
 Not exposed (no UI consumer in v1 — `start_mysql` / `stop_mysql` / `is_mysql_running` /
 `get_running_containers` stay library-internal until a feature needs them).
@@ -359,7 +359,7 @@ structs live in `src-tauri/src/events.rs`.
 | `service://status-changed` | `ServiceStatusEvent { name, status: ServiceStatus, exitCode?, error?, port?, pid? }` | on every lifecycle transition (process layer). 6-state model — see §1.4 |
 | `service://log-line` | `ServiceLogEvent { name, stream: "service"\|"install"\|"docker"\|"git", lines: string[], timestampMs }` | **batched**: flush every 75 ms or 64 lines, whichever first (`process::constants::LOG_BATCH_*`); ANSI-stripped, non-empty lines |
 | `repo://scan-progress` | `ScanProgressEvent { phase, detected, total }` | during `scan_workspace`; terminal phase is `"done"` |
-| `git://badge` | `GitBadgeEvent { name, branch, behind, staged, unstaged, conflicts }` | 30 s poll loop per repo (`git::BADGE_REFRESH`; semaphore 3) + forced via `git_refresh_badge` |
+| `git://badge` | `GitBadgeEvent { name, path, branch, behind, staged, unstaged, conflicts }` | 30 s poll loop per repo (`git::BADGE_REFRESH`; semaphore 3) + forced via `git_refresh_badge`. `name` is the path basename (fallback); the frontend routes by `path` — repos with duplicate basenames across roots carry disambiguated `RepoInfo.name`s |
 | `docker://status` | `DockerStatusEvent { name, services: Record<string, "running"\|"stopped"> }` | 15 s poll loop per docker-capable repo (`docker::DOCKER_POLL`) + forced via `docker_refresh_status` |
 | `app://single-instance` | `SingleInstanceEvent { argv, cwd }` | second launch (tauri-plugin-single-instance callback) |
 | `app://close-requested` | `{}` (empty object) | close/quit attempted while services run; Rust prevented the close — the frontend shows the confirm-running dialog and answers with `app_exit { force }` (§2.1 extensions) |

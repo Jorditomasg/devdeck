@@ -38,7 +38,7 @@ pub use ops::{
 };
 pub use history::{
     get_authors, get_commit_body, get_commit_file_diff, get_commit_files, get_file_at_commit,
-    get_log, get_range_file_diff, get_range_files, get_working_diff, list_files, AuthorInfo,
+    get_log, get_range_file_diff, get_range_files, get_working_diff, list_files, list_tags, AuthorInfo,
     CommitFileStat, CommitInfo, FileAtCommit, FileDiff, LogFilter, LogPage,
 };
 pub use poll::{refresh_badge, spawn_badge_poller, BadgePoller, BADGE_REFRESH};

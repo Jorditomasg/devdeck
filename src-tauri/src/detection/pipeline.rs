@@ -259,8 +259,54 @@ pub async fn detect_repos_for_group(
             }
         }
     }
+    disambiguate_names(&mut combined);
     combined.sort_by_key(|r| r.name.to_lowercase());
     combined
+}
+
+/// `name` is the repo identity everywhere downstream (card state, config
+/// keys `"repo::module"`, profiles, docker/badge event routing): two roots
+/// containing repos with the same basename would collapse into ONE identity
+/// — every UI action on one card mirrors on the other. Qualify colliding
+/// names with parent directories until unique: `api (backend)`,
+/// `api (clients/backend)`, …
+fn disambiguate_names(repos: &mut [RepoInfo]) {
+    // ponytail: 8 parent levels is plenty; deeper collisions stay duplicated
+    for depth in 1..=8 {
+        let mut counts: std::collections::HashMap<String, usize> =
+            std::collections::HashMap::new();
+        for repo in repos.iter() {
+            *counts.entry(repo.name.to_lowercase()).or_default() += 1;
+        }
+        if counts.values().all(|&n| n == 1) {
+            return;
+        }
+        for repo in repos.iter_mut() {
+            if counts[&repo.name.to_lowercase()] > 1 {
+                repo.name = qualified_name(Path::new(&repo.path), depth);
+            }
+        }
+    }
+}
+
+/// `<basename> (<last `depth` parent dirs, joined with `/`>)`.
+fn qualified_name(path: &Path, depth: usize) -> String {
+    let base = path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| path.display().to_string());
+    let mut parents: Vec<String> = path
+        .ancestors()
+        .skip(1)
+        .filter_map(|a| a.file_name())
+        .take(depth)
+        .map(|n| n.to_string_lossy().into_owned())
+        .collect();
+    if parents.is_empty() {
+        return base;
+    }
+    parents.reverse();
+    format!("{} ({})", base, parents.join("/"))
 }
 
 /// Plain-file basenames directly inside one directory.
@@ -372,6 +418,51 @@ mod tests {
             ]
         );
         let _ = fs::remove_dir_all(ws);
+    }
+
+    #[tokio::test]
+    async fn same_basename_in_two_roots_gets_disambiguated_names() {
+        let ws = temp_ws("dupnames");
+        let (root_a, root_b) = (ws.join("backend"), ws.join("fork"));
+        make_spring(&root_a, "api");
+        make_spring(&root_b, "api");
+        make_react(&root_a, "web"); // no collision → untouched
+
+        let repos = detect_repos_for_group(
+            &[root_a.display().to_string(), root_b.display().to_string()],
+            &shipped_defs(),
+            None,
+        )
+        .await;
+
+        let names: Vec<&str> = repos.iter().map(|r| r.name.as_str()).collect();
+        assert_eq!(names, vec!["api (backend)", "api (fork)", "web"]);
+        let _ = fs::remove_dir_all(ws);
+    }
+
+    #[test]
+    fn qualified_name_deepens_until_parents_differ() {
+        assert_eq!(qualified_name(Path::new("/ws/backend/api"), 1), "api (backend)");
+        assert_eq!(
+            qualified_name(Path::new("/ws/backend/api"), 2),
+            "api (ws/backend)"
+        );
+        // Same parent name, different grandparent → depth 2 resolves it.
+        let mut repos = vec![
+            RepoInfo {
+                name: "api".into(),
+                path: "/one/backend/api".into(),
+                ..Default::default()
+            },
+            RepoInfo {
+                name: "api".into(),
+                path: "/two/backend/api".into(),
+                ..Default::default()
+            },
+        ];
+        disambiguate_names(&mut repos);
+        assert_eq!(repos[0].name, "api (one/backend)");
+        assert_eq!(repos[1].name, "api (two/backend)");
     }
 
     #[tokio::test]

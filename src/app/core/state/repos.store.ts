@@ -135,8 +135,11 @@ export class ReposStore {
   }
 
   private applyBadge(event: GitBadgeEvent): void {
-    const { name, ...badge } = event;
-    this._badges.update((badges) => ({ ...badges, [name]: badge }));
+    const { name, path, ...badge } = event;
+    // Route by path: the payload `name` is the path basename, but repos with
+    // duplicate basenames across roots carry disambiguated RepoInfo names.
+    const key = this._repos().find((r) => r.path === path)?.name ?? name;
+    this._badges.update((badges) => ({ ...badges, [key]: badge }));
   }
 
   private applyDangerFlags(config: AppConfig): void {
