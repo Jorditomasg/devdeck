@@ -48,6 +48,7 @@ import {
   dangerEnvActive,
   dockerButtonState,
   dockerCardStatus,
+  effectiveCommand,
   firstConfigValue,
   headerHint,
   repoTypeLabel,
@@ -163,8 +164,8 @@ export class RepoCardComponent {
   protected readonly flashTick = signal(0);
   /** Saved-environment names per module key (loaded on first expand, §7). */
   private readonly envOptions = signal<Readonly<Record<string, readonly string[]>>>({});
-  /** Saved command-profile names (loaded on first expand, §7). */
-  private readonly commandProfileNames = signal<readonly string[]>([]);
+  /** Saved command profiles, name → command (loaded on first expand, §7). */
+  private readonly commandProfiles = signal<Readonly<Record<string, string>>>({});
   /** Branch combo display value — writable so a failed checkout can revert. */
   protected readonly branchDisplay = signal('');
   /**
@@ -176,6 +177,7 @@ export class RepoCardComponent {
   private lastLogRef: readonly LogLine[] | null = null;
   private lastStatus: ServiceStatus | null = null;
   private depsQueried = false;
+  private cmdProfilesLoaded = false;
 
   // -- reactive state ----------------------------------------------------------
 
@@ -236,7 +238,11 @@ export class RepoCardComponent {
     return headerHint(
       this.branch(),
       firstConfigValue(state.configValues, repo.modules.map((m) => m.key)),
-      repo.runCommand || '',
+      effectiveCommand(
+        this.commandProfiles(),
+        state.selectedCommandProfile,
+        repo.runCommand,
+      ),
     );
   });
 
@@ -398,7 +404,10 @@ export class RepoCardComponent {
         : null,
       commandProfile: showCmdRow
         ? {
-            options: [noSelection, ...this.commandProfileNames()],
+            options: [
+              noSelection,
+              ...Object.keys(this.commandProfiles()).sort((a, b) => a.localeCompare(b)),
+            ],
             value: state.selectedCommandProfile || noSelection,
           }
         : null,
@@ -439,6 +448,15 @@ export class RepoCardComponent {
       if (this.state().expanded && !this.built()) {
         this.built.set(true);
         untracked(() => void this.onFirstExpand());
+      }
+    });
+
+    // §6 hint: a persisted command-profile selection must resolve to its
+    // command even while the card stays collapsed (profiles normally load
+    // lazily on first expand).
+    effect(() => {
+      if (this.state().selectedCommandProfile && !this.cmdProfilesLoaded) {
+        untracked(() => void this.loadCommandProfiles());
       }
     });
 
@@ -654,11 +672,8 @@ export class RepoCardComponent {
 
   protected async onOpenCommandProfileManager(): Promise<void> {
     await this.dialogs.openCommandProfileManager(this.repo().name);
-    // Manager closed → refresh the dropdown names (it may have added/renamed/deleted).
-    const m = await this.commands.config
-      .getCommandProfiles(this.repo().name)
-      .catch(() => ({}) as Record<string, string>);
-    this.commandProfileNames.set(Object.keys(m).sort((a, b) => a.localeCompare(b)));
+    // Manager closed → refresh names AND commands (it may have edited any).
+    await this.loadCommandProfiles();
   }
 
   protected onDockerFile(file: string): void {
@@ -685,6 +700,15 @@ export class RepoCardComponent {
 
   // -- internals ---------------------------------------------------------------------
 
+  /** (Re)load the saved command profiles map — hint + dropdown source. */
+  private async loadCommandProfiles(): Promise<void> {
+    this.cmdProfilesLoaded = true;
+    const m = await this.commands.config
+      .getCommandProfiles(this.repo().name)
+      .catch(() => ({}) as Record<string, string>);
+    this.commandProfiles.set(m);
+  }
+
   /** First-expand loads: branches, saved envs, compose prefetch (§7). */
   private async onFirstExpand(): Promise<void> {
     const repo = this.repo();
@@ -702,14 +726,9 @@ export class RepoCardComponent {
           .catch(() => undefined),
       );
     }
-    tasks.push(
-      this.commands.config
-        .getCommandProfiles(repo.name)
-        .then((m) =>
-          this.commandProfileNames.set(Object.keys(m).sort((a, b) => a.localeCompare(b))),
-        )
-        .catch(() => undefined),
-    );
+    if (!this.cmdProfilesLoaded) {
+      tasks.push(this.loadCommandProfiles());
+    }
     if (repo.dockerComposeFiles.length > 0) {
       tasks.push(
         this.ws.prefetchComposeServices(repo).then(() => {

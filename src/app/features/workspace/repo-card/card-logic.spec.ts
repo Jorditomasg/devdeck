@@ -5,6 +5,7 @@ import {
   dangerEnvActive,
   dockerButtonState,
   dockerCardStatus,
+  effectiveCommand,
   firstConfigValue,
   headerHint,
   pathBasename,
@@ -41,6 +42,28 @@ describe('headerHint (§6 hint fragments)', () => {
 
   it('returns empty string with nothing to show', () => {
     expect(headerHint('', '', '')).toBe('');
+  });
+});
+
+describe('effectiveCommand (§6 `$` hint = what start would run)', () => {
+  const profiles = { fast: 'npm run dev -- --no-hmr' };
+
+  it('selected profile overrides the detected run command', () => {
+    expect(effectiveCommand(profiles, 'fast', 'npm start')).toBe(
+      'npm run dev -- --no-hmr',
+    );
+  });
+
+  it('falls back to the detected run command without a selection', () => {
+    expect(effectiveCommand(profiles, '', 'npm start')).toBe('npm start');
+  });
+
+  it('falls back when the selected profile is unknown or not yet loaded', () => {
+    expect(effectiveCommand({}, 'fast', 'npm start')).toBe('npm start');
+  });
+
+  it('returns empty when nothing is defined', () => {
+    expect(effectiveCommand({}, '', undefined)).toBe('');
   });
 });
 

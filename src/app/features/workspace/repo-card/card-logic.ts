@@ -40,6 +40,19 @@ export function headerHint(
   return parts.join('   ');
 }
 
+/**
+ * Command shown in the `$` hint fragment (§6): a selected command profile
+ * overrides the detected run command — mirrors the Rust start resolution
+ * (`resolved_command_override` in commands/process.rs).
+ */
+export function effectiveCommand(
+  profiles: Readonly<Record<string, string>>,
+  selectedProfile: string,
+  runCommand: string | undefined,
+): string {
+  return (selectedProfile && profiles[selectedProfile]) || runCommand || '';
+}
+
 /** First non-empty saved-environment selection (the `⚙` hint fragment, §6). */
 export function firstConfigValue(
   configValues: Readonly<Record<string, string>>,
