@@ -85,6 +85,7 @@ export function profileGroupArg(groupName: string | undefined): string | undefin
 
     <!-- right group reserves space (§33) -->
     <div class="topbar__actions">
+      <span class="topbar__profile-label">{{ i18n.t('label.profile') }}</span>
       <ui-searchable-select
         class="topbar__profile"
         [class.topbar__profile--dirty]="dirty()"
@@ -95,12 +96,14 @@ export function profileGroupArg(groupName: string | undefined): string | undefin
         [uiTooltip]="i18n.t('tooltip.profile_selector')"
         (selectionChange)="onProfileSelected($event)"
       />
-      <ui-icon-button
-        variant="neutral"
-        size="lg"
-        [uiTooltip]="i18n.t('tooltip.save_profile')"
-        (clicked)="onQuickSave()"
-      ><ui-icon name="save" /></ui-icon-button>
+      @if (dirty()) {
+        <ui-icon-button
+          variant="neutral"
+          size="lg"
+          [uiTooltip]="i18n.t('tooltip.save_profile')"
+          (clicked)="onQuickSave()"
+        ><ui-icon name="save" /></ui-icon-button>
+      }
       <ui-icon-button
         variant="neutral"
         size="lg"

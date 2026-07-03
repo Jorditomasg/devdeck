@@ -65,6 +65,12 @@
   gap: 6px;
 }
 
+.topbar__profile-label {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-base);
+}
+
 // Profile dropdown — profile-accent border; dirty = warning text + orange
 // border on a dark-amber field (§26 "Dirty styling").
 .topbar__profile {

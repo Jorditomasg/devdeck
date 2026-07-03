@@ -78,6 +78,7 @@
     "ready": "Listo",
     "scanning_status": "Escaneando repos...",
     "group": "Entorno:",
+    "profile": "Perfil:",
     "java": "Java:",
     "java_default": "Sistema (Por Defecto)",
     "java_recommended": "Recomendado: Java {version}",

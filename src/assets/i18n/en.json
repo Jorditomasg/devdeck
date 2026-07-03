@@ -78,6 +78,7 @@
     "ready": "Ready",
     "scanning_status": "Scanning repos...",
     "group": "Environment:",
+    "profile": "Profile:",
     "java": "Java:",
     "java_default": "System (Default)",
     "java_recommended": "Recommended: Java {version}",
