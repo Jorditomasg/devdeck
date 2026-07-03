@@ -14,23 +14,10 @@ import {
   ButtonComponent,
   IconButtonComponent,
   IconComponent,
-  type IconName,
   SearchableSelectComponent,
   TooltipDirective,
 } from '../../../ui';
 import type { DockerBtnState } from './card-logic';
-
-/**
- * One resolved action button (§7 row 1) — declared per type via YAML
- * `ui.actions` and mapped through the repo-card action registry. `command`
- * is the IPC command name the container invokes via {@link runAction}.
- */
-export interface ActionBtnVm {
-  readonly key: string;
-  readonly icon: IconName;
-  readonly label: string;
-  readonly command: string;
-}
 
 /** Row 1 — branch + tools (§7 row 1). */
 export interface BranchRowVm {
@@ -47,8 +34,6 @@ export interface BranchRowVm {
   readonly installText: string;
   readonly installEnabled: boolean;
   readonly installTip: string;
-  /** Declared action buttons (e.g. the docker-infra "Seed" button). */
-  readonly actions: readonly ActionBtnVm[];
 }
 
 /** One env/app selector row (§7 row 2). */
@@ -117,6 +102,8 @@ export interface CardExpandText {
   readonly stashTip: string;
   readonly branchesText: string;
   readonly branchesTip: string;
+  readonly historyText: string;
+  readonly historyTip: string;
   readonly configText: string;
   readonly configTip: string;
   readonly javaLabel: string;
@@ -177,21 +164,15 @@ export interface CardExpandText {
       <ui-button variant="purple-alt" [uiTooltip]="text().mergeTip" (clicked)="merge.emit()">
         <ui-icon name="git-merge" [size]="14" /> {{ text().mergeText }}
       </ui-button>
+      <ui-button variant="purple-alt" [uiTooltip]="text().historyTip" (clicked)="history.emit()">
+        <ui-icon name="history" [size]="14" /> {{ text().historyText }}
+      </ui-button>
       <ui-button variant="purple" [uiTooltip]="text().cleanTip" (clicked)="clean.emit()">
         <ui-icon name="eraser" [size]="14" /> {{ text().cleanText }}
       </ui-button>
       @if (vm().branch.showConfigBtn) {
         <ui-button variant="neutral" [uiTooltip]="text().configTip" (clicked)="openConfig.emit()">
           <ui-icon name="settings" [size]="14" /> {{ text().configText }}
-        </ui-button>
-      }
-      @for (action of vm().branch.actions; track action.key) {
-        <ui-button
-          variant="purple-global"
-          [uiTooltip]="action.label"
-          (clicked)="runAction.emit(action.command)"
-        >
-          <ui-icon [name]="action.icon" [size]="14" /> {{ action.label }}
         </ui-button>
       }
       <span class="row__spacer"></span>
@@ -308,10 +289,9 @@ export class CardExpandComponent {
   readonly clean = output<void>();
   readonly stash = output<void>();
   readonly branches = output<void>();
+  readonly history = output<void>();
   readonly openConfig = output<void>();
   readonly install = output<void>();
-  /** Run a declared per-type action; payload is the IPC command name. */
-  readonly runAction = output<string>();
   readonly configSelected = output<{ moduleKey: string; value: string }>();
   readonly openConfigManager = output<string>();
   readonly moduleTrackedChange = output<{ moduleKey: string; tracked: boolean }>();

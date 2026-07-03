@@ -1,0 +1,260 @@
+@use '../../../../styles/mixins' as mx;
+
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100vh;
+  padding: 8px;
+  box-sizing: border-box;
+  // Transparent like the other detached windows: `body` paints --color-app +
+  // the geometric pattern; every content surface below is SOLID so text
+  // never sits on the pattern (user report 2026-07-02).
+  background: transparent;
+}
+
+.gitwin__top {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 6px 10px 10px;
+  background: var(--color-card);
+  border: var(--geo-border-width) solid var(--color-border-card);
+  border-radius: var(--geo-corner-panel);
+}
+
+.gitwin__filters {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.gitwin__select {
+  width: 200px;
+}
+
+.gitwin__select--author {
+  width: 230px;
+}
+
+.gitwin__input {
+  @include mx.control-reset;
+  @include mx.transition(border-color);
+  height: var(--geo-btn-height-md);
+  padding: 0 8px;
+  width: 140px;
+  min-width: 0;
+  background-color: var(--color-section);
+  border: var(--geo-border-width) solid var(--color-border-default);
+  border-radius: var(--geo-corner-btn);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+
+  &::placeholder {
+    color: var(--color-text-placeholder);
+  }
+
+  &:focus {
+    border-color: var(--color-text-accent);
+  }
+}
+
+.gitwin__input--grow {
+  flex: 1 1 160px;
+}
+
+.gitwin__input--date {
+  width: 130px;
+}
+
+.gitwin__error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  color: var(--color-status-error);
+  font-size: var(--font-size-sm);
+  background: var(--color-card);
+  border: var(--geo-border-width) solid var(--color-status-error);
+  border-radius: var(--geo-corner-panel);
+}
+
+// Solid content surface — the framed look of the other windows.
+.gitwin__surface {
+  background: var(--color-card);
+  border: var(--geo-border-width) solid var(--color-border-card);
+  border-radius: var(--geo-corner-panel);
+}
+
+.gitwin__commits {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.gitwin__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.gitwin__commit {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 46px; // ROW_HEIGHT (graph-cell geometry depends on it)
+  padding: 0 10px 0 6px;
+  cursor: pointer;
+  // NO row border in the graph list: a 1px separator between 46px rows made
+  // every lane line look chopped at row boundaries (user report 2026-07-03).
+
+  &:hover {
+    background: var(--color-card-hover);
+  }
+}
+
+// Separators only where there is no graph to chop (compare/stash lists).
+.gitwin__compare-commits .gitwin__commit,
+.gitwin__stash {
+  border-bottom: var(--geo-border-width) solid var(--color-border-subtle);
+}
+
+.gitwin__ref {
+  display: inline-flex;
+  cursor: pointer;
+
+  &:hover {
+    filter: brightness(1.2);
+  }
+}
+
+.gitwin__select--path {
+  flex: 1 1 220px;
+}
+
+.gitwin__commit-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.gitwin__commit-line1 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.gitwin__subject {
+  @include mx.ellipsis;
+  min-width: 0;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+}
+
+.gitwin__meta {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.gitwin__mono {
+  font-family: var(--font-family-mono);
+}
+
+// Propagated branch name of the commit's lane (undecorated rows), tinted
+// with the lane color so name and line connect visually.
+.gitwin__lane-label {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  opacity: 0.85;
+}
+
+.gitwin__more {
+  padding: 10px;
+  text-align: center;
+}
+
+.gitwin__crumb {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: var(--color-card);
+  border: var(--geo-border-width) solid var(--color-border-card);
+  border-radius: var(--geo-corner-panel);
+}
+
+.gitwin__crumb-subject {
+  font-weight: 600;
+  flex-shrink: 1;
+}
+
+// Full commit message body under the breadcrumb (fetched on demand).
+.gitwin__body-msg {
+  padding: 8px 12px;
+  background: var(--color-card);
+  border: var(--geo-border-width) solid var(--color-border-card);
+  border-radius: var(--geo-corner-panel);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  white-space: pre-wrap;
+  max-height: 140px;
+  overflow-y: auto;
+}
+
+.gitwin__panel {
+  flex: 1;
+  min-height: 0;
+}
+
+.gitwin__stash {
+  padding-left: 12px;
+}
+
+.gitwin__stash-ref {
+  flex-shrink: 0;
+  color: var(--color-text-accent);
+  font-size: var(--font-size-xs);
+}
+
+.gitwin__compare-body {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
+}
+
+.gitwin__compare-commits {
+  width: 340px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.gitwin__compare-hint {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.gitwin__center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 24px;
+}
+
+.gitwin__muted {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}

@@ -1,0 +1,76 @@
+:host {
+  display: block;
+  min-height: 0;
+}
+
+.diff__empty {
+  padding: 16px;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.diff__scroll {
+  overflow: auto;
+  max-height: 100%;
+  border: var(--geo-border-width) solid var(--color-border-default);
+  border-radius: var(--geo-corner-panel);
+  background: var(--color-section);
+}
+
+.diff__table {
+  border-collapse: collapse;
+  width: 100%;
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+
+.diff__no {
+  width: 1%;
+  min-width: 3.2em;
+  padding: 0 8px;
+  text-align: right;
+  color: var(--color-text-faint);
+  user-select: none;
+  vertical-align: top;
+}
+
+.diff__sign {
+  width: 1ch;
+  padding: 0 2px;
+  user-select: none;
+  vertical-align: top;
+}
+
+.diff__text {
+  padding: 0 8px 0 2px;
+  white-space: pre;
+}
+
+.diff__row--add {
+  background: color-mix(in srgb, var(--color-status-running) 14%, transparent);
+
+  .diff__sign,
+  .diff__text {
+    color: var(--color-status-running);
+  }
+}
+
+.diff__row--del {
+  background: color-mix(in srgb, var(--color-status-error) 12%, transparent);
+
+  .diff__sign,
+  .diff__text {
+    color: var(--color-status-error);
+  }
+}
+
+.diff__row--hunk .diff__text {
+  color: var(--color-text-accent);
+  background: color-mix(in srgb, var(--color-text-accent) 8%, transparent);
+}
+
+.diff__row--meta .diff__text {
+  color: var(--color-text-muted);
+}

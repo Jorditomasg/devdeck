@@ -38,11 +38,11 @@
     "ok": "OK",
     "yes": "Sí",
     "no": "No",
-    "seed": "Seed",
     "copy_log": "Copiar",
     "attach_log": "Acoplar",
     "stash": "Stash",
-    "branches": "Ramas"
+    "branches": "Ramas",
+    "git_history": "Historial"
   },
   "install": {
     "label_missing": "Install",
@@ -140,7 +140,8 @@
     "copy_log": "Copiar todo el log al portapapeles",
     "open_port": "Abrir en el navegador",
     "stash_btn": "Gestionar el stash: añadir, aplicar, pop o eliminar cambios",
-    "branches_btn": "Gestionar ramas: crear, renombrar, publicar o borrar"
+    "branches_btn": "Gestionar ramas: crear, renombrar, publicar o borrar",
+    "git_history_btn": "Historial de commits, diffs y versiones de ficheros"
   },
   "dialog": {
     "settings": {
@@ -465,7 +466,9 @@
       "logs_empty": "Sin actividad todavía.",
       "tip_apply": "Aplicar (conservar el stash)",
       "tip_pop": "Aplicar y eliminar el stash",
-      "tip_drop": "Descartar este stash permanentemente"
+      "tip_drop": "Descartar este stash permanentemente",
+      "btn_files": "Ficheros",
+      "tip_files": "Ver los ficheros modificados en este stash"
     },
     "prompt": {
       "rename_title": "Renombrar rama",
@@ -510,7 +513,9 @@
       "tip_rename": "Renombrar esta rama",
       "tip_publish": "Publicar en origin (push + tracking)",
       "tip_delete_remote": "Borrar esta rama en origin",
-      "tip_delete_local": "Borrar esta rama local"
+      "tip_delete_local": "Borrar esta rama local",
+      "btn_history": "Historial",
+      "tip_history": "Abrir el historial de commits de esta rama"
     },
     "merge": {
       "title": "Mergear — {name}",
@@ -686,9 +691,36 @@
     "no_results": "Sin resultados",
     "more_items": "+{count} más — refiná la búsqueda"
   },
-  "repo": {
-    "action": {
-      "seed": "Sembrar"
-    }
+  "git": {
+    "window_title": "Historial Git",
+    "repo_not_found": "El repositorio '{name}' no está en el escaneo actual del workspace",
+    "filter_text": "El mensaje contiene...",
+    "filter_path": "Ruta",
+    "filter_since": "Desde fecha",
+    "filter_until": "Hasta fecha",
+    "filter_clear": "Limpiar",
+    "no_commits": "Ningún commit coincide con los filtros actuales",
+    "load_more": "Cargar más",
+    "merge_commit": "merge",
+    "select_file": "Selecciona un fichero para ver su diff",
+    "view_file": "Ver fichero en este commit",
+    "back_to_diff": "Volver al diff",
+    "binary": "binario",
+    "binary_file": "Fichero binario — sin vista previa de texto",
+    "diff_too_large": "Diff demasiado grande para previsualizar",
+    "too_large": "Fichero demasiado grande para previsualizar ({size} bytes)",
+    "empty_diff": "Este fichero no tiene cambios en este commit",
+    "all_branches": "Todas las ramas",
+    "all_authors": "Todos los autores",
+    "back": "Volver",
+    "no_stashes": "Este repositorio no tiene stashes",
+    "stashes_title": "Stashes",
+    "compare": "Comparar",
+    "swap": "Invertir",
+    "compare_hint": "{count} commits entrantes",
+    "view_web": "Ver en la web",
+    "copy_sha": "Copiar SHA",
+    "all_paths": "Todas las rutas",
+    "file_history": "Historial del fichero"
   }
 }

@@ -1,0 +1,38 @@
+:host {
+  display: block;
+  min-height: 0;
+  overflow: hidden;
+  border: var(--geo-border-width) solid var(--color-border-default);
+  border-radius: var(--geo-corner-panel);
+  background: var(--color-section);
+}
+
+.code__host {
+  height: 100%;
+}
+
+// CodeMirror renders OUTSIDE Angular's templates, so emulated encapsulation
+// never tags its nodes — ::ng-deep (scoped under :host) is the supported way
+// to style it.
+:host ::ng-deep {
+  .cm-editor {
+    height: 100%;
+    font-size: var(--font-size-xs);
+    background: transparent;
+    color: var(--color-text-primary);
+  }
+
+  .cm-gutters {
+    background: transparent;
+    border-right: var(--geo-border-width) solid var(--color-border-default);
+    color: var(--color-text-faint);
+  }
+
+  .cm-scroller {
+    font-family: var(--font-family-mono);
+    overflow: auto;
+  }
+
+  // ponytail: defaultHighlightStyle is light-leaning; token colors can move
+  // to a themed HighlightStyle when phase 4 (conflict editor) needs it.
+}

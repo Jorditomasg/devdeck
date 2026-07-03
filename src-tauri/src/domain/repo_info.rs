@@ -57,7 +57,7 @@ pub struct RepoInfo {
     pub env_main_config_filename: String,
     /// YAML `env_files.patterns` (fnmatch globs).
     pub env_patterns: Vec<String>,
-    /// Whole YAML `ui` block (icon, color, selectors, install_check_dirs, actions).
+    /// Whole YAML `ui` block (icon, color, selectors, install_check_dirs).
     pub ui_config: Ui,
     /// YAML `enrich` list (`java_version`, `docker_checkboxes`) — kept on the
     /// `features` wire name for the frontend.

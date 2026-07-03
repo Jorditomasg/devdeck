@@ -63,6 +63,7 @@ export const appConfig: ApplicationConfig = {
         !search.has('log') &&
         !search.has('terminal') &&
         !search.has('dialog') &&
+        !search.has('git') &&
         !search.has('panel');
       const step = async (name: string, run: () => Promise<unknown>): Promise<void> => {
         try {

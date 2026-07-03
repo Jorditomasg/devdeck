@@ -101,6 +101,14 @@ const PAGE_SIZE = 15;
                         <div class="stash__actions">
                           <ui-button
                             size="sm"
+                            variant="purple-alt"
+                            [uiTooltip]="'dialog.stash.tip_files' | t"
+                            (clicked)="viewFiles(entry)"
+                          >
+                            <ui-icon name="file-text" [size]="14" /> {{ 'dialog.stash.btn_files' | t }}
+                          </ui-button>
+                          <ui-button
+                            size="sm"
                             variant="success"
                             [uiTooltip]="'dialog.stash.tip_apply' | t"
                             [disabled]="busy()"
@@ -231,6 +239,16 @@ export class StashDialogComponent extends DialogBase {
     if (ok) {
       this.name.set(''); // keep the typed name on failure so it can be retried
     }
+  }
+
+  /** Detached git window on the Stashes tab with this entry selected. */
+  protected viewFiles(entry: StashEntry): void {
+    void this.commands.git
+      .openWindow(this.repoName(), `${this.repoName()} — ${this.i18n.t('git.window_title')}`, {
+        tab: 'stashes',
+        stash: entry.index,
+      })
+      .catch((err: unknown) => console.error('open git window failed', err));
   }
 
   protected async apply(entry: StashEntry): Promise<void> {

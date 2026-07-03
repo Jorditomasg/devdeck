@@ -12,7 +12,6 @@ use crate::domain::repo_type::RepoTypeDef;
 // silently fall through to `first_alphabetical`. Re-add a name here the day
 // the matching dispatch arm lands in `resolve_app`.
 const KNOWN_STRATEGIES: &[&str] = &["first_alphabetical", "single_dir"];
-const KNOWN_ACTIONS: &[&str] = &["seed"];
 
 /// A single validation problem, tied to the offending type id.
 #[derive(Debug, Clone, PartialEq)]
@@ -44,11 +43,6 @@ pub fn validate_def(def: &RepoTypeDef) -> Vec<ValidationError> {
     for name in &def.enrich {
         if !enricher_exists(name) {
             errors.push(err(format!("unknown enricher '{name}'")));
-        }
-    }
-    for action in &def.ui.actions {
-        if !KNOWN_ACTIONS.contains(&action.as_str()) {
-            errors.push(err(format!("unknown ui action '{action}'")));
         }
     }
     if let Some(ar) = &def.run.app_resolution {
@@ -116,16 +110,14 @@ mod tests {
     }
 
     #[test]
-    fn rejects_unknown_action_and_strategy() {
+    fn rejects_unknown_strategy() {
         let mut def = base();
-        def.ui.actions = vec!["nope".to_string()];
         def.run.app_resolution = Some(crate::domain::repo_type::AppResolution {
             placeholder: "x".into(),
             scan_dir: "apps".into(),
             strategy: "weird".into(),
         });
         let errs = validate_def(&def);
-        assert!(errs.iter().any(|e| e.message.contains("unknown ui action")));
         assert!(errs.iter().any(|e| e.message.contains("app_resolution strategy")));
     }
 
@@ -139,7 +131,7 @@ mod tests {
 
     #[test]
     fn accepts_clean_default() {
-        // writer "raw" is known; no enrich/actions/strategy.
+        // writer "raw" is known; no enrich/strategy.
         assert!(validate_def(&base()).is_empty());
     }
 }

@@ -25,7 +25,9 @@ fn dialog_size(kind: &str) -> (f64, f64) {
         "prompt" => (460.0, 240.0),
         "confirm-close" => (460.0, 260.0),
         "clone" => (560.0, 360.0),
-        "branch" => (680.0, 560.0),
+        // Wide enough for the per-branch action buttons (incl. History) in
+        // one row (user report 2026-07-02: they wrapped at 680).
+        "branch" => (960.0, 560.0),
         "stash" => (620.0, 560.0),
         "merge-branch" => (600.0, 600.0),
         "settings" => (640.0, 740.0),

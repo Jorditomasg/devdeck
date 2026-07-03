@@ -42,9 +42,12 @@
   flex-shrink: 0;
 }
 
-// Danger env: warning-yellow combo border (§10 danger badge styling).
-.row__config--danger {
-  --color-border-default: var(--color-text-warning-badge);
+// Danger env: warning-yellow border on the CLOSED combo box only. The old
+// host-level `--color-border-default` override leaked into the open popup
+// (search input included) — user report 2026-07-03: input yellow, dropdown
+// not.
+.row__config--danger ::ng-deep .select__display {
+  border-color: var(--color-text-warning-badge);
 }
 
 .row__check {

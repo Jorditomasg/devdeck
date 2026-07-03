@@ -15,7 +15,13 @@ import type {
   ChangelogRelease,
   ComposeService,
   DockerServiceState,
+  GitAuthor,
   GitBadge,
+  GitCommitFileStat,
+  GitFileAtCommit,
+  GitFileDiff,
+  GitLogFilter,
+  GitLogPage,
   MergeOutcome,
   MergeRequest,
   MissingRepo,
@@ -99,6 +105,18 @@ export const CMD = {
   gitDeleteRemoteBranch: 'git_delete_remote_branch',
   gitRenameBranch: 'git_rename_branch',
   gitPublishBranch: 'git_publish_branch',
+  // git history (git suite phase 1, design doc 2026-07-02)
+  openGitWindow: 'open_git_window',
+  gitLog: 'git_log',
+  gitCommitFiles: 'git_commit_files',
+  gitCommitFileDiff: 'git_commit_file_diff',
+  gitFileAtCommit: 'git_file_at_commit',
+  gitWorkingDiff: 'git_working_diff',
+  gitAuthors: 'git_authors',
+  gitDiffRange: 'git_diff_range',
+  gitDiffRangeFile: 'git_diff_range_file',
+  gitLsFiles: 'git_ls_files',
+  gitCommitBody: 'git_commit_body',
   // config
   getAppConfig: 'get_app_config',
   setLanguage: 'set_language',
@@ -137,7 +155,6 @@ export const CMD = {
   dockerComposeStatus: 'docker_compose_status',
   dockerComposeLogs: 'docker_compose_logs',
   dockerRefreshStatus: 'docker_refresh_status',
-  runFlywaySeeds: 'run_flyway_seeds',
   // updates & about (§2.9)
   checkForUpdate: 'check_for_update',
   installUpdate: 'install_update',
@@ -453,6 +470,90 @@ export class IpcCommands {
 
     publishBranch: (repoPath: string, name: string): Promise<OpOutput> =>
       this.bridge.invoke<OpOutput>(CMD.gitPublishBranch, { repoPath, name }),
+
+    // -- history queries (git suite phase 1, design doc 2026-07-02) --
+    /**
+     * Open (or focus) the detached git window of a repo — mirrors
+     * `openLogWindow` (`?git=<repoId>`, label `git-<repoId>`). `view`
+     * preselects a branch filter and/or opens the stash viewer; an
+     * already-open window is only focused (it does not re-navigate).
+     */
+    openWindow: (
+      repoId: string,
+      title: string,
+      view?: { branch?: string; tab?: 'history' | 'stashes'; stash?: number },
+    ): Promise<void> =>
+      this.bridge.invoke<void>(CMD.openGitWindow, { repoId, title, ...view }),
+
+    /** Every author of the repo, most commits first (author filter). */
+    authors: (repoPath: string): Promise<GitAuthor[]> =>
+      this.bridge.invoke<GitAuthor[]>(CMD.gitAuthors, { repoPath }),
+
+    /** Tracked files (capped) — the path filter's autocomplete source. */
+    lsFiles: (repoPath: string): Promise<string[]> =>
+      this.bridge.invoke<string[]>(CMD.gitLsFiles, { repoPath }),
+
+    /** Full commit message (`%B`), fetched on demand by the detail view. */
+    commitBody: (repoPath: string, sha: string): Promise<string> =>
+      this.bridge.invoke<string>(CMD.gitCommitBody, { repoPath, sha }),
+
+    /** Files changed between two revs (`base...target`, compare view). */
+    diffRange: (
+      repoPath: string,
+      base: string,
+      target: string,
+    ): Promise<GitCommitFileStat[]> =>
+      this.bridge.invoke<GitCommitFileStat[]>(CMD.gitDiffRange, {
+        repoPath,
+        base,
+        target,
+      }),
+
+    /** One file's diff between two revs (compare view). */
+    diffRangeFile: (
+      repoPath: string,
+      base: string,
+      target: string,
+      path: string,
+    ): Promise<GitFileDiff> =>
+      this.bridge.invoke<GitFileDiff>(CMD.gitDiffRangeFile, {
+        repoPath,
+        base,
+        target,
+        path,
+      }),
+
+    /** Paginated, git-filtered `git log` (50 commits + `hasMore`). */
+    log: (repoPath: string, filter: GitLogFilter): Promise<GitLogPage> =>
+      this.bridge.invoke<GitLogPage>(CMD.gitLog, { repoPath, filter }),
+
+    /** Files touched by one commit, with add/del counts (numstat). */
+    commitFiles: (repoPath: string, sha: string): Promise<GitCommitFileStat[]> =>
+      this.bridge.invoke<GitCommitFileStat[]>(CMD.gitCommitFiles, { repoPath, sha }),
+
+    /** Unified diff of ONE file in one commit (first-parent; capped). */
+    commitFileDiff: (
+      repoPath: string,
+      sha: string,
+      path: string,
+    ): Promise<GitFileDiff> =>
+      this.bridge.invoke<GitFileDiff>(CMD.gitCommitFileDiff, { repoPath, sha, path }),
+
+    /** Full file text at a commit (blob size checked before reading). */
+    fileAtCommit: (
+      repoPath: string,
+      sha: string,
+      path: string,
+    ): Promise<GitFileAtCommit> =>
+      this.bridge.invoke<GitFileAtCommit>(CMD.gitFileAtCommit, { repoPath, sha, path }),
+
+    /** Working-tree diff of one file (`staged` → `--cached`); stage view. */
+    workingDiff: (
+      repoPath: string,
+      path: string,
+      staged: boolean,
+    ): Promise<GitFileDiff> =>
+      this.bridge.invoke<GitFileDiff>(CMD.gitWorkingDiff, { repoPath, path, staged }),
   };
 
   // -- config (§2.5) ----------------------------------------------------------
@@ -669,9 +770,6 @@ export class IpcCommands {
         composeFile,
         services,
       }),
-
-    runFlywaySeeds: (infraPath: string): Promise<OpOutput> =>
-      this.bridge.invoke<OpOutput>(CMD.runFlywaySeeds, { infraPath }),
   };
 
   // -- interactive terminals (design doc 2026-06-14) ------------------------

@@ -12,11 +12,34 @@ import { Injectable, computed, signal } from '@angular/core';
 import { IpcCommands } from '../ipc/commands';
 import { IpcEvents } from '../ipc/events';
 import type {
+  AppConfig,
   GitBadge,
   GitBadgeEvent,
   RepoInfo,
   ScanProgressEvent,
 } from '../ipc/tauri.types';
+
+/**
+ * Re-derive a repo's `dangerFlags` from the raw `repo_config_danger` map —
+ * the frontend mirror of Rust `fill_danger_flags` (commands/detection.rs):
+ * union of the entries keyed `<repo>` or `<repo>::<module>`, sorted +
+ * deduped. Needed because Rust only bakes `dangerFlags` into `RepoInfo` at
+ * scan time; live `config://changed` events carry the raw map only.
+ */
+export function deriveDangerFlags(
+  repoName: string,
+  dangerByKey: Readonly<Record<string, readonly string[]>>,
+): string[] {
+  const flags = new Set<string>();
+  for (const [key, names] of Object.entries(dangerByKey)) {
+    if (key === repoName || key.startsWith(`${repoName}::`)) {
+      for (const name of names) {
+        flags.add(name);
+      }
+    }
+  }
+  return [...flags].sort();
+}
 
 @Injectable({ providedIn: 'root' })
 export class ReposStore {
@@ -54,6 +77,10 @@ export class ReposStore {
     await Promise.all([
       this.events.onRepoScanProgress((e) => this.applyScanProgress(e)),
       this.events.onGitBadge((e) => this.applyBadge(e)),
+      // Danger flags are baked into RepoInfo at SCAN time; the config-manager
+      // dialog edits them live in another window, so refresh them here or the
+      // yellow highlight lags until the next scan (user report 2026-07-03).
+      this.events.onConfigChanged((config) => this.applyDangerFlags(config)),
     ]);
     // Hydrate from the last scan cached Rust-side. The main window re-scans
     // right after (overwriting this); dialog windows — which never scan — rely
@@ -110,5 +137,18 @@ export class ReposStore {
   private applyBadge(event: GitBadgeEvent): void {
     const { name, ...badge } = event;
     this._badges.update((badges) => ({ ...badges, [name]: badge }));
+  }
+
+  private applyDangerFlags(config: AppConfig): void {
+    const dangerByKey = config.repo_config_danger ?? {};
+    this._repos.update((repos) =>
+      repos.map((repo) => {
+        const flags = deriveDangerFlags(repo.name, dangerByKey);
+        // Keep object identity when unchanged — repo cards are OnPush.
+        return flags.join('\n') === repo.dangerFlags.join('\n')
+          ? repo
+          : { ...repo, dangerFlags: flags };
+      }),
+    );
   }
 }

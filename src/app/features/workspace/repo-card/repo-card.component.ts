@@ -29,7 +29,7 @@ import {
 } from '@angular/core';
 
 import { TranslationService } from '../../../core/i18n/translation.service';
-import { CMD, IpcCommands } from '../../../core/ipc/commands';
+import { IpcCommands } from '../../../core/ipc/commands';
 import type { RepoInfo, ServiceStatus } from '../../../core/ipc/tauri.types';
 import { ReposStore } from '../../../core/state/repos.store';
 import { ServicesStore, type LogLine } from '../../../core/state/services.store';
@@ -54,7 +54,6 @@ import {
   serviceUrl,
 } from './card-logic';
 import { dotStatusFor, visibilityForStatus } from './card-visibility';
-import { resolveActions } from './repo-card.actions';
 
 /** `[stream]`-prefix raw lines, v1 card-log style (§8). git/docker bake
  * their own `[git]`/`[merge]`/`[docker]`/`[db]` prefix, so skip the stream
@@ -122,9 +121,9 @@ export function formatCardLine(entry: LogLine): string {
             (clean)="onClean()"
             (stash)="onStash()"
             (branches)="onBranches()"
+            (history)="onHistory()"
             (openConfig)="onOpenConfig()"
             (install)="onInstall()"
-            (runAction)="onRunAction($event)"
             (configSelected)="onConfigSelected($event)"
             (openConfigManager)="onOpenConfigManager($event)"
             (moduleTrackedChange)="onModuleTracked($event)"
@@ -302,6 +301,8 @@ export class RepoCardComponent {
     stashTip: this.i18n.t('tooltip.stash_btn'),
     branchesText: this.i18n.t('btn.branches'),
     branchesTip: this.i18n.t('tooltip.branches_btn'),
+    historyText: this.i18n.t('btn.git_history'),
+    historyTip: this.i18n.t('tooltip.git_history_btn'),
     configText: this.i18n.t('btn.config'),
     configTip: this.i18n.t('tooltip.config_btn'),
     javaLabel: this.i18n.t('label.java'),
@@ -360,12 +361,6 @@ export class RepoCardComponent {
             : this.i18n.t('install.label_ok'),
         installEnabled: this.vis().installEnabled,
         installTip: repo.runInstallCmd ?? '',
-        actions: resolveActions(repo.uiConfig.actions).map((a) => ({
-          key: a.key,
-          icon: a.icon,
-          label: this.i18n.t(a.labelKey),
-          command: a.command,
-        })),
       },
       modules: hasEnvRows
         ? repo.modules.map((module) => {
@@ -599,6 +594,13 @@ export class RepoCardComponent {
     this.dialogs.openBranches(this.repo().name);
   }
 
+  /** Detached git history window (git suite phase 1, `open_git_window`). */
+  protected onHistory(): void {
+    void this.commands.git
+      .openWindow(this.repo().name, `${this.repo().name} — ${this.i18n.t('git.window_title')}`)
+      .catch((err: unknown) => console.error('open git window failed', err));
+  }
+
   /** Raw config editor (§7 row 1 Config button — repos without env files). */
   protected onOpenConfig(): void {
     const repo = this.repo();
@@ -611,22 +613,6 @@ export class RepoCardComponent {
 
   protected onInstall(): void {
     void this.actions.install(this.repo(), true);
-  }
-
-  /**
-   * Run a declared per-type action (resolved from `ui.actions` via the
-   * repo-card action registry). Dispatches the action's IPC command with the
-   * same args its dedicated flow used. Only `run_flyway_seeds` exists today;
-   * the `switch` is the irreducible code that new actions extend.
-   */
-  protected onRunAction(command: string): void {
-    switch (command) {
-      case CMD.runFlywaySeeds:
-        void this.actions.seed(this.repo());
-        break;
-      default:
-        console.error('unknown repo-card action command', command);
-    }
   }
 
   protected onConfigSelected(event: { moduleKey: string; value: string }): void {

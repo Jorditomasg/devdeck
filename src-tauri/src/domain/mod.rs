@@ -9,7 +9,7 @@
 //! - [`RepoTypeDef`] — the v2 six-block repo-type YAML schema
 //!   (`detect / run / logs / config / enrich / ui`), gated on
 //!   `schema_version: 2`. Behavior is selected by name from named-strategy
-//!   registries (config writers, enrichers, app-resolution, UI actions)
+//!   registries (config writers, enrichers, app-resolution)
 //!   instead of `if repo_type == "..."` hardcodes
 //!   (`docs/superpowers/specs/2026-06-21-repo-types-v2-design.md`).
 //! - [`ServiceStatus`] — the 6-state service lifecycle, typed.

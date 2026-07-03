@@ -323,12 +323,16 @@ export class RepoActionsService {
         content,
       });
       await this.repos.refreshBadge(repo.path); // file changed → git dirty (§10)
-    } catch {
+    } catch (err: unknown) {
+      // Surface the REAL cause — the generic message alone sent a user
+      // chasing uncommitted changes when the actual error was a YAML
+      // validation failure (2026-07-03).
+      const detail = (err as { message?: string })?.message ?? String(err);
       await this.dialogs.error(
         this.i18n.t('misc.error_title'),
-        this.i18n.t('dialog.config.write_error', {
+        `${this.i18n.t('dialog.config.write_error', {
           path: this.envTargetFile(repo, moduleKey) ?? key,
-        }),
+        })}\n\n${detail}`,
       );
     }
   }
@@ -342,11 +346,6 @@ export class RepoActionsService {
   }
 
   // -- docker (§11) -------------------------------------------------------------
-
-  /** Flyway seeds of a docker-infra repo (§12 / backend `run_flyway_seeds`). */
-  async seed(repo: RepoInfo): Promise<void> {
-    await this.commands.docker.runFlywaySeeds(repo.path);
-  }
 
   /** Open the per-file docker dialog is owned by `DialogService` (§19). */
   private async startDocker(repo: RepoInfo): Promise<void> {

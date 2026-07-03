@@ -18,6 +18,7 @@ export { LOG_FLASH_MS, StatusDotComponent } from './status-dot/status-dot.compon
 export type { ServiceStatus } from './status-dot/status-dot.component';
 export { SpinnerComponent } from './spinner/spinner.component';
 export { DividerComponent } from './divider/divider.component';
+export { AvatarComponent } from './avatar/avatar.component';
 export { TooltipDirective } from './tooltip/tooltip.directive';
 export { TooltipOverlayComponent } from './tooltip/tooltip-overlay.component';
 
@@ -38,6 +39,12 @@ export { TabsComponent } from './tabs/tabs.component';
 export type { TabDef } from './tabs/tabs.component';
 export { PaginationComponent } from './pagination/pagination.component';
 export { clampPage, pageCount, pageSlice } from './pagination/pagination.logic';
+export { DiffViewComponent } from './diff-view/diff-view.component';
+// CodeViewComponent is deliberately NOT re-exported here: it statically
+// imports CodeMirror (~0.5 MB), and a barrel export drags that into the
+// INITIAL bundle of every window that imports `ui`. Lazy consumers import
+// `./code-view/code-view.component` directly so CodeMirror stays in their
+// deferred chunk (git-window budget incident, 2026-07-02).
 
 // Layout helpers
 export { FormRowComponent } from './form-row/form-row.component';

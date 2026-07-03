@@ -194,6 +194,12 @@ export class RepoConfigManagerDialogComponent extends DialogBase {
   protected readonly moduleKey = signal('');
   protected readonly environments = signal<Readonly<Record<string, string>>>({});
   protected readonly dangerNames = signal<readonly string[]>([]);
+  /**
+   * Danger set as EDITED in this dialog — persisted only on Save (user
+   * 2026-07-03: the toggle must not save by itself). `dangerNames` mirrors
+   * the persisted state; the list/toggle render this pending set.
+   */
+  protected readonly pendingDanger = signal<readonly string[]>([]);
   protected readonly selected = signal('');
   protected readonly editorText = signal('');
   protected readonly saving = signal(false);
@@ -225,7 +231,7 @@ export class RepoConfigManagerDialogComponent extends DialogBase {
   );
 
   protected readonly selectedIsDanger = computed(
-    () => this.selected() !== '' && this.dangerNames().includes(this.selected()),
+    () => this.selected() !== '' && this.pendingDanger().includes(this.selected()),
   );
 
   protected readonly dangerTooltip = computed(() =>
@@ -234,11 +240,17 @@ export class RepoConfigManagerDialogComponent extends DialogBase {
     ),
   );
 
-  /** Editor text differs from the stored value (§23 unsaved tracking). */
+  /** Pending danger set differs from the persisted one. */
+  private readonly dangerDirty = computed(
+    () => [...this.pendingDanger()].sort().join('\n') !== [...this.dangerNames()].sort().join('\n'),
+  );
+
+  /** Editor text or danger set differ from stored values (§23 unsaved tracking). */
   protected readonly dirty = computed(
     () =>
-      this.selected() !== '' &&
-      this.editorText() !== (this.environments()[this.selected()] ?? ''),
+      this.dangerDirty() ||
+      (this.selected() !== '' &&
+        this.editorText() !== (this.environments()[this.selected()] ?? '')),
   );
 
   constructor() {
@@ -268,7 +280,7 @@ export class RepoConfigManagerDialogComponent extends DialogBase {
   }
 
   protected isDanger(name: string): boolean {
-    return this.dangerNames().includes(name);
+    return this.pendingDanger().includes(name);
   }
 
   // -- mutations (§23) ----------------------------------------------------------
@@ -281,6 +293,9 @@ export class RepoConfigManagerDialogComponent extends DialogBase {
     this.saving.set(true);
     try {
       await this.persist({ ...this.environments(), [name]: this.editorText() });
+      if (this.dangerDirty()) {
+        await this.persistDanger(this.pendingDanger());
+      }
       await this.dialogs.info(
         this.i18n.t('dialog.env_manager.saved_title'),
         this.i18n.t('dialog.env_manager.saved_msg', { name }),
@@ -323,7 +338,9 @@ export class RepoConfigManagerDialogComponent extends DialogBase {
     next[to] = next[from] ?? '';
     delete next[from];
     await this.persist(next);
-    await this.persistDanger(renameDangerName(this.dangerNames(), from, to));
+    // Structural op: persists immediately, based on the PENDING set so an
+    // unsaved toggle isn't silently dropped.
+    await this.persistDanger(renameDangerName(this.pendingDanger(), from, to));
     this.selected.set(to);
   }
 
@@ -360,20 +377,23 @@ export class RepoConfigManagerDialogComponent extends DialogBase {
     const next: Record<string, string> = { ...this.environments() };
     delete next[name];
     await this.persist(next);
-    if (this.dangerNames().includes(name)) {
-      await this.persistDanger(toggleDangerName(this.dangerNames(), name));
+    if (this.pendingDanger().includes(name)) {
+      await this.persistDanger(toggleDangerName(this.pendingDanger(), name));
     }
     this.selected.set('');
     this.editorText.set('');
   }
 
-  /** Danger toggle (§23): flips the per-key danger set, restyles the list. */
-  protected async toggleDanger(): Promise<void> {
+  /**
+   * Danger toggle (§23): flips the PENDING set only — the list restyles as
+   * feedback but nothing persists until Save (user 2026-07-03).
+   */
+  protected toggleDanger(): void {
     const name = this.selected();
     if (name === '') {
       return;
     }
-    await this.persistDanger(toggleDangerName(this.dangerNames(), name));
+    this.pendingDanger.set(toggleDangerName(this.pendingDanger(), name));
   }
 
   /**
@@ -461,7 +481,9 @@ export class RepoConfigManagerDialogComponent extends DialogBase {
         this.commands.config.getAppConfig(),
       ]);
       this.environments.set(environments);
-      this.dangerNames.set(config.repo_config_danger?.[key] ?? []);
+      const danger = config.repo_config_danger?.[key] ?? [];
+      this.dangerNames.set(danger);
+      this.pendingDanger.set(danger);
     } catch (err: unknown) {
       await this.dialogs.error(this.i18n.t('misc.error_title'), describe(err));
     }
@@ -475,6 +497,7 @@ export class RepoConfigManagerDialogComponent extends DialogBase {
   private async persistDanger(names: readonly string[]): Promise<void> {
     await this.commands.config.setDangerFlags(this.configKey(), names);
     this.dangerNames.set(names);
+    this.pendingDanger.set(names);
   }
 
   /**
@@ -490,12 +513,18 @@ export class RepoConfigManagerDialogComponent extends DialogBase {
       this.i18n.t('dialog.env_manager.unsaved_msg', { name: this.selected() }),
     );
     if (saveIt) {
-      await this.persist({
-        ...this.environments(),
-        [this.selected()]: this.editorText(),
-      });
+      if (this.selected() !== '') {
+        await this.persist({
+          ...this.environments(),
+          [this.selected()]: this.editorText(),
+        });
+      }
+      if (this.dangerDirty()) {
+        await this.persistDanger(this.pendingDanger());
+      }
     } else {
       this.editorText.set(this.environments()[this.selected()] ?? '');
+      this.pendingDanger.set(this.dangerNames());
     }
     return true;
   }

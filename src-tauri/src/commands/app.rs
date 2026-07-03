@@ -131,6 +131,56 @@ pub async fn open_log_window(
     Ok(())
 }
 
+/// `open_git_window { repoId, title, branch?, tab?, stash? }` (git suite,
+/// design doc 2026-07-02): open (or focus, when already open) the detached
+/// git window of one repo. The window loads the SPA with `?git=<repoId>`
+/// plus the optional view params — `branch` preselects the branch filter
+/// (branch-dialog entry), `tab`/`stash` open the stash viewer (stash-dialog
+/// entry). An already-open window is only focused; it does NOT re-navigate
+/// (accepted limitation, phase-2 decisions).
+#[tauri::command]
+pub async fn open_git_window(
+    app: tauri::AppHandle,
+    repo_id: String,
+    title: String,
+    branch: Option<String>,
+    tab: Option<String>,
+    stash: Option<u32>,
+) -> CmdResult<()> {
+    let label = window_label("git", &repo_id);
+    if let Some(existing) = app.get_webview_window(&label) {
+        let _ = existing.unminimize();
+        let _ = existing.set_focus();
+        return Ok(());
+    }
+    let mut url = format!("index.html?git={}", urlencode_component(&repo_id));
+    if let Some(branch) = branch.as_deref().filter(|b| !b.is_empty()) {
+        url.push_str(&format!("&branch={}", urlencode_component(branch)));
+    }
+    if let Some(tab) = tab.as_deref().filter(|t| !t.is_empty()) {
+        url.push_str(&format!("&tab={}", urlencode_component(tab)));
+    }
+    if let Some(stash) = stash {
+        url.push_str(&format!("&stash={stash}"));
+    }
+    // Hidden-then-show for the same taskbar-style reason as open_log_window.
+    let window =
+        tauri::WebviewWindowBuilder::new(&app, &label, tauri::WebviewUrl::App(url.into()))
+            .title(&title)
+            .inner_size(1150.0, 760.0)
+            .min_inner_size(720.0, 480.0)
+            .visible(false)
+            .build()
+            .map_err(|err| super::error::AppError {
+                kind: "io".into(),
+                message: format!("open git window: {err}"),
+            })?;
+    #[cfg(windows)]
+    force_taskbar_button(&window);
+    let _ = window.show();
+    Ok(())
+}
+
 /// Force `WS_EX_APPWINDOW` on a window so it owns a taskbar button and minimizes
 /// to the taskbar. Without it tao's runtime-created secondary windows lack the
 /// style and Windows minimizes them to the legacy bottom-left desktop stub

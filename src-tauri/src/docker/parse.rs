@@ -105,16 +105,6 @@ fn depends_on_of(config: &Value) -> Vec<String> {
     }
 }
 
-/// Names of the flyway seed services: every service whose NAME contains
-/// `flyway`, case-insensitive (v1 `_detect_flyway_services`).
-pub fn detect_flyway_services(services: &[ComposeService]) -> Vec<String> {
-    services
-        .iter()
-        .filter(|s| s.name.to_lowercase().contains("flyway"))
-        .map(|s| s.name.clone())
-        .collect()
-}
-
 /// Build the `{service: running|stopped}` map from the full service list and
 /// the `compose ps --services --filter status=running` output: services not
 /// reported running are `stopped` (v1 `get_compose_service_status`).
@@ -238,16 +228,7 @@ services:
         assert!(parse_compose_yaml("services:\n  bad: [unclosed").is_err());
     }
 
-    // ---- flyway + status map ----------------------------------------------
-
-    #[test]
-    fn flyway_detection_is_case_insensitive_on_name() {
-        let services = parse_compose_yaml(COMPOSE_LIST_FORM).unwrap();
-        assert_eq!(detect_flyway_services(&services), vec!["flyway-seed"]);
-
-        let upper = parse_compose_yaml("services:\n  Flyway-Migrations:\n    image: x\n").unwrap();
-        assert_eq!(detect_flyway_services(&upper), vec!["Flyway-Migrations"]);
-    }
+    // ---- status map --------------------------------------------------------
 
     #[test]
     fn status_map_marks_missing_services_stopped() {

@@ -85,9 +85,12 @@ literal `root` (`config::ROOT_MODULE_KEY`).
 
 ## 2. Commands
 
-59 commands across 9 groups (55 core + the 2 app-lifecycle extensions in §2.1
+101 commands across 9 groups (55 core + the 2 app-lifecycle extensions in §2.1
 + the 2 review additions: `set_last_profile` #58 in §2.5, `is_installed` #59
-in §2.3).
+in §2.3, + the post-v1 extensions numbered 60+ in their sections — detached
+log/terminal/dialog windows, tray panel, updates §2.9, stash/branch
+management, and the git-history queries #91–#101 in §2.4). The authoritative
+count assertion lives in `src/app/core/ipc/commands.spec.ts`.
 
 ### 2.1 App lifecycle (`commands/app.rs`, wired in `lib.rs`)
 
@@ -234,8 +237,20 @@ Operation logs flow through `service://log-line` with `stream: "git"` and `name`
 | 69 | `git_delete_remote_branch` | `{ repoPath: string, name: string }` | `OpOutput` | `git::delete_remote_branch` — `push origin --delete` |
 | 70 | `git_rename_branch` | `{ repoPath: string, from?: string, to: string }` | `OpOutput` | `git::rename_branch` — `branch -m` |
 | 71 | `git_publish_branch` | `{ repoPath: string, name: string }` | `OpOutput` | `git::publish_branch` — `push -u origin` |
+| 91 | `open_git_window` | `{ repoId: string, title: string, branch?: string, tab?: "history"\|"stashes", stash?: number }` | `void` | opens (or focuses) the detached git window of a repo. Loads the SPA with `?git=<repoId>` + the optional view params (`branch` preselects the filter — branch-dialog entry; `tab`/`stash` open the stash viewer — stash-dialog entry). An already-open window is only focused. Window label `git-<sanitized id>` (capability `windows: [..., "git-*"]`). Git suite (design doc 2026-07-02) |
+| 92 | `git_log` | `{ repoPath: string, filter: GitLogFilter }` | `GitLogPage` | `git::get_log` — paginated (50 + `hasMore` look-ahead, `skip` cursor); filters (`branch`, `author`, `since`, `until`, `grep`, `path`) applied BY GIT. Badge semaphore (3) |
+| 93 | `git_commit_files` | `{ repoPath: string, sha: string }` | `GitCommitFileStat[]` | `git::get_commit_files` — `diff-tree -r --root -m --first-parent --numstat -M` (merges diff against first parent). Badge semaphore |
+| 94 | `git_commit_file_diff` | `{ repoPath: string, sha: string, path: string }` | `GitFileDiff` | `git::get_commit_file_diff` — ONE file per call; > 512 KiB ⇒ `{ tooLarge: true }`, binary ⇒ `{ binary: true }`. Badge semaphore |
+| 95 | `git_file_at_commit` | `{ repoPath: string, sha: string, path: string }` | `GitFileAtCommit` | `git::get_file_at_commit` — `show <sha>:<path>`, blob size checked with `cat-file -s` BEFORE reading. Badge semaphore |
+| 96 | `git_working_diff` | `{ repoPath: string, path: string, staged: boolean }` | `GitFileDiff` | `git::get_working_diff` — working-tree diff of one file (`--cached` when `staged`); consumer = phase-3 stage view. Badge semaphore |
+| 97 | `git_authors` | `{ repoPath: string }` | `GitAuthor[]` | `git::get_authors` — `shortlog -sne --branches --remotes --tags` (NO `--all`: stash refs would count the local user), most commits first; author filter dropdown (phase 2). Badge semaphore |
+| 98 | `git_diff_range` | `{ repoPath: string, base: string, target: string }` | `GitCommitFileStat[]` | `git::get_range_files` — `diff --numstat -M base...target` (compare / incoming view, phase 3). Badge semaphore |
+| 99 | `git_diff_range_file` | `{ repoPath: string, base: string, target: string, path: string }` | `GitFileDiff` | `git::get_range_file_diff` — one file, `diff -M base...target -- <path>`, usual caps. Commit list of a range rides `git_log` with `branch: "base..target"`. Badge semaphore |
+| 100 | `git_ls_files` | `{ repoPath: string }` | `string[]` | `git::list_files` — tracked files, capped at 5000; path-filter autocomplete. Badge semaphore |
+| 101 | `git_commit_body` | `{ repoPath: string, sha: string }` | `string` | `git::get_commit_body` — full `%B` message on demand (the log format carries only the subject). Badge semaphore |
 
 > `StashEntry` type (§1.2): `{ index: number, message: string, branch: string }` (camelCase wire).
+> History types (§1.2, camelCase wire): `GitCommitInfo { sha, parents: string[], authorName, authorEmail, date /* ISO 8601 */, subject, refs: string[] }`, `GitLogPage { commits: GitCommitInfo[], hasMore }`, `GitLogFilter { all?, branch?, author?, since?, until?, grep?, path?, skip? }` (`all` walks every ref — whole-repo flow view; log always runs `--topo-order` for the lane graph), `GitCommitFileStat { path, oldPath?, additions, deletions, binary }`, `GitFileDiff { content?, binary, tooLarge }`, `GitFileAtCommit { content?, binary, tooLarge, size }`, `GitAuthor { name, email, commits }`. Stash contents reuse #93/#94 with `sha: "stash@{n}"` (a stash IS a commit; first-parent diff = `stash show`).
 
 ### 2.5 Config (`config/`)
 
@@ -296,7 +311,7 @@ Compose operation logs flow through `service://log-line` with `stream: "docker"`
 | 52 | `docker_compose_status` | `{ composeFile: string, services: string[] }` | `Record<string, DockerServiceState>` | `docker::get_compose_service_status` (on-demand; 15 s poll also pushes `docker://status`) |
 | 53 | `docker_compose_logs` | `{ composeFile: string, service: string, tail: number }` | `string` | `docker::docker_compose_logs` |
 | 54 | `docker_refresh_status` | `{ repoName: string, composeFile: string, services: string[] }` | `void` | `docker::refresh_status` — forces one poll; result arrives as `docker://status` |
-| 55 | `run_flyway_seeds` | `{ infraPath: string }` | `OpOutput` | `docker::run_flyway_seeds` (services whose name contains `flyway`) |
+| 55 | ~~`run_flyway_seeds`~~ | — | — | REMOVED (v2.2): the seed button was dropped; flyway services are started individually from the compose dialog (`docker_compose_up` with a service list) |
 
 Not exposed (no UI consumer in v1 — `start_mysql` / `stop_mysql` / `is_mysql_running` /
 `get_running_containers` stay library-internal until a feature needs them).

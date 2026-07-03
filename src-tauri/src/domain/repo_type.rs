@@ -3,9 +3,9 @@
 //! Source of truth: `docs/superpowers/specs/2026-06-21-repo-types-v2-design.md`.
 //! A definition is parsed from one `config/repo-types/*.yml` file and organized
 //! into six declarative blocks: `detect / run / logs / config / enrich / ui`.
-//! Behavior (config writers, repo enrichers, app-resolution strategies, UI
-//! actions) is pluggable code selected BY NAME from these blocks via
-//! single-location registries — no `if repo_type == "..."` hardcodes remain.
+//! Behavior (config writers, repo enrichers, app-resolution strategies) is
+//! pluggable code selected BY NAME from these blocks via single-location
+//! registries — no `if repo_type == "..."` hardcodes remain.
 //!
 //! `schema_version` MUST be 2; the loader rejects anything else (no v1
 //! back-compat, no migrator — the app is 0.9.0). Every block/field has a
@@ -182,8 +182,6 @@ pub struct Ui {
     pub color: Option<String>,
     pub selectors: Vec<UiSelector>,
     pub install_check_dirs: Vec<String>,
-    /// Declared action buttons, e.g. `["seed"]`; resolved by the frontend registry.
-    pub actions: Vec<String>,
     #[serde(flatten)]
     pub extra: serde_json::Map<String, serde_json::Value>,
 }
@@ -267,12 +265,11 @@ mod tests {
             .map(|(n, d)| (n.to_string(), d))
             .collect();
 
-        // docker-infra: no git, restart delay carried as data, seed action, not editable.
+        // docker-infra: no git, restart delay carried as data, not editable.
         let docker = &defs["docker-infra"];
         assert!(!docker.detect.git_required);
         assert_eq!(docker.run.restart_delay_ms, Some(2000));
         assert!(!docker.config.editable);
-        assert_eq!(docker.ui.actions, vec!["seed".to_string()]);
         assert_eq!(docker.run.stop.default.as_deref(), Some("docker-compose down"));
 
         // spring-boot: spring writer, java_version enricher, implicit default profile.

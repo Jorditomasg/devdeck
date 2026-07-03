@@ -132,6 +132,14 @@ const PAGE_SIZE = 15;
                           </ui-button>
                           <ui-button
                             size="sm"
+                            variant="purple-alt"
+                            [uiTooltip]="'dialog.branch.tip_history' | t"
+                            (clicked)="openHistory(b)"
+                          >
+                            <ui-icon name="history" [size]="14" /> {{ 'dialog.branch.btn_history' | t }}
+                          </ui-button>
+                          <ui-button
+                            size="sm"
                             variant="neutral"
                             [uiTooltip]="'dialog.branch.tip_rename' | t"
                             [disabled]="busy()"
@@ -268,6 +276,15 @@ export class BranchDialogComponent extends DialogBase {
   protected clearLog(): void {
     this.logBaseline = this.services.logsFor(this.repoName())().length;
     this.extraLog.set([]);
+  }
+
+  /** Detached git window scoped to this branch (git suite phase 2). */
+  protected openHistory(branch: string): void {
+    void this.commands.git
+      .openWindow(this.repoName(), `${this.repoName()} — ${this.i18n.t('git.window_title')}`, {
+        branch,
+      })
+      .catch((err: unknown) => console.error('open git window failed', err));
   }
 
   protected async create(): Promise<void> {

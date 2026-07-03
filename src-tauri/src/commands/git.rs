@@ -320,3 +320,140 @@ pub async fn git_publish_branch(
     let sink = op_log_sink(app, path_basename(&repo), LogStream::Git);
     Ok(git::publish_branch(&repo, &name, Some(&sink)).await)
 }
+
+// -- history queries (git suite phase 1, design doc 2026-07-02) --------------
+//
+// Read-only, git-filtered, size-capped (git/history.rs). Every one of them
+// shares the badge concurrency cap (3) — history browsing must never starve
+// the badge poller (design doc §Backend; inventory-gui.md §28).
+
+/// Map a history-query failure (git stderr, bad revision, …) to the envelope.
+fn git_err(message: String) -> AppError {
+    AppError { kind: "git".into(), message }
+}
+
+/// `git_log { repoPath, filter }` → `LogPage` (50 commits + `hasMore`).
+#[tauri::command]
+pub async fn git_log(
+    state: State<'_, AppState>,
+    repo_path: String,
+    filter: git::LogFilter,
+) -> CmdResult<git::LogPage> {
+    let _permit = acquire(&state.badge_semaphore).await?;
+    git::get_log(&PathBuf::from(repo_path), &filter).await.map_err(git_err)
+}
+
+/// `git_commit_files { repoPath, sha }` → `CommitFileStat[]` (numstat).
+#[tauri::command]
+pub async fn git_commit_files(
+    state: State<'_, AppState>,
+    repo_path: String,
+    sha: String,
+) -> CmdResult<Vec<git::CommitFileStat>> {
+    let _permit = acquire(&state.badge_semaphore).await?;
+    git::get_commit_files(&PathBuf::from(repo_path), &sha).await.map_err(git_err)
+}
+
+/// `git_commit_file_diff { repoPath, sha, path }` → `FileDiff` (ONE file,
+/// first-parent diff, 512 KiB / binary caps).
+#[tauri::command]
+pub async fn git_commit_file_diff(
+    state: State<'_, AppState>,
+    repo_path: String,
+    sha: String,
+    path: String,
+) -> CmdResult<git::FileDiff> {
+    let _permit = acquire(&state.badge_semaphore).await?;
+    git::get_commit_file_diff(&PathBuf::from(repo_path), &sha, &path).await.map_err(git_err)
+}
+
+/// `git_file_at_commit { repoPath, sha, path }` → `FileAtCommit` (full file
+/// text at that commit; blob size checked before reading).
+#[tauri::command]
+pub async fn git_file_at_commit(
+    state: State<'_, AppState>,
+    repo_path: String,
+    sha: String,
+    path: String,
+) -> CmdResult<git::FileAtCommit> {
+    let _permit = acquire(&state.badge_semaphore).await?;
+    git::get_file_at_commit(&PathBuf::from(repo_path), &sha, &path).await.map_err(git_err)
+}
+
+/// `git_ls_files { repoPath }` → `string[]` — tracked files (capped at
+/// 5000), the history path filter's autocomplete source.
+#[tauri::command]
+pub async fn git_ls_files(
+    state: State<'_, AppState>,
+    repo_path: String,
+) -> CmdResult<Vec<String>> {
+    let _permit = acquire(&state.badge_semaphore).await?;
+    git::list_files(&PathBuf::from(repo_path)).await.map_err(git_err)
+}
+
+/// `git_commit_body { repoPath, sha }` → `string` — full commit message
+/// (`%B`), fetched on demand by the detail view.
+#[tauri::command]
+pub async fn git_commit_body(
+    state: State<'_, AppState>,
+    repo_path: String,
+    sha: String,
+) -> CmdResult<String> {
+    let _permit = acquire(&state.badge_semaphore).await?;
+    git::get_commit_body(&PathBuf::from(repo_path), &sha).await.map_err(git_err)
+}
+
+/// `git_diff_range { repoPath, base, target }` → `CommitFileStat[]` — files
+/// changed between two revs (`base...target`, compare view phase 3).
+#[tauri::command]
+pub async fn git_diff_range(
+    state: State<'_, AppState>,
+    repo_path: String,
+    base: String,
+    target: String,
+) -> CmdResult<Vec<git::CommitFileStat>> {
+    let _permit = acquire(&state.badge_semaphore).await?;
+    git::get_range_files(&PathBuf::from(repo_path), &base, &target).await.map_err(git_err)
+}
+
+/// `git_diff_range_file { repoPath, base, target, path }` → `FileDiff` —
+/// one file's diff between two revs (compare view).
+#[tauri::command]
+pub async fn git_diff_range_file(
+    state: State<'_, AppState>,
+    repo_path: String,
+    base: String,
+    target: String,
+    path: String,
+) -> CmdResult<git::FileDiff> {
+    let _permit = acquire(&state.badge_semaphore).await?;
+    git::get_range_file_diff(&PathBuf::from(repo_path), &base, &target, &path)
+        .await
+        .map_err(git_err)
+}
+
+/// `git_authors { repoPath }` → `AuthorInfo[]` — every author of the repo,
+/// most commits first (`shortlog -sne --all`). Feeds the author filter
+/// dropdown (git suite phase 2).
+#[tauri::command]
+pub async fn git_authors(
+    state: State<'_, AppState>,
+    repo_path: String,
+) -> CmdResult<Vec<git::AuthorInfo>> {
+    let _permit = acquire(&state.badge_semaphore).await?;
+    git::get_authors(&PathBuf::from(repo_path)).await.map_err(git_err)
+}
+
+/// `git_working_diff { repoPath, path, staged }` → `FileDiff` — working-tree
+/// diff of one file (`staged` → `--cached`). Registered with phase 1; the
+/// stage view (phase 3) is its consumer.
+#[tauri::command]
+pub async fn git_working_diff(
+    state: State<'_, AppState>,
+    repo_path: String,
+    path: String,
+    staged: bool,
+) -> CmdResult<git::FileDiff> {
+    let _permit = acquire(&state.badge_semaphore).await?;
+    git::get_working_diff(&PathBuf::from(repo_path), &path, staged).await.map_err(git_err)
+}

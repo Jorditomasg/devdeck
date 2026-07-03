@@ -20,14 +20,20 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 
+/// Spring profile filename with an explicit extension: `default`/empty →
+/// `application.{ext}`, else `application-{p}.{ext}`.
+fn spring_profile_filename(profile: &str, ext: &str) -> String {
+    if profile.is_empty() || profile == "default" {
+        format!("application.{ext}")
+    } else {
+        format!("application-{profile}.{ext}")
+    }
+}
+
 /// Spring config filename for one profile (config_manager.py:73-78):
 /// `default` (or empty) → `application.yml`, else `application-{p}.yml`.
 pub fn spring_config_filename(profile: &str) -> String {
-    if profile.is_empty() || profile == "default" {
-        "application.yml".to_string()
-    } else {
-        format!("application-{profile}.yml")
-    }
+    spring_profile_filename(profile, "yml")
 }
 
 /// Read the Spring config file for a profile as raw text. Missing file →
@@ -105,8 +111,12 @@ impl ConfigWriter for AngularWriter {
     }
 }
 
-/// `spring` — validates the content as YAML, then writes it to the profile
-/// file inside the resources dir (the parent of `target_file`).
+/// `spring` — writes the profile file inside the resources dir (the parent
+/// of `target_file`), honoring the repo's config FORMAT: a `.properties`
+/// target writes `application[-profile].properties` verbatim (properties
+/// are NOT YAML — validating them as YAML broke petclinic-style repos, user
+/// report 2026-07-03); anything else keeps the v1 `.yml` convention with
+/// YAML validation.
 struct SpringWriter;
 impl ConfigWriter for SpringWriter {
     fn name(&self) -> &'static str {
@@ -119,6 +129,14 @@ impl ConfigWriter for SpringWriter {
                 target_file.display()
             ))
         })?;
+        let is_properties = target_file
+            .extension()
+            .and_then(|e| e.to_str())
+            .is_some_and(|e| e.eq_ignore_ascii_case("properties"));
+        if is_properties {
+            let name = spring_profile_filename(profile, "properties");
+            return write_config_file_raw(&resources_dir.join(name), content);
+        }
         write_spring_config(resources_dir, profile, content)
     }
 }
@@ -300,6 +318,38 @@ mod tests {
         write_active_environment("spring", &resources.join("application.yml"), "dev", "a: 1")
             .unwrap();
         assert!(resources.join("application-dev.yml").is_file());
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn spring_writer_honors_properties_repos() {
+        let dir = temp_dir("spring-props");
+        let resources = dir.join("src/main/resources");
+        fs::create_dir_all(&resources).unwrap();
+        // Real-world properties content that is NOT valid YAML (petclinic's
+        // `#---` document separators broke the YAML validation, 2026-07-03).
+        let content = "database=mysql\nspring.datasource.url=${MYSQL_URL:jdbc:mysql://x/y}\n#---\nspring.sql.init.mode=always\n";
+        write_active_environment(
+            "spring",
+            &resources.join("application-mysql.properties"),
+            "mysql",
+            content,
+        )
+        .unwrap();
+        assert_eq!(
+            fs::read_to_string(resources.join("application-mysql.properties")).unwrap(),
+            content,
+            "verbatim, no YAML validation, .properties profile filename"
+        );
+        // Default profile → application.properties.
+        write_active_environment(
+            "spring",
+            &resources.join("application.properties"),
+            "default",
+            "a=1",
+        )
+        .unwrap();
+        assert!(resources.join("application.properties").is_file());
         let _ = fs::remove_dir_all(dir);
     }
 

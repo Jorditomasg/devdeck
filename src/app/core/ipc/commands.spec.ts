@@ -5,11 +5,16 @@ import { CMD, IpcCommands } from './commands';
 import { FakeTauriBridge } from './tauri-bridge.fake';
 
 describe('CMD registry', () => {
-  it('contains the 90 contract commands, all snake_case and unique', () => {
+  it('contains the 101 contract commands, all snake_case and unique', () => {
     // 86 prior + show_main_window / request_quit (tray quick-control panel)
-    // + whats_new_on_startup / disable_whats_new (post-update popup).
+    // + whats_new_on_startup / disable_whats_new (post-update popup)
+    // + open_git_window / git_log / git_commit_files / git_commit_file_diff
+    //   / git_file_at_commit / git_working_diff (git suite phase 1)
+    // + git_authors (phase 2 author filter)
+    // + git_diff_range / git_diff_range_file (phase 3 compare view)
+    // + git_ls_files / git_commit_body (path autocomplete + full message).
     const names = Object.values(CMD);
-    expect(names.length).toBe(90);
+    expect(names.length).toBe(100);
     expect(new Set(names).size).toBe(names.length);
     for (const name of names) {
       expect(name).toMatch(/^[a-z][a-z0-9_]*$/);
@@ -128,6 +133,78 @@ describe('IpcCommands wrappers', () => {
     expect(bridge.invokesOf(CMD.gitPublishBranch)[0]?.args).toEqual({
       repoPath: '/ws/api',
       name: 'feature/x',
+    });
+  });
+
+  it('history wrappers carry the payloads verbatim (git suite phase 1)', async () => {
+    const bridge = new FakeTauriBridge();
+    const api = new IpcCommands(bridge);
+    const filter = { branch: 'develop', author: 'jordi', skip: 50 } as const;
+
+    await api.git.openWindow('api', 'api — Git');
+    await api.git.openWindow('api', 'api — Git', { tab: 'stashes', stash: 1 });
+    await api.git.authors('/ws/api');
+    await api.git.log('/ws/api', filter);
+    await api.git.commitFiles('/ws/api', 'abc123');
+    await api.git.commitFileDiff('/ws/api', 'abc123', 'src/main.rs');
+    await api.git.fileAtCommit('/ws/api', 'abc123', 'src/main.rs');
+    await api.git.workingDiff('/ws/api', 'src/main.rs', true);
+
+    expect(bridge.invokesOf(CMD.openGitWindow)[0]?.args).toEqual({
+      repoId: 'api',
+      title: 'api — Git',
+    });
+    expect(bridge.invokesOf(CMD.openGitWindow)[1]?.args).toEqual({
+      repoId: 'api',
+      title: 'api — Git',
+      tab: 'stashes',
+      stash: 1,
+    });
+    expect(bridge.invokesOf(CMD.gitAuthors)[0]?.args).toEqual({ repoPath: '/ws/api' });
+
+    await api.git.diffRange('/ws/api', 'main', 'origin/main');
+    await api.git.diffRangeFile('/ws/api', 'main', 'origin/main', 'src/x.ts');
+    expect(bridge.invokesOf(CMD.gitDiffRange)[0]?.args).toEqual({
+      repoPath: '/ws/api',
+      base: 'main',
+      target: 'origin/main',
+    });
+    expect(bridge.invokesOf(CMD.gitDiffRangeFile)[0]?.args).toEqual({
+      repoPath: '/ws/api',
+      base: 'main',
+      target: 'origin/main',
+      path: 'src/x.ts',
+    });
+
+    await api.git.lsFiles('/ws/api');
+    await api.git.commitBody('/ws/api', 'abc123');
+    expect(bridge.invokesOf(CMD.gitLsFiles)[0]?.args).toEqual({ repoPath: '/ws/api' });
+    expect(bridge.invokesOf(CMD.gitCommitBody)[0]?.args).toEqual({
+      repoPath: '/ws/api',
+      sha: 'abc123',
+    });
+    expect(bridge.invokesOf(CMD.gitLog)[0]?.args).toEqual({
+      repoPath: '/ws/api',
+      filter,
+    });
+    expect(bridge.invokesOf(CMD.gitCommitFiles)[0]?.args).toEqual({
+      repoPath: '/ws/api',
+      sha: 'abc123',
+    });
+    expect(bridge.invokesOf(CMD.gitCommitFileDiff)[0]?.args).toEqual({
+      repoPath: '/ws/api',
+      sha: 'abc123',
+      path: 'src/main.rs',
+    });
+    expect(bridge.invokesOf(CMD.gitFileAtCommit)[0]?.args).toEqual({
+      repoPath: '/ws/api',
+      sha: 'abc123',
+      path: 'src/main.rs',
+    });
+    expect(bridge.invokesOf(CMD.gitWorkingDiff)[0]?.args).toEqual({
+      repoPath: '/ws/api',
+      path: 'src/main.rs',
+      staged: true,
     });
   });
 

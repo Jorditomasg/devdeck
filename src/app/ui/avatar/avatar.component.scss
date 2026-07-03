@@ -1,0 +1,27 @@
+:host {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--avatar-size, 28px);
+  height: var(--avatar-size, 28px);
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  // Fallback disc color — deterministic per email (see avatar.logic hueOf).
+  background-color: hsl(var(--avatar-hue, 0) 45% 42%);
+}
+
+.avatar__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.avatar__initials {
+  color: #fff;
+  font-size: calc(var(--avatar-size, 28px) * 0.42);
+  font-weight: 600;
+  line-height: 1;
+  user-select: none;
+}

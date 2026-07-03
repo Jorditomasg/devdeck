@@ -189,6 +189,87 @@ export interface StashEntry {
   readonly branch: string;
 }
 
+/**
+ * One commit row of the history view (git/history.rs `CommitInfo` — git
+ * suite phase 1, design doc 2026-07-02).
+ */
+export interface GitCommitInfo {
+  readonly sha: string;
+  /** Full parent SHAs, first parent first (feeds the phase-2 lane graph). */
+  readonly parents: readonly string[];
+  readonly authorName: string;
+  readonly authorEmail: string;
+  /** Author date, strict ISO 8601. */
+  readonly date: string;
+  readonly subject: string;
+  /** Ref decorations: `HEAD -> master`, `origin/master`, `tag: v2.1.0`. */
+  readonly refs: readonly string[];
+  /** Ref the log walk reached this commit from (`%S`) — its branch name. */
+  readonly source: string;
+}
+
+/** One `git_log` page (50 commits max; ask again with a higher `skip`). */
+export interface GitLogPage {
+  readonly commits: readonly GitCommitInfo[];
+  readonly hasMore: boolean;
+}
+
+/** One repo author (`git_authors` row), most commits first. */
+export interface GitAuthor {
+  readonly name: string;
+  readonly email: string;
+  readonly commits: number;
+}
+
+/** `git_log` filters — all optional, all applied by git itself. */
+export interface GitLogFilter {
+  /** Walk ALL refs (whole-repo flow view); ignored when `branch` is set. */
+  readonly all?: boolean;
+  /** Rev to walk from (branch, tag, sha); omitted ⇒ `HEAD`. */
+  readonly branch?: string;
+  /** Case-insensitive author name/email substring. */
+  readonly author?: string;
+  /** `--since` (git-parsed date expression, e.g. `2026-01-01`). */
+  readonly since?: string;
+  readonly until?: string;
+  /** Case-insensitive commit-message substring. */
+  readonly grep?: string;
+  /** Limit history to one path (file or directory). */
+  readonly path?: string;
+  /** Pagination cursor: rows already consumed. */
+  readonly skip?: number;
+}
+
+/** One file touched by a commit (numstat row). */
+export interface GitCommitFileStat {
+  /** Path after the commit (rename target for renames). */
+  readonly path: string;
+  /** Pre-rename path when the row is a rename. */
+  readonly oldPath?: string;
+  readonly additions: number;
+  readonly deletions: number;
+  /** Binary blob — no line counts. */
+  readonly binary: boolean;
+}
+
+/** Unified diff of ONE file (512 KiB / binary capped Rust-side). */
+export interface GitFileDiff {
+  /** Diff text; absent when `binary` or `tooLarge`. */
+  readonly content?: string;
+  readonly binary: boolean;
+  readonly tooLarge: boolean;
+}
+
+/** Full file contents at a commit (`git_file_at_commit`). */
+export interface GitFileAtCommit {
+  /** File text; absent when `binary` or `tooLarge`. */
+  readonly content?: string;
+  readonly binary: boolean;
+  readonly tooLarge: boolean;
+  /** Blob size in bytes (also reported when too large). */
+  readonly size: number;
+}
+
 /** Where a merge lands (git/types.rs `TargetMode`). */
 export type MergeTargetMode = 'current' | 'existing' | 'new';
 
@@ -265,7 +346,7 @@ export interface UiSelector {
  * The repo-type `ui:` block as serialized by the Rust `Ui` struct
  * (domain/repo_type.rs). `Ui` carries `#[serde(default)]` but NO
  * `rename_all`, so its fields keep their Rust snake_case names on the wire
- * (`install_check_dirs`, `actions`); the enclosing `RepoInfo.ui_config`
+ * (`install_check_dirs`); the enclosing `RepoInfo.ui_config`
  * becomes `uiConfig` via RepoInfo's own camelCase rename. Unknown YAML keys
  * round-trip through the struct's `#[serde(flatten)] extra` map.
  */
@@ -279,8 +360,6 @@ export interface UiConfig {
    * because the Rust `Ui` struct has no `rename_all`.
    */
   readonly install_check_dirs: readonly string[];
-  /** Declared action buttons (e.g. ["seed"]); resolved by the repo-card action registry. */
-  readonly actions?: readonly string[];
   readonly [extra: string]: unknown;
 }
 

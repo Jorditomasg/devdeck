@@ -1,0 +1,108 @@
+@use '../../../../styles/mixins' as mx;
+
+:host {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  // Solid surface (user report 2026-07-02: text over the body pattern was
+  // unreadable) — framed look like the other detached windows.
+  background: var(--color-card);
+  border: var(--geo-border-width) solid var(--color-border-card);
+  border-radius: var(--geo-corner-panel);
+  overflow: hidden;
+}
+
+.fdp__files {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  width: 36%;
+  min-width: 220px;
+  max-width: 420px;
+  overflow-y: auto;
+  border-right: var(--geo-border-width) solid var(--color-border-default);
+}
+
+.fdp__file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-size: var(--font-size-xs);
+  font-family: var(--font-family-mono);
+  color: var(--color-text-secondary);
+
+  &:hover {
+    background: var(--color-card-hover);
+  }
+}
+
+.fdp__file--selected {
+  background: var(--color-selected-bg);
+  color: var(--color-selected-fg);
+}
+
+.fdp__path {
+  @include mx.ellipsis;
+  flex: 1;
+  min-width: 0;
+  direction: rtl;
+  text-align: left;
+}
+
+.fdp__old {
+  color: var(--color-text-muted);
+}
+
+.fdp__adds {
+  color: var(--color-status-running);
+}
+
+.fdp__dels {
+  color: var(--color-status-error);
+}
+
+.fdp__viewer {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+}
+
+.fdp__bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 8px;
+}
+
+.fdp__name {
+  @include mx.ellipsis;
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.fdp__spacer {
+  flex: 1;
+}
+
+.fdp__pane {
+  flex: 1;
+  min-height: 0;
+}
+
+.fdp__center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 24px;
+}
+
+.fdp__muted {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}

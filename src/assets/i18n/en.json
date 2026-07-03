@@ -38,11 +38,11 @@
     "ok": "OK",
     "yes": "Yes",
     "no": "No",
-    "seed": "Seed",
     "copy_log": "Copy",
     "attach_log": "Attach",
     "stash": "Stash",
-    "branches": "Branches"
+    "branches": "Branches",
+    "git_history": "History"
   },
   "install": {
     "label_missing": "Install",
@@ -140,7 +140,8 @@
     "copy_log": "Copy the whole log to the clipboard",
     "open_port": "Open in browser",
     "stash_btn": "Manage the stash: add, apply, pop or drop changes",
-    "branches_btn": "Manage branches: create, rename, publish or delete"
+    "branches_btn": "Manage branches: create, rename, publish or delete",
+    "git_history_btn": "Commit history, diffs and file versions"
   },
   "dialog": {
     "settings": {
@@ -465,7 +466,9 @@
       "logs_empty": "No activity yet.",
       "tip_apply": "Apply (keep the stash)",
       "tip_pop": "Apply and drop the stash",
-      "tip_drop": "Discard this stash permanently"
+      "tip_drop": "Discard this stash permanently",
+      "btn_files": "Files",
+      "tip_files": "View the files modified in this stash"
     },
     "prompt": {
       "rename_title": "Rename branch",
@@ -510,7 +513,9 @@
       "tip_rename": "Rename this branch",
       "tip_publish": "Publish to origin (push + track)",
       "tip_delete_remote": "Delete this branch on origin",
-      "tip_delete_local": "Delete this local branch"
+      "tip_delete_local": "Delete this local branch",
+      "btn_history": "History",
+      "tip_history": "Open the commit history of this branch"
     },
     "merge": {
       "title": "Merge — {name}",
@@ -686,9 +691,36 @@
     "no_results": "No results",
     "more_items": "+{count} more — refine your search"
   },
-  "repo": {
-    "action": {
-      "seed": "Seed"
-    }
+  "git": {
+    "window_title": "Git history",
+    "repo_not_found": "Repository '{name}' not found in the current workspace scan",
+    "filter_text": "Message contains...",
+    "filter_path": "Path",
+    "filter_since": "From date",
+    "filter_until": "To date",
+    "filter_clear": "Clear",
+    "no_commits": "No commits match the current filters",
+    "load_more": "Load more",
+    "merge_commit": "merge",
+    "select_file": "Select a file to see its diff",
+    "view_file": "View file at this commit",
+    "back_to_diff": "Back to diff",
+    "binary": "binary",
+    "binary_file": "Binary file — no text preview",
+    "diff_too_large": "Diff too large to preview",
+    "too_large": "File too large to preview ({size} bytes)",
+    "empty_diff": "No changes for this file in this commit",
+    "all_branches": "All branches",
+    "all_authors": "All authors",
+    "back": "Back",
+    "no_stashes": "This repository has no stashes",
+    "stashes_title": "Stashes",
+    "compare": "Compare",
+    "swap": "Swap",
+    "compare_hint": "{count} incoming commits",
+    "view_web": "View on web",
+    "copy_sha": "Copy SHA",
+    "all_paths": "All paths",
+    "file_history": "File history"
   }
 }

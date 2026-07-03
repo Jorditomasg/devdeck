@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 
 import { DialogWindowHostComponent } from './features/dialogs/dialog-window-host.component';
+import { GitWindowComponent } from './features/workspace/git-window/git-window.component';
 import { LogWindowComponent } from './features/workspace/log-window/log-window.component';
 import { TerminalWindowComponent } from './features/workspace/terminal-window/terminal-window.component';
 import { TrayPanelComponent } from './features/workspace/tray-panel/tray-panel.component';
@@ -18,6 +19,8 @@ import { WorkspacePageComponent } from './features/workspace/workspace-page.comp
  *   `open_terminal_window` — only the xterm.js terminal (design doc 2026-06-14);
  * - `?dialog=<kind>`: a native dialog window created by `open_dialog_window`
  *   — only the dialog component for `<kind>` (docs/migration/dialogs-as-windows.md).
+ * - `?git=<repoId>`: a detached git history window created by
+ *   `open_git_window` (docs/superpowers/specs/2026-07-02-git-suite-design.md).
  * - `?panel=1`: the frameless tray quick-control popup created on tray
  *   left-click (docs/superpowers/specs/2026-06-23-tray-panel-design.md).
  *
@@ -28,6 +31,7 @@ import { WorkspacePageComponent } from './features/workspace/workspace-page.comp
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     DialogWindowHostComponent,
+    GitWindowComponent,
     LogWindowComponent,
     TerminalWindowComponent,
     TrayPanelComponent,
@@ -40,6 +44,10 @@ import { WorkspacePageComponent } from './features/workspace/workspace-page.comp
       }
     } @else if (isLogWindow) {
       <log-window />
+    } @else if (isGitWindow) {
+      @defer (on immediate) {
+        <git-window />
+      }
     } @else if (isDialogWindow) {
       <app-dialog-window-host />
     } @else if (isTrayPanel) {
@@ -54,6 +62,7 @@ export class AppComponent {
   /** Render mode — fixed for the lifetime of the window. */
   protected readonly isLogWindow = this.params.has('log');
   protected readonly isTerminalWindow = this.params.has('terminal');
+  protected readonly isGitWindow = this.params.has('git');
   protected readonly isDialogWindow = this.params.has('dialog');
   protected readonly isTrayPanel = this.params.has('panel');
 }

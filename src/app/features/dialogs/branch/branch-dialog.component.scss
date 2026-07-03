@@ -6,9 +6,10 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  // Wide enough to show ~15 branch rows without crowding the action buttons.
-  width: 720px;
-  max-width: 100%;
+  // Fill the dialog window (960px, commands/dialog.rs) — a fixed content
+  // width left dead space and wrapped the action buttons (user report
+  // 2026-07-02).
+  width: 100%;
 }
 
 .branch__panel {

@@ -164,15 +164,6 @@ pub async fn docker_refresh_status(
     Ok(())
 }
 
-/// #55 `run_flyway_seeds { infraPath }` → `OpOutput` — `compose up` of
-/// every service whose name contains `flyway`, case-insensitive.
-#[tauri::command]
-pub async fn run_flyway_seeds(app: tauri::AppHandle, infra_path: String) -> CmdResult<OpOutput> {
-    let infra = PathBuf::from(infra_path);
-    let sink = op_log_sink(app, path_basename(&infra), LogStream::Docker);
-    Ok(docker::run_flyway_seeds(&infra, Some(&sink)).await)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

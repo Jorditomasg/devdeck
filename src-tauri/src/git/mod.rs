@@ -22,6 +22,7 @@
 
 pub mod branch;
 mod exec;
+pub mod history;
 pub mod ops;
 pub mod parse;
 pub mod poll;
@@ -34,6 +35,11 @@ pub use ops::{
     get_local_changes, get_ordered_branches, get_recent_checked_out_branches, get_remote_url,
     get_status_summary, has_branch, merge_branch, merge_in_progress, pull, revert_merge,
     DEFAULT_BRANCH_RECENCY_LIMIT,
+};
+pub use history::{
+    get_authors, get_commit_body, get_commit_file_diff, get_commit_files, get_file_at_commit,
+    get_log, get_range_file_diff, get_range_files, get_working_diff, list_files, AuthorInfo,
+    CommitFileStat, CommitInfo, FileAtCommit, FileDiff, LogFilter, LogPage,
 };
 pub use poll::{refresh_badge, spawn_badge_poller, BadgePoller, BADGE_REFRESH};
 pub use stash::{stash_apply, stash_drop, stash_list, stash_pop, stash_push};

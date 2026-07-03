@@ -19,4 +19,3 @@ enrich: ["docker_checkboxes"]
 ui:
   icon: "🐳"
   color: "#3b82f6"
-  actions: ["seed"]

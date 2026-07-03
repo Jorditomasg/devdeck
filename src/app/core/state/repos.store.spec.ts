@@ -5,7 +5,7 @@ import { CMD, IpcCommands } from '../ipc/commands';
 import { EVT, IpcEvents } from '../ipc/events';
 import { FakeTauriBridge } from '../ipc/tauri-bridge.fake';
 import type { GitBadgeEvent, RepoInfo } from '../ipc/tauri.types';
-import { ReposStore } from './repos.store';
+import { ReposStore, deriveDangerFlags } from './repos.store';
 
 /** Minimal valid RepoInfo (camelCase wire shape). */
 function repo(name: string, extra?: Partial<RepoInfo>): RepoInfo {
@@ -121,5 +121,39 @@ describe('ReposStore', () => {
     expect(bridge.invokesOf(CMD.gitRefreshBadge)[0]?.args).toEqual({
       repoPath: '/ws/api',
     });
+  });
+
+  it('refreshes dangerFlags live from config://changed (no rescan needed)', async () => {
+    const bridge = new FakeTauriBridge().whenInvoked(CMD.scanWorkspace, [
+      repo('api'),
+      repo('web', { dangerFlags: ['old'] }),
+    ]);
+    const store = makeStore(bridge);
+    await store.init();
+    await store.scan(['/ws']);
+
+    bridge.emit(EVT.configChanged, {
+      repo_config_danger: { 'api::root': ['prod', 'staging'], 'api::mod': ['prod'] },
+    });
+
+    expect(store.repoByName('api')?.dangerFlags).toEqual(['prod', 'staging']);
+    // Entries removed from the map clear the flags too ("si lo quito").
+    expect(store.repoByName('web')?.dangerFlags).toEqual([]);
+  });
+});
+
+describe('deriveDangerFlags', () => {
+  it('unions repo and repo::module entries, sorted and deduped', () => {
+    const map = {
+      api: ['a'],
+      'api::root': ['b', 'a'],
+      'api2::root': ['nope'],
+      other: ['nope'],
+    };
+    expect(deriveDangerFlags('api', map)).toEqual(['a', 'b']);
+  });
+
+  it('returns empty for repos with no entries', () => {
+    expect(deriveDangerFlags('api', {})).toEqual([]);
   });
 });

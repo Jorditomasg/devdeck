@@ -5,6 +5,60 @@ All notable changes to DevDeck are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2026-07-04
+
+### Added
+
+- Git history window per repository: a commit graph that draws every branch
+  and merge as colored lanes — each line labeled with its branch name
+  (derived from refs and merge messages, shown per commit and as a tooltip
+  on the graph) — with filters for branch, author, message text, file path
+  (searchable dropdown) and date range, plus paginated loading for large
+  histories.
+- Commit detail view: the files changed by a commit with per-file diffs, the
+  full file contents as of that commit with syntax highlighting, the complete
+  commit message, relative dates, a Copy SHA button and a "View on web" link
+  that opens the commit on GitHub, GitLab, Bitbucket or any self-hosted forge.
+- Compare view: pick any two branches (local or remote) to see the incoming
+  commits between them and the full file-by-file diff — ideal for reviewing
+  what a pull would bring in.
+- Stash file viewer: every stash entry now has a "Files" button that opens
+  its changed files with diffs, side by side, in its own window.
+- Branch dialog: a per-branch "History" button that opens the graph scoped to
+  that branch; branch and tag chips in the history are clickable and filter
+  to that ref.
+- "File history" jump: from any file in a commit's detail, see the full
+  history of that file.
+- Author avatars (Gravatar, with initials fallback) across all git views.
+
+### Changed
+
+- Branch management dialog is wider and its content now fills the window, so
+  the per-branch action buttons fit on one row.
+- Dangerous-environment marks refresh on repo cards immediately when toggled
+  (no rescan needed), highlight only the selector box (not the dropdown
+  list), and are now saved with the Save button instead of applying
+  instantly.
+- The History button on repo cards moved next to Merge.
+
+### Removed
+
+- The Flyway seeds button (and its backing command) — superseded by running
+  seeds through the repo's own command profiles.
+
+### Fixed
+
+- Applying or importing profiles on Spring repositories that use
+  `.properties` config files no longer fails with a write error (the content
+  was being validated as YAML).
+- Stash bookkeeping commits no longer appear in the commit history as if
+  they were your own commits, and stash file lists no longer show every file
+  duplicated.
+- Selecting a branch that only exists on the remote no longer errors with
+  "unknown revision" — it falls back to `origin/<branch>` automatically.
+- Config-write error dialogs now include the underlying cause instead of a
+  generic message.
+
 ## [2.1.0] - 2026-07-02
 
 ### Added

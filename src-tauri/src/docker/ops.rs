@@ -221,26 +221,6 @@ pub async fn stop_mysql(infra_path: &Path, log: Option<&LogSink>) -> OpOutput {
     docker_compose_down(&compose_file, log).await
 }
 
-/// Run all Flyway seed services — every service whose name contains
-/// `flyway`, case-insensitive (v1 `run_flyway_seeds`).
-pub async fn run_flyway_seeds(infra_path: &Path, log: Option<&LogSink>) -> OpOutput {
-    let Some(compose_file) = find_compose_file(infra_path) else {
-        let msg = "No docker-compose file found";
-        emit(log, &format!("[db] {msg}"));
-        return OpOutput::fail(msg);
-    };
-    let services = parse_compose_services(&compose_file).await;
-    let flyway = parse::detect_flyway_services(&services);
-    if flyway.is_empty() {
-        // v1 hardcoded the mysql filename in this message — kept verbatim.
-        let msg = "No flyway services found in docker-compose.mysql.yml";
-        emit(log, &format!("[db] {msg}"));
-        return OpOutput::fail(msg);
-    }
-    emit(log, &format!("[db] Running Flyway migrations: {}...", flyway.join(", ")));
-    docker_compose_up(&compose_file, Some(&flyway), log).await
-}
-
 /// True when any running container's name contains `mysql` or `mysqldb`,
 /// case-insensitive (v1 `is_mysql_running`).
 pub async fn is_mysql_running() -> bool {

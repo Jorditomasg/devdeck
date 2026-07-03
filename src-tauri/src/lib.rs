@@ -207,6 +207,7 @@ pub fn run() {
             commands::app::request_quit,
             commands::app::open_log_window,
             commands::app::get_log_backlog,
+            commands::app::open_git_window,
             // interactive terminals (design doc 2026-06-14)
             commands::terminal::open_terminal_window,
             commands::terminal::attach_terminal,
@@ -257,6 +258,17 @@ pub fn run() {
             commands::git::git_delete_remote_branch,
             commands::git::git_rename_branch,
             commands::git::git_publish_branch,
+            // §2.4 git — history queries (git suite phase 1)
+            commands::git::git_log,
+            commands::git::git_commit_files,
+            commands::git::git_commit_file_diff,
+            commands::git::git_file_at_commit,
+            commands::git::git_working_diff,
+            commands::git::git_authors,
+            commands::git::git_diff_range,
+            commands::git::git_diff_range_file,
+            commands::git::git_ls_files,
+            commands::git::git_commit_body,
             // §2.5 config
             commands::config::get_app_config,
             commands::config::set_language,
@@ -295,7 +307,6 @@ pub fn run() {
             commands::docker::docker_compose_status,
             commands::docker::docker_compose_logs,
             commands::docker::docker_refresh_status,
-            commands::docker::run_flyway_seeds,
             // §2.9 updates & about
             commands::updates::check_for_update,
             commands::updates::install_update,
