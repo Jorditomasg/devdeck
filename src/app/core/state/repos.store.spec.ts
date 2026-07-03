@@ -5,7 +5,7 @@ import { CMD, IpcCommands } from '../ipc/commands';
 import { EVT, IpcEvents } from '../ipc/events';
 import { FakeTauriBridge } from '../ipc/tauri-bridge.fake';
 import type { GitBadgeEvent, RepoInfo } from '../ipc/tauri.types';
-import { ReposStore, deriveDangerFlags } from './repos.store';
+import { ReposStore, coerceBadgeCache, deriveDangerFlags } from './repos.store';
 
 /** Minimal valid RepoInfo (camelCase wire shape). */
 function repo(name: string, extra?: Partial<RepoInfo>): RepoInfo {
@@ -156,6 +156,68 @@ describe('ReposStore', () => {
     expect(store.repoByName('api')?.dangerFlags).toEqual(['prod', 'staging']);
     // Entries removed from the map clear the flags too ("si lo quito").
     expect(store.repoByName('web')?.dangerFlags).toEqual([]);
+  });
+});
+
+describe('badge cache (stale-while-revalidate, 2026-07-03)', () => {
+  const valid = { branch: 'develop', behind: 1, staged: 0, unstaged: 2, conflicts: 0 };
+
+  it('coerceBadgeCache keeps valid entries and drops malformed ones', () => {
+    const raw = JSON.stringify({
+      api: valid,
+      broken: { branch: 3, behind: 'x' },
+      partial: { branch: 'main' },
+      nullish: null,
+    });
+    expect(coerceBadgeCache(raw)).toEqual({ api: valid });
+  });
+
+  it('coerceBadgeCache tolerates garbage and non-objects', () => {
+    expect(coerceBadgeCache(null)).toEqual({});
+    expect(coerceBadgeCache('not json {')).toEqual({});
+    expect(coerceBadgeCache('[1,2]')).toEqual({});
+    expect(coerceBadgeCache('"str"')).toEqual({});
+  });
+
+  it('init() hydrates cached badges and live events persist back', async () => {
+    // Node env has no localStorage — stub the global for this test.
+    const backing = new Map<string, string>([
+      ['devdeck.badges', JSON.stringify({ api: valid })],
+    ]);
+    (globalThis as { localStorage?: unknown }).localStorage = {
+      getItem: (k: string) => backing.get(k) ?? null,
+      setItem: (k: string, v: string) => void backing.set(k, v),
+    };
+    try {
+      const bridge = new FakeTauriBridge();
+      const store = makeStore(bridge);
+      await store.init();
+
+      // Cached numbers visible immediately, before any git://badge event.
+      expect(store.badges()['api']).toEqual(valid);
+
+      // A live event overwrites the stale entry AND persists the new map.
+      bridge.emit(EVT.gitBadge, badge('api'));
+      expect(store.badges()['api']?.unstaged).toBe(2);
+      expect(coerceBadgeCache(backing.get('devdeck.badges') ?? null)['api']).toEqual({
+        branch: 'develop',
+        behind: 1,
+        staged: 0,
+        unstaged: 2,
+        conflicts: 0,
+      });
+    } finally {
+      delete (globalThis as { localStorage?: unknown }).localStorage;
+    }
+  });
+
+  it('badges still work when localStorage is unavailable (node env)', async () => {
+    const bridge = new FakeTauriBridge();
+    const store = makeStore(bridge);
+    await store.init(); // must not throw despite missing localStorage
+
+    bridge.emit(EVT.gitBadge, badge('api'));
+    expect(store.badges()['api']?.branch).toBe('develop');
   });
 });
 

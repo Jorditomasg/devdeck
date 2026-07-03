@@ -41,6 +41,46 @@ export function deriveDangerFlags(
   return [...flags].sort();
 }
 
+/** localStorage key of the last-known badge map (stale-while-revalidate). */
+const BADGES_KEY = 'devdeck.badges';
+
+/**
+ * Parse the cached badge map, dropping malformed entries — a stale or
+ * hand-edited cache must never paint NaN on a card.
+ */
+export function coerceBadgeCache(raw: string | null): Record<string, GitBadge> {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw ?? '');
+  } catch {
+    return {};
+  }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    return {};
+  }
+  const out: Record<string, GitBadge> = {};
+  for (const [name, value] of Object.entries(parsed)) {
+    const b = value as Partial<GitBadge> | null;
+    if (
+      b &&
+      typeof b.branch === 'string' &&
+      typeof b.behind === 'number' &&
+      typeof b.staged === 'number' &&
+      typeof b.unstaged === 'number' &&
+      typeof b.conflicts === 'number'
+    ) {
+      out[name] = {
+        branch: b.branch,
+        behind: b.behind,
+        staged: b.staged,
+        unstaged: b.unstaged,
+        conflicts: b.conflicts,
+      };
+    }
+  }
+  return out;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ReposStore {
   private readonly _repos = signal<readonly RepoInfo[]>([]);
@@ -74,6 +114,10 @@ export class ReposStore {
 
   /** Subscribe to scan/badge events. Called once from the app initializer. */
   async init(): Promise<void> {
+    // Paint the LAST-KNOWN badge numbers immediately (stale-while-revalidate,
+    // user report 2026-07-03: with many repos the capped poll made cards sit
+    // badge-less for seconds). Live `git://badge` events overwrite per repo.
+    this.hydrateBadgeCache();
     await Promise.all([
       this.events.onRepoScanProgress((e) => this.applyScanProgress(e)),
       this.events.onGitBadge((e) => this.applyBadge(e)),
@@ -111,6 +155,7 @@ export class ReposStore {
           Object.entries(badges).filter(([name]) => names.has(name)),
         ),
       );
+      this.persistBadgeCache();
       return repos;
     } finally {
       this._scanning.set(false);
@@ -140,6 +185,26 @@ export class ReposStore {
     // duplicate basenames across roots carry disambiguated RepoInfo names.
     const key = this._repos().find((r) => r.path === path)?.name ?? name;
     this._badges.update((badges) => ({ ...badges, [key]: badge }));
+    this.persistBadgeCache();
+  }
+
+  private hydrateBadgeCache(): void {
+    try {
+      const cached = coerceBadgeCache(localStorage.getItem(BADGES_KEY));
+      if (Object.keys(cached).length > 0 && Object.keys(this._badges()).length === 0) {
+        this._badges.set(cached);
+      }
+    } catch {
+      // Storage disabled — badges simply arrive with the first poll pass.
+    }
+  }
+
+  private persistBadgeCache(): void {
+    try {
+      localStorage.setItem(BADGES_KEY, JSON.stringify(this._badges()));
+    } catch {
+      // Storage disabled/full — purely a warm-start optimization, ignore.
+    }
   }
 
   private applyDangerFlags(config: AppConfig): void {

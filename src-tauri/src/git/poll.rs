@@ -16,7 +16,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use tokio::sync::{watch, RwLock, Semaphore};
+use tokio::sync::{watch, Notify, RwLock, Semaphore};
 use tokio::task::{JoinHandle, JoinSet};
 
 use crate::events::{EventEmitter, GitBadgePayload, GIT_BADGE};
@@ -37,15 +37,19 @@ pub const GIT_BADGE_SEMAPHORE_COUNT: usize = 3;
 /// loop exits at the next scheduling point.
 pub struct BadgePoller {
     repos: Arc<RwLock<Vec<PathBuf>>>,
+    kick: Arc<Notify>,
     stop_tx: watch::Sender<bool>,
     task: JoinHandle<()>,
 }
 
 impl BadgePoller {
-    /// Replace the polled repo set (called after every workspace scan).
-    /// Takes effect on the next tick.
+    /// Replace the polled repo set (called after every workspace scan) and
+    /// kick one immediate refresh pass. Without the kick, the poller's first
+    /// tick fires BEFORE the scan registers any repo, so startup badges used
+    /// to wait for the next 30 s tick (user report 2026-07-03).
     pub async fn set_repos(&self, repos: Vec<PathBuf>) {
         *self.repos.write().await = repos;
+        self.kick.notify_one();
     }
 
     /// Signal the loop to exit; returns immediately.
@@ -68,8 +72,10 @@ impl BadgePoller {
 /// double the effective cap to 6 (inventory-gui.md §28: 3, do not raise).
 pub fn spawn_badge_poller(emitter: Arc<dyn EventEmitter>, semaphore: Arc<Semaphore>) -> BadgePoller {
     let repos: Arc<RwLock<Vec<PathBuf>>> = Arc::default();
+    let kick: Arc<Notify> = Arc::default();
     let (stop_tx, mut stop_rx) = watch::channel(false);
     let loop_repos = repos.clone();
+    let loop_kick = kick.clone();
 
     let task = tokio::spawn(async move {
         let mut interval = tokio::time::interval(BADGE_REFRESH);
@@ -77,6 +83,13 @@ pub fn spawn_badge_poller(emitter: Arc<dyn EventEmitter>, semaphore: Arc<Semapho
         loop {
             tokio::select! {
                 _ = interval.tick() => {
+                    let snapshot = loop_repos.read().await.clone();
+                    refresh_all(&emitter, &semaphore, snapshot).await;
+                }
+                // set_repos kick: refresh NOW and restart the 30 s cadence
+                // from here (no double-poll right after a scan).
+                _ = loop_kick.notified() => {
+                    interval.reset();
                     let snapshot = loop_repos.read().await.clone();
                     refresh_all(&emitter, &semaphore, snapshot).await;
                 }
@@ -89,7 +102,7 @@ pub fn spawn_badge_poller(emitter: Arc<dyn EventEmitter>, semaphore: Arc<Semapho
         }
     });
 
-    BadgePoller { repos, stop_tx, task }
+    BadgePoller { repos, kick, stop_tx, task }
 }
 
 /// One full refresh pass: query every repo (capped by the semaphore) and
@@ -151,6 +164,28 @@ mod tests {
         let poller = spawn_badge_poller(emitter, semaphore);
         poller.set_repos(Vec::new()).await;
         poller.shutdown().await; // must terminate, not hang
+    }
+
+    /// `set_repos` must kick an immediate pass — startup badges cannot wait
+    /// for the next 30 s tick (user report 2026-07-03).
+    #[tokio::test]
+    async fn set_repos_triggers_an_immediate_refresh() {
+        let emitter = CollectingEmitter::new();
+        let semaphore = Arc::new(Semaphore::new(GIT_BADGE_SEMAPHORE_COUNT));
+        let poller = spawn_badge_poller(emitter.clone(), semaphore);
+
+        // A non-repo dir still emits (branch "unknown") — enough to observe.
+        poller.set_repos(vec![std::env::temp_dir()]).await;
+
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
+        while emitter.payloads(GIT_BADGE).is_empty() {
+            assert!(
+                tokio::time::Instant::now() < deadline,
+                "no badge emitted after set_repos — the kick is broken"
+            );
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+        poller.shutdown().await;
     }
 
     #[tokio::test]
