@@ -31,7 +31,8 @@ fn dialog_size(kind: &str) -> (f64, f64) {
         "stash" => (620.0, 560.0),
         "merge-branch" => (600.0, 600.0),
         "settings" => (640.0, 740.0),
-        "java-manager" => (560.0, 520.0),
+        // Table layout (version | path | labeled actions) needs the width.
+        "java-manager" => (620.0, 520.0),
         "java-editor" => (520.0, 320.0),
         "changelog" => (640.0, 640.0),
         "docker-compose" => (640.0, 600.0),

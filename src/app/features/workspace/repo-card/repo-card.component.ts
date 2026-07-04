@@ -357,6 +357,7 @@ export class RepoCardComponent {
             ? `${this.i18n.t('btn.pull')} (${behind})`
             : this.i18n.t('btn.pull'),
         pullActive: behind > 0,
+        pullBusy: this.pulling(),
         showConfigBtn,
         showInstallBtn: !!repo.runInstallCmd,
         // §7: "Install" while deps are missing, "Reinstall ✓" once installed
@@ -605,7 +606,15 @@ export class RepoCardComponent {
     }
   }
 
+  /** Pull in flight — blocks the header badge and the expand button. */
+  protected readonly pulling = computed(() =>
+    this.actions.pulling().has(this.repo().name),
+  );
+
   protected onPull(): void {
+    if (this.pulling()) {
+      return; // header badge has no disabled state — guard here
+    }
     void this.actions.pull(this.repo());
   }
 

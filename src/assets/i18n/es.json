@@ -42,7 +42,9 @@
     "attach_log": "Acoplar",
     "stash": "Stash",
     "branches": "Ramas",
-    "git_history": "Historial"
+    "git_history": "Historial",
+    "edit": "Editar",
+    "delete": "Eliminar"
   },
   "install": {
     "label_missing": "Install",
@@ -160,7 +162,6 @@
       "shortcut_desc": "Crea un acceso directo en el Escritorio para lanzar la aplicación sin abrir la terminal.",
       "shortcut_desc_win": "Crea un acceso directo .lnk en el Escritorio. Se lanza con wscript.exe, sin ventana de terminal.",
       "shortcut_desc_linux": "Crea una entrada .desktop en el launcher de aplicaciones y en el Escritorio.",
-      "language_desc": "Seleccioná el idioma de la aplicación. Tiene efecto al reiniciar.",
       "minimize_to_tray": "Minimizar al system tray en lugar de la barra de tareas",
       "java_none_configured": "Ninguna configurada",
       "java_n_configured": "{count} versión(es) configurada(s)",
@@ -221,7 +222,10 @@
       "pattern_hexagons": "Hexágonos",
       "pattern_cubes": "Cubos isométricos",
       "pattern_scales": "Escamas",
-      "pattern_moroccan": "Árabe"
+      "pattern_moroccan": "Árabe",
+      "java_col_version": "Versión",
+      "java_col_path": "Ruta",
+      "java_col_actions": "Acciones"
     },
     "changelog": {
       "title": "Cambios",
@@ -305,7 +309,9 @@
       "change_branch": "Rama: {from_val} → {to_val}",
       "change_profile": "Perfil: {from_val} → {to_val}",
       "changes_clone_repo": "Clonar nuevo repo: {name} (rama: {branch})",
-      "changes_overwrite_files": "Sobrescribir archivos de config ({count} archivos)"
+      "changes_overwrite_files": "Sobrescribir archivos de config ({count} archivos)",
+      "col_profile": "Configuración",
+      "col_actions": "Acciones"
     },
     "confirm_close": {
       "title": "Servicios en ejecución",

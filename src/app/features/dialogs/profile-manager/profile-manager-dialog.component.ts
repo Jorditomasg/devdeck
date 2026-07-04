@@ -39,7 +39,10 @@ import {
   ButtonComponent,
   ContextMenuService,
   DialogShellComponent,
+  FilterTableComponent,
   IconComponent,
+  TableHeadDirective,
+  TableRowDirective,
   type MenuEntry,
 } from '../../../ui';
 import { DialogBase } from '../dialog-base';
@@ -61,7 +64,15 @@ const JSON_FILTER = [{ name: 'JSON', extensions: ['json'] }] as const;
 @Component({
   selector: 'app-profile-manager-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ButtonComponent, DialogShellComponent, IconComponent, TPipe],
+  imports: [
+    ButtonComponent,
+    DialogShellComponent,
+    FilterTableComponent,
+    IconComponent,
+    TableHeadDirective,
+    TableRowDirective,
+    TPipe,
+  ],
   styleUrl: './profile-manager-dialog.component.scss',
   template: `
     <ui-dialog-shell
@@ -100,42 +111,61 @@ const JSON_FILTER = [{ name: 'JSON', extensions: ['json'] }] as const;
           <p class="profiles__error">{{ inlineError() }}</p>
         }
 
-        <!-- Saved profiles list (§21 :97-132; hidden when empty) -->
+        <!-- Saved profiles table (§21 :97-132; hidden when empty). Selecting
+             a row pre-fills the save entry (overwrite flow) — actions act on
+             their own row directly. -->
         @if (profileNames().length > 0) {
           <p class="profiles__label">{{ 'dialog.profile.saved_list_title' | t }}</p>
-          <div class="profiles__list">
-            @for (profile of profileNames(); track profile) {
-              <!-- Right-click offers the same actions as the buttons below. -->
-              <button
-                type="button"
-                class="profiles__row"
-                [class.selected]="profile === selected()"
-                (click)="select(profile)"
-                (contextmenu)="onRowMenu($event, profile)"
-              >
-                {{ profile }}
-              </button>
-            }
-          </div>
-          <div class="profiles__btn-row">
-            <ui-button variant="blue" [loading]="busy() === 'load'" (clicked)="load()">
-              <ui-icon name="folder" [size]="14" /> {{ 'dialog.profile.btn_load' | t }}
-            </ui-button>
-            <ui-button
-              variant="danger-deep"
-              [loading]="busy() === 'delete'"
-              (clicked)="deleteProfile()"
+          <ui-filter-table
+            [items]="profileNames()"
+            [searchable]="false"
+            [pageSize]="pageSize"
+            [prevLabel]="'pagination.prev' | t"
+            [nextLabel]="'pagination.next' | t"
+          >
+            <tr *uiTableHead>
+              <th>{{ 'dialog.profile.col_profile' | t }}</th>
+              <th class="profiles__actions-head">{{ 'dialog.profile.col_actions' | t }}</th>
+            </tr>
+            <!-- Right-click offers the same actions as the buttons. -->
+            <tr
+              *uiTableRow="let profile"
+              class="profiles__tr"
+              [class.profiles__tr--selected]="profile === selected()"
+              (click)="select(profile)"
+              (contextmenu)="onRowMenu($event, profile)"
             >
-              <ui-icon name="trash" [size]="14" /> {{ 'dialog.profile.btn_delete' | t }}
-            </ui-button>
-            <ui-button
-              variant="warning"
-              [loading]="busy() === 'export'"
-              (clicked)="exportProfile()"
-            >
-              <ui-icon name="upload" [size]="14" /> {{ 'dialog.profile.btn_export' | t }}
-            </ui-button>
-          </div>
+              <td><span class="profiles__name">{{ profile }}</span></td>
+              <td>
+                <div class="profiles__actions">
+                  <ui-button
+                    variant="blue"
+                    size="sm"
+                    [loading]="busy() === 'load' && profile === selected()"
+                    (clicked)="select(profile); load()"
+                  >
+                    <ui-icon name="folder" [size]="14" /> {{ 'dialog.profile.btn_load' | t }}
+                  </ui-button>
+                  <ui-button
+                    variant="warning"
+                    size="sm"
+                    [loading]="busy() === 'export' && profile === selected()"
+                    (clicked)="select(profile); exportProfile()"
+                  >
+                    <ui-icon name="upload" [size]="14" /> {{ 'dialog.profile.btn_export' | t }}
+                  </ui-button>
+                  <ui-button
+                    variant="danger-deep"
+                    size="sm"
+                    [loading]="busy() === 'delete' && profile === selected()"
+                    (clicked)="select(profile); deleteProfile()"
+                  >
+                    <ui-icon name="trash" [size]="14" /> {{ 'dialog.profile.btn_delete' | t }}
+                  </ui-button>
+                </div>
+              </td>
+            </tr>
+          </ui-filter-table>
         }
 
         <!-- Import section (§21 :134-146) -->
@@ -180,6 +210,7 @@ export class ProfileManagerDialogComponent extends DialogBase {
   );
 
   protected readonly profileNames = this.profiles.profiles;
+  protected readonly pageSize = 10;
 
   /** Active-group profile scope: `Default` ⇒ root dir (`group` omitted, §2.7). */
   private readonly group = computed<string | undefined>(() => {

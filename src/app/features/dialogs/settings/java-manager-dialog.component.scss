@@ -1,10 +1,16 @@
-// Java versions manager (inventory-gui §22).
+// Java versions manager (inventory-gui §22) — toolbar + ui-filter-table.
 @use '../shared/controls' as c;
 @use '../../../../styles/mixins' as mx;
 
 .java-mgr {
   display: flex;
   flex-direction: column;
+  gap: 10px;
+}
+
+.java-mgr__toolbar {
+  display: flex;
+  gap: 6px;
 }
 
 .java-mgr__empty {
@@ -12,33 +18,32 @@
   margin: 0;
 }
 
-.java-mgr__list {
-  @include c.list-surface;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  max-height: 240px;
-  padding: 6px;
-}
-
-.java-mgr__row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.java-mgr__actions-head {
+  text-align: right;
 }
 
 .java-mgr__name {
-  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   color: var(--color-text-primary);
   font-size: var(--font-size-base);
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .java-mgr__path {
   @include mx.ellipsis;
-  flex: 1;
-  min-width: 0;
+  display: inline-block;
+  max-width: 260px;
   color: var(--color-text-muted);
   font-family: var(--font-family-mono);
   font-size: var(--font-size-sm);
+  vertical-align: middle;
+}
+
+.java-mgr__actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
 }

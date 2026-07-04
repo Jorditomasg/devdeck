@@ -55,12 +55,12 @@ import { formatGlobalLine, linesAfterMarker } from './global-log.logic';
             size="sm"
             [uiTooltip]="i18n.t('tooltip.copy_log')"
             (clicked)="onCopy()"
-          >{{ i18n.t('btn.copy_log') }}</ui-button>
+          ><ui-icon name="copy" [size]="13" /> {{ i18n.t('btn.copy_log') }}</ui-button>
           <ui-button variant="log-action" size="sm" (clicked)="onDetach()">
-            {{ i18n.t('btn.detach_log') }}
+            <ui-icon name="external-link" [size]="13" /> {{ i18n.t('btn.detach_log') }}
           </ui-button>
           <ui-button variant="log-action" size="sm" (clicked)="onClear()">
-            {{ i18n.t('btn.clear_log') }}
+            <ui-icon name="trash" [size]="13" /> {{ i18n.t('btn.clear_log') }}
           </ui-button>
         </div>
       }

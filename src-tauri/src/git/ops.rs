@@ -219,19 +219,20 @@ pub async fn fetch_quiet(repo: &Path) -> bool {
 }
 
 /// `git pull --ff-only` (120 s), distinguishing "Already up to date" in the
-/// log (v1 `pull`).
+/// log (v1 `pull`). Unlike v1, the lines do NOT bake the repo name in: the
+/// sink already routes them to the repo's own log, and the global log
+/// prefixes `[name]` itself (it showed doubled otherwise).
 pub async fn pull(repo: &Path, log: Option<&LogSink>) -> OpOutput {
-    let name = repo_name(repo);
-    emit(log, &format!("[git] Pulling {name}..."));
+    emit(log, "[git] Pulling...");
     match run_git(repo, &["pull", "--ff-only"], T_LONG).await {
         Ok(out) => {
             let msg = out.combined();
             if msg.contains("Already up to date") {
-                emit(log, &format!("[git] {name}: Already up to date"));
+                emit(log, "[git] Already up to date");
             } else if out.success {
-                emit(log, &format!("[git] {name}: Pull OK"));
+                emit(log, "[git] Pull OK");
             } else {
-                emit(log, &format!("[git] {name}: Pull FAILED - {msg}"));
+                emit(log, &format!("[git] Pull FAILED - {msg}"));
             }
             OpOutput { ok: out.success, message: msg }
         }

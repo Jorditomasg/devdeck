@@ -23,7 +23,7 @@ import {
 import { TranslationService } from '../../../core/i18n/translation.service';
 import { GLOBAL_LOG_ID, IpcCommands } from '../../../core/ipc/commands';
 import { IpcEvents } from '../../../core/ipc/events';
-import { ButtonComponent, LogViewerComponent } from '../../../ui';
+import { ButtonComponent, IconComponent, LogViewerComponent } from '../../../ui';
 
 /** Detached windows can afford a deeper buffer than the in-card viewer. */
 const DETACHED_LINE_CAP = 5000;
@@ -31,17 +31,17 @@ const DETACHED_LINE_CAP = 5000;
 @Component({
   selector: 'log-window',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ButtonComponent, LogViewerComponent],
+  imports: [ButtonComponent, IconComponent, LogViewerComponent],
   styleUrl: './log-window.component.scss',
   template: `
     <header class="logwin__header">
       <span class="logwin__title">{{ title() }}</span>
       <span class="logwin__spacer"></span>
       <ui-button variant="log-action" size="sm" (clicked)="onCopy()">
-        {{ i18n.t('btn.copy_log') }}
+        <ui-icon name="copy" [size]="13" /> {{ i18n.t('btn.copy_log') }}
       </ui-button>
       <ui-button variant="log-action" size="sm" (clicked)="onClear()">
-        {{ i18n.t('btn.clear_log') }}
+        <ui-icon name="trash" [size]="13" /> {{ i18n.t('btn.clear_log') }}
       </ui-button>
     </header>
     <ui-log-viewer

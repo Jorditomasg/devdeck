@@ -85,7 +85,6 @@ const LANGUAGE_CODES: readonly LanguageCode[] = ['en', 'es'];
             (selectionChange)="onLanguagePick($event)"
           />
         </ui-form-row>
-        <p class="settings__hint">{{ 'dialog.settings.language_desc' | t }}</p>
         <div class="settings__divider"></div>
 
         <!-- 1b. Appearance — palette + pattern (draft; applied on Save) -->

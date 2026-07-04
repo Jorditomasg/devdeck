@@ -1017,7 +1017,7 @@ Bottom bar: `btn.save_changes` (`success`, lg, width 150) + `btn.cancel` (`neutr
 Rows:
 1. **Language** (`dialog.settings.language_title`): SearchableCombo of available language display
    names (`list_available_languages()`), current from settings `language` (default `en_EN`).
-   Tooltip `language_desc`. On save with a CHANGED language: the restart notice is loaded **from
+   On save with a CHANGED language: the restart notice is loaded **from
    the NEW language's YAML** (so the message appears in the target language) →
    `show_info(language_restart_title/msg)` (:374-394). Takes effect on next launch.
 2. **Workspace** (`workspace_title`): `btn.manage_groups` (`blue`, width 150) → WorkspaceGroupsDialog

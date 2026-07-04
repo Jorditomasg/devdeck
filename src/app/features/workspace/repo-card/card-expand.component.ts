@@ -29,6 +29,8 @@ export interface BranchRowVm {
   /** Pull button label (already includes the behind count when > 0). */
   readonly pullText: string;
   readonly pullActive: boolean;
+  /** Pull in flight — disables the button (re-entry is a git error). */
+  readonly pullBusy: boolean;
   readonly showConfigBtn: boolean;
   readonly showInstallBtn: boolean;
   readonly installText: string;
@@ -152,6 +154,7 @@ export interface CardExpandText {
       </label>
       <ui-button
         [variant]="vm().branch.pullActive ? 'blue-active' : 'blue'"
+        [disabled]="vm().branch.pullBusy"
         [uiTooltip]="text().pullTip"
         (clicked)="pull.emit()"
       ><ui-icon name="arrow-down" [size]="14" /> {{ vm().branch.pullText }}</ui-button>

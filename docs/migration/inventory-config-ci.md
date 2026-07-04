@@ -522,7 +522,6 @@ Values must be copied verbatim from `config/translations/en_EN.yml` and `es_ES.y
 - `dialog.settings.shortcut_desc`
 - `dialog.settings.shortcut_desc_win`
 - `dialog.settings.shortcut_desc_linux`
-- `dialog.settings.language_desc`
 - `dialog.settings.minimize_to_tray`
 - `dialog.settings.java_none_configured`
 - `dialog.settings.java_n_configured` — placeholders: `{count}`

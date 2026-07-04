@@ -9,7 +9,7 @@
  * `service://log-line` (`stream: "git" | "docker"`, ipc-contract.md §2.4) —
  * the frontend no longer fabricates log lines.
  */
-import { Injectable } from '@angular/core';
+import { Injectable, signal } from '@angular/core';
 
 import { IpcCommands } from '../../../core/ipc/commands';
 import { isAppError } from '../../../core/ipc/tauri.types';
@@ -37,6 +37,14 @@ function basename(path: string): string {
 
 @Injectable({ providedIn: 'root' })
 export class RepoActionsService {
+  /**
+   * Repos with a pull in flight. Guards re-entry (two concurrent `git pull`s
+   * fail with "Cannot fast-forward to multiple branches") and drives the
+   * disabled state of the pull buttons.
+   */
+  private readonly _pulling = signal<ReadonlySet<string>>(new Set());
+  readonly pulling = this._pulling.asReadonly();
+
   constructor(
     private readonly commands: IpcCommands,
     private readonly services: ServicesStore,
@@ -151,39 +159,59 @@ export class RepoActionsService {
    * pending; silent pull otherwise. Returns true when a pull ran.
    */
   async pull(repo: RepoInfo): Promise<boolean> {
-    const changes = await this.commands.git.localChanges(
-      repo.path,
-      repo.envPullIgnorePatterns,
-    );
-    if (changes.length > 0) {
-      const listed = changes.slice(0, PULL_ERROR_MAX_FILES).join('\n');
-      const suffix = changes.length > PULL_ERROR_MAX_FILES ? '\n...' : '';
-      await this.dialogs.error(
-        this.i18n.t('dialog.pull.error_title'),
-        this.i18n.t('dialog.pull.error_msg', {
-          name: repo.name,
-          changes: `${listed}${suffix}`,
-        }),
-      );
+    if (this._pulling().has(repo.name)) {
       return false;
     }
-    const badge = this.repos.badges()[repo.name];
-    const behind = badge?.behind ?? 0;
-    if (behind > 0) {
-      const ok = await this.dialogs.confirm(
-        this.i18n.t('dialog.pull.confirm_title'),
-        this.i18n.t('dialog.pull.confirm_msg', {
-          commits: behind,
-          branch: badge?.branch ?? this.ws.card(repo.name).branch,
-        }),
+    this.setPulling(repo.name, true);
+    try {
+      const changes = await this.commands.git.localChanges(
+        repo.path,
+        repo.envPullIgnorePatterns,
       );
-      if (!ok) {
+      if (changes.length > 0) {
+        const listed = changes.slice(0, PULL_ERROR_MAX_FILES).join('\n');
+        const suffix = changes.length > PULL_ERROR_MAX_FILES ? '\n...' : '';
+        await this.dialogs.error(
+          this.i18n.t('dialog.pull.error_title'),
+          this.i18n.t('dialog.pull.error_msg', {
+            name: repo.name,
+            changes: `${listed}${suffix}`,
+          }),
+        );
         return false;
       }
+      const badge = this.repos.badges()[repo.name];
+      const behind = badge?.behind ?? 0;
+      if (behind > 0) {
+        const ok = await this.dialogs.confirm(
+          this.i18n.t('dialog.pull.confirm_title'),
+          this.i18n.t('dialog.pull.confirm_msg', {
+            commits: behind,
+            branch: badge?.branch ?? this.ws.card(repo.name).branch,
+          }),
+        );
+        if (!ok) {
+          return false;
+        }
+      }
+      await this.commands.git.pull(repo.path);
+      await this.refreshGitState(repo);
+      return true;
+    } finally {
+      this.setPulling(repo.name, false);
     }
-    await this.commands.git.pull(repo.path);
-    await this.refreshGitState(repo);
-    return true;
+  }
+
+  private setPulling(name: string, on: boolean): void {
+    this._pulling.update((current) => {
+      const next = new Set(current);
+      if (on) {
+        next.add(name);
+      } else {
+        next.delete(name);
+      }
+      return next;
+    });
   }
 
   /**

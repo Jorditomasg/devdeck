@@ -63,14 +63,16 @@ export class TableRowDirective<T> {
   // leaks.
   encapsulation: ViewEncapsulation.None,
   template: `
-    <input
-      #search
-      class="ft__search"
-      type="search"
-      [placeholder]="searchPlaceholder()"
-      [value]="filter()"
-      (input)="onFilter(search.value)"
-    />
+    @if (searchable()) {
+      <input
+        #search
+        class="ft__search"
+        type="search"
+        [placeholder]="searchPlaceholder()"
+        [value]="filter()"
+        (input)="onFilter(search.value)"
+      />
+    }
     @if (filtered().length === 0) {
       <p class="ft__no-results">{{ noResultsText() }}</p>
     } @else {
@@ -103,8 +105,10 @@ export class TableRowDirective<T> {
 export class FilterTableComponent<T> {
   /** Full (unfiltered) item list; the container keeps its own empty state. */
   readonly items = input.required<readonly T[]>();
+  /** Hide the search input for short lists (java versions, profiles). */
+  readonly searchable = input(true);
   /** Text an item is searched by (e.g. the branch name, the stash label). */
-  readonly haystack = input.required<(item: T) => string>();
+  readonly haystack = input<(item: T) => string>(() => '');
   readonly pageSize = input.required<number>();
   /** Row identity for `@for` tracking (defaults to the item itself). */
   readonly trackBy = input<(item: T) => unknown>((item) => item);

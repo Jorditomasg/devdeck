@@ -43,23 +43,30 @@
   margin: 0;
 }
 
-.profiles__list {
-  @include c.list-surface;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  height: 120px; // v1 list height (§21)
-  padding: 4px;
+// -- Saved profiles table (ui-filter-table) -----------------------------------
+
+.profiles__actions-head {
+  text-align: right;
 }
 
-.profiles__row {
-  @include c.list-row;
-  flex-shrink: 0;
+.profiles__tr {
+  cursor: pointer; // row click selects (pre-fills the save entry)
+
+  &--selected td {
+    background-color: var(--color-selected-bg);
+    color: var(--color-selected-fg);
+  }
 }
 
-.profiles__btn-row {
+.profiles__name {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+}
+
+.profiles__actions {
   display: flex;
-  gap: 8px;
+  gap: 6px;
+  justify-content: flex-end;
 }
 
 .profiles__import-btn {

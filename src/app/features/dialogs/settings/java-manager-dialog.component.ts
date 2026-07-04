@@ -24,8 +24,10 @@ import {
   ButtonComponent,
   ContextMenuService,
   DialogShellComponent,
-  IconButtonComponent,
+  FilterTableComponent,
   IconComponent,
+  TableHeadDirective,
+  TableRowDirective,
   type MenuEntry,
 } from '../../../ui';
 import { DialogBase } from '../dialog-base';
@@ -37,7 +39,15 @@ import {
 @Component({
   selector: 'app-java-manager-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ButtonComponent, DialogShellComponent, IconButtonComponent, IconComponent, TPipe],
+  imports: [
+    ButtonComponent,
+    DialogShellComponent,
+    FilterTableComponent,
+    IconComponent,
+    TableHeadDirective,
+    TableRowDirective,
+    TPipe,
+  ],
   styleUrl: './java-manager-dialog.component.scss',
   template: `
     <ui-dialog-shell
@@ -45,42 +55,56 @@ import {
       (closed)="closeSelf()"
     >
       <div class="java-mgr">
+        <!-- Content actions live with the content; the footer only closes. -->
+        <div class="java-mgr__toolbar">
+          <ui-button variant="purple" size="sm" [loading]="detecting()" (clicked)="autodetect()">
+            <ui-icon name="search" [size]="14" /> {{ 'btn.autodetect_java' | t }}
+          </ui-button>
+          <ui-button variant="neutral" size="sm" (clicked)="add()">
+            <ui-icon name="plus" [size]="14" /> {{ 'btn.add_java' | t }}
+          </ui-button>
+        </div>
+
         @if (entries().length === 0) {
           <p class="java-mgr__empty">{{ 'dialog.settings.java_no_versions' | t }}</p>
         } @else {
-          <div class="java-mgr__list">
-            @for (entry of entries(); track entry.name) {
-              <!-- Right-click offers the same actions as the icon-buttons. -->
-              <div class="java-mgr__row" (contextmenu)="onRowMenu($event, entry)">
-                <span class="java-mgr__name"><ui-icon name="coffee" [size]="14" /> {{ entry.name }}</span>
-                <span class="java-mgr__path" [title]="entry.path">{{ entry.path }}</span>
-                <ui-icon-button
-                  variant="warning"
-                  size="sm"
-                  [title]="'dialog.settings.java_edit_title' | t"
-                  (clicked)="edit(entry)"
-                  ><ui-icon name="pencil" /></ui-icon-button
-                >
-                <ui-icon-button
-                  variant="danger-deep"
-                  size="sm"
-                  [title]="'dialog.settings.java_delete_title' | t"
-                  (clicked)="remove(entry.name)"
-                  ><ui-icon name="trash" /></ui-icon-button
-                >
-              </div>
-            }
-          </div>
+          <ui-filter-table
+            [items]="entries()"
+            [searchable]="false"
+            [trackBy]="entryTrack"
+            [pageSize]="pageSize"
+            [prevLabel]="'pagination.prev' | t"
+            [nextLabel]="'pagination.next' | t"
+          >
+            <tr *uiTableHead>
+              <th>{{ 'dialog.settings.java_col_version' | t }}</th>
+              <th>{{ 'dialog.settings.java_col_path' | t }}</th>
+              <th class="java-mgr__actions-head">{{ 'dialog.settings.java_col_actions' | t }}</th>
+            </tr>
+            <!-- Right-click offers the same actions as the buttons. -->
+            <tr *uiTableRow="let entry" (contextmenu)="onRowMenu($event, entry)">
+              <td>
+                <span class="java-mgr__name">
+                  <ui-icon name="coffee" [size]="14" /> {{ entry.name }}
+                </span>
+              </td>
+              <td><span class="java-mgr__path" [title]="entry.path">{{ entry.path }}</span></td>
+              <td>
+                <div class="java-mgr__actions">
+                  <ui-button variant="warning" size="sm" (clicked)="edit(entry)">
+                    <ui-icon name="pencil" [size]="14" /> {{ 'btn.edit' | t }}
+                  </ui-button>
+                  <ui-button variant="danger-deep" size="sm" (clicked)="remove(entry.name)">
+                    <ui-icon name="trash" [size]="14" /> {{ 'btn.delete' | t }}
+                  </ui-button>
+                </div>
+              </td>
+            </tr>
+          </ui-filter-table>
         }
       </div>
 
       <div uiDialogFooter>
-        <ui-button variant="purple" [loading]="detecting()" (clicked)="autodetect()">
-          <ui-icon name="search" [size]="14" /> {{ 'btn.autodetect_java' | t }}
-        </ui-button>
-        <ui-button variant="neutral" (clicked)="add()">
-          <ui-icon name="plus" [size]="14" /> {{ 'btn.add_java' | t }}
-        </ui-button>
         <ui-button variant="success" [loading]="saving()" (clicked)="saveAndClose()">
           {{ 'btn.close' | t }}
         </ui-button>
@@ -107,18 +131,15 @@ export class JavaManagerDialogComponent extends DialogBase {
     Object.entries(this.draft()).map(([name, path]) => ({ name, path })),
   );
 
-  /** Right-click on a version row — same actions as the icon-buttons. */
+  protected readonly pageSize = 10;
+  protected readonly entryTrack = (e: JavaVersionEntry): string => e.name;
+
+  /** Right-click on a version row — same actions as the buttons. */
   protected async onRowMenu(event: MouseEvent, entry: JavaVersionEntry): Promise<void> {
     const t = (key: string): string => this.i18n.t(key);
     const items: MenuEntry[] = [
-      { id: 'edit', label: t('dialog.settings.java_edit_title'), icon: 'pencil' },
-      {
-        id: 'remove',
-        label: t('dialog.settings.java_delete_title'),
-        icon: 'trash',
-        danger: true,
-        separator: true,
-      },
+      { id: 'edit', label: t('btn.edit'), icon: 'pencil' },
+      { id: 'remove', label: t('btn.delete'), icon: 'trash', danger: true, separator: true },
     ];
     switch (await this.menu.openFromEvent(event, items)) {
       case 'edit': return this.edit(entry);

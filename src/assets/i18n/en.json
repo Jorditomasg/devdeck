@@ -42,7 +42,9 @@
     "attach_log": "Attach",
     "stash": "Stash",
     "branches": "Branches",
-    "git_history": "History"
+    "git_history": "History",
+    "edit": "Edit",
+    "delete": "Delete"
   },
   "install": {
     "label_missing": "Install",
@@ -160,7 +162,6 @@
       "shortcut_desc": "Create a Desktop shortcut to launch the application without opening a terminal.",
       "shortcut_desc_win": "Creates a .lnk shortcut on the Desktop. Launches via wscript.exe — no terminal window.",
       "shortcut_desc_linux": "Creates a .desktop entry in the app launcher and on the Desktop.",
-      "language_desc": "Select the application language. Takes effect on restart.",
       "minimize_to_tray": "Minimize to system tray instead of taskbar",
       "java_none_configured": "None configured",
       "java_n_configured": "{count} version(s) configured",
@@ -221,7 +222,10 @@
       "pattern_hexagons": "Hexagons",
       "pattern_cubes": "Isometric cubes",
       "pattern_scales": "Scales",
-      "pattern_moroccan": "Moroccan"
+      "pattern_moroccan": "Moroccan",
+      "java_col_version": "Version",
+      "java_col_path": "Path",
+      "java_col_actions": "Actions"
     },
     "changelog": {
       "title": "Changelog",
@@ -305,7 +309,9 @@
       "change_branch": "Branch: {from_val} → {to_val}",
       "change_profile": "Profile: {from_val} → {to_val}",
       "changes_clone_repo": "Clone new repo: {name} (branch: {branch})",
-      "changes_overwrite_files": "Overwrite config files ({count} files)"
+      "changes_overwrite_files": "Overwrite config files ({count} files)",
+      "col_profile": "Configuration",
+      "col_actions": "Actions"
     },
     "confirm_close": {
       "title": "Services running",
