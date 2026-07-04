@@ -19,6 +19,7 @@ use tokio::sync::Semaphore;
 use crate::config::ConfigStore;
 use crate::docker::StatusPoller;
 use crate::domain::{RepoInfo, RepoTypeDef, ServiceStatus};
+use crate::events::EventEmitter;
 use crate::git::BadgePoller;
 use crate::process::ProcessManager;
 use crate::profiles::ProfileStore;
@@ -75,6 +76,11 @@ pub struct AppState {
     /// window's label (which doubles as its result token). See
     /// docs/migration/dialogs-as-windows.md.
     pub dialogs: Arc<DialogManager>,
+    /// THE production event emitter (lib.rs `TrayTrackingEmitter`). Every
+    /// `service://log-line` MUST go through it — emitting via the raw
+    /// `AppHandle` skips the `LogCache` mirror and the line never reaches
+    /// detached-window backlogs (`get_log_backlog`).
+    pub emitter: Arc<dyn EventEmitter>,
 }
 
 /// Registry of open native-dialog windows (`commands::dialog`). Maps a dialog
@@ -212,6 +218,7 @@ impl AppState {
         tray: Arc<TrayStatus>,
         logs: Arc<LogCache>,
         terminals: Arc<TerminalManager>,
+        emitter: Arc<dyn EventEmitter>,
     ) -> Self {
         AppState {
             config,
@@ -227,6 +234,7 @@ impl AppState {
             logs,
             terminals,
             dialogs: Arc::new(DialogManager::default()),
+            emitter,
         }
     }
 

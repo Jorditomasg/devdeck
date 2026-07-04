@@ -433,6 +433,7 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         tray_status.clone(),
         log_cache,
         terminals,
+        emitter,
     ));
 
     build_tray(&handle, &tray_status)?;

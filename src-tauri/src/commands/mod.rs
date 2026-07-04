@@ -39,7 +39,7 @@ pub use error::{AppError, CmdResult};
 
 use std::sync::Arc;
 
-use crate::events::{EventEmitter, LogStream, ServiceLogPayload};
+use crate::events::{LogStream, ServiceLogPayload};
 
 /// Build a log sink that routes operation lines to `service://log-line`
 /// (ipc-contract.md §2.4/§2.8: git ops use `stream: "git"`, compose ops use
@@ -49,13 +49,19 @@ use crate::events::{EventEmitter, LogStream, ServiceLogPayload};
 ///
 /// The returned closure coerces to both `git::LogSink` and
 /// `docker::LogSink` (both are `Arc<dyn Fn(&str) + Send + Sync>`).
+///
+/// Emits through the SHARED emitter (`AppState.emitter`), never the raw
+/// `AppHandle` — the shared one mirrors every batch into the `LogCache`,
+/// so the lines survive as backlog for detached log windows.
 pub(crate) fn op_log_sink(
     app: tauri::AppHandle,
     name: String,
     stream: LogStream,
 ) -> Arc<dyn Fn(&str) + Send + Sync> {
+    use tauri::Manager;
+    let emitter = app.state::<crate::state::AppState>().emitter.clone();
     Arc::new(move |line: &str| {
-        app.emit_log(&ServiceLogPayload {
+        emitter.emit_log(&ServiceLogPayload {
             name: name.clone(),
             stream,
             lines: vec![line.to_owned()],
