@@ -19,7 +19,7 @@
 }
 
 .avatar__initials {
-  color: #fff;
+  color: var(--color-text-white);
   font-size: calc(var(--avatar-size, 28px) * 0.42);
   font-weight: 600;
   line-height: 1;

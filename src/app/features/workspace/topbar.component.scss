@@ -101,7 +101,8 @@
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: var(--color-status-running);
+  // Notification accent (an update is news, not a service state).
+  background: var(--color-text-accent-bright);
   box-shadow: 0 0 0 2px var(--color-card);
   animation: topbar-update-pulse 1.6s ease-in-out infinite;
   pointer-events: none;

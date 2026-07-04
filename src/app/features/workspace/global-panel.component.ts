@@ -86,16 +86,19 @@ import {
 
       <ui-button
         variant="start"
+        [disabled]="!anySelected()"
         [uiTooltip]="i18n.t('tooltip.start_selected')"
         (clicked)="onStartSelected()"
       ><ui-icon name="play" [size]="14" /> {{ i18n.t('btn.start') }}</ui-button>
       <ui-button
         variant="danger"
+        [disabled]="!anySelected()"
         [uiTooltip]="i18n.t('tooltip.stop_selected')"
         (clicked)="onStopSelected()"
       ><ui-icon name="square" [size]="14" /> {{ i18n.t('btn.stop') }}</ui-button>
       <ui-button
         variant="warning"
+        [disabled]="!anySelected()"
         [uiTooltip]="i18n.t('tooltip.restart_selected')"
         (clicked)="onRestartSelected()"
       ><ui-icon name="refresh" [size]="14" /> {{ i18n.t('btn.restart') }}</ui-button>
@@ -114,6 +117,12 @@ export class GlobalPanelComponent {
       repos.every((r) => this.ws.cardSignal(r.name)().selected)
     );
   });
+
+  /** Start/Stop/Restart grey out with nothing marked (visible feedback —
+   * the git buttons already dialog-warn; these used to no-op silently). */
+  protected readonly anySelected = computed(() =>
+    this.repos.repos().some((r) => this.ws.cardSignal(r.name)().selected),
+  );
 
   constructor(
     protected readonly i18n: TranslationService,

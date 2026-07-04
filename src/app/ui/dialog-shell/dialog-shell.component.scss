@@ -69,23 +69,6 @@
   color: var(--color-text-primary);
 }
 
-.dialog__close {
-  @include mx.control-reset;
-  @include mx.interactive;
-  flex-shrink: 0;
-  width: var(--geo-btn-height-sm);
-  height: var(--geo-btn-height-sm);
-  border-radius: var(--geo-corner-btn);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-md);
-  line-height: 1;
-
-  &:hover {
-    background-color: var(--color-status-error);
-    color: var(--color-text-white);
-  }
-}
-
 .dialog__content {
   flex: 1 1 auto;
   min-height: 0;

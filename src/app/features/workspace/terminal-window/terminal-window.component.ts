@@ -52,12 +52,23 @@ export class TerminalWindowComponent implements OnInit, OnDestroy {
   async ngOnInit(): Promise<void> {
     document.title = `${this.id} — DevDeck`;
 
+    // Follow the app's design tokens (xterm needs concrete values at init
+    // time, so resolve the CSS custom properties here).
+    const css = getComputedStyle(document.documentElement);
+    const token = (name: string, fallback: string): string =>
+      css.getPropertyValue(name).trim() || fallback;
+
     const term = new Terminal({
       cursorBlink: true,
-      fontFamily: 'Consolas, "Cascadia Mono", "DejaVu Sans Mono", monospace',
+      fontFamily: token('--font-family-mono', 'Consolas, monospace'),
       fontSize: 13,
       scrollback: 5000,
-      theme: { background: '#1e1e1e', foreground: '#d4d4d4' },
+      theme: {
+        background: token('--color-app', '#0f0e26'),
+        foreground: token('--color-text-primary', '#e0e7ff'),
+        cursor: token('--color-text-accent-bright', '#818cf8'),
+        selectionBackground: token('--color-text-accent', '#6366f1'),
+      },
     });
     const fit = new FitAddon();
     term.loadAddon(fit);

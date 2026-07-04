@@ -16,7 +16,7 @@
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: var(--geo-border-width) solid var(--color-divider);
   background: var(--color-card);
 }
 

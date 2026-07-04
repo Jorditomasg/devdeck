@@ -29,6 +29,7 @@ import {
 } from '@angular/core';
 
 import { TranslationService } from '../../../core/i18n/translation.service';
+import { ContextMenuService, type MenuEntry } from '../../../ui';
 import { IpcCommands } from '../../../core/ipc/commands';
 import type { RepoInfo, ServiceStatus } from '../../../core/ipc/tauri.types';
 import { ReposStore } from '../../../core/state/repos.store';
@@ -101,7 +102,7 @@ export function formatCardLine(entry: LogLine): string {
       (restart)="onRestart()"
       (openExplorer)="onOpenExplorer()"
       (openTerminal)="onOpenTerminal()"
-      (openRemote)="onOpenRemote()"
+      (menuRequested)="onHeaderMenu($event)"
       (pullClicked)="onPull()"
       (changesClicked)="onShowChanges()"
       (conflictsClicked)="onShowConflicts()"
@@ -441,6 +442,7 @@ export class RepoCardComponent {
     private readonly opener: OpenerService,
     private readonly commands: IpcCommands,
     private readonly i18n: TranslationService,
+    private readonly menu: ContextMenuService,
   ) {
     // Lazy build: render the subtree the first time the card expands —
     // including a persisted-expanded restore at startup (§4, §7).
@@ -539,6 +541,67 @@ export class RepoCardComponent {
     const url = this.repo().gitRemoteUrl;
     if (url) {
       void this.opener.openUrl(url);
+    }
+  }
+
+  /** Right-click on the header — full repo actions menu (v2 of the v1
+   * Button-3 → open-remote shortcut; the remote is now one entry of many). */
+  protected async onHeaderMenu(event: MouseEvent): Promise<void> {
+    const t = (key: string): string => this.i18n.t(key);
+    const vis = this.vis();
+    const behind = this.behind();
+    const items: MenuEntry[] = [
+      ...(vis.showStart
+        ? [{ id: 'start', label: t('btn.start'), icon: 'play', disabled: !vis.startEnabled } as const]
+        : []),
+      ...(vis.showStop
+        ? [{ id: 'stop', label: t('btn.stop'), icon: 'square', disabled: !vis.stopEnabled } as const]
+        : []),
+      ...(vis.showRestart
+        ? [{ id: 'restart', label: t('btn.restart'), icon: 'refresh', disabled: !vis.restartEnabled } as const]
+        : []),
+      {
+        id: 'pull',
+        label: t('btn.pull'),
+        icon: 'download',
+        separator: true,
+        hint: behind > 0 ? `↓${behind}` : undefined,
+      },
+      { id: 'changes', label: t('menu.view_changes'), icon: 'file-text' },
+      { id: 'history', label: t('btn.git_history'), icon: 'history' },
+      { id: 'branches', label: t('btn.branches'), icon: 'git-branch' },
+      { id: 'stash', label: t('btn.stash'), icon: 'archive' },
+      { id: 'merge', label: t('btn.merge'), icon: 'git-merge' },
+      { id: 'explorer', label: t('menu.open_folder'), icon: 'folder', separator: true },
+      { id: 'terminal', label: t('menu.open_terminal'), icon: 'terminal' },
+      {
+        id: 'remote',
+        label: t('menu.open_remote'),
+        icon: 'external-link',
+        disabled: !this.repo().gitRemoteUrl,
+      },
+      { id: 'copy-path', label: t('menu.copy_path'), icon: 'copy', separator: true },
+      { id: 'copy-name', label: t('menu.copy_name'), icon: 'copy' },
+    ];
+
+    const picked = await this.menu.openFromEvent(event, items);
+    switch (picked) {
+      case 'start': return this.onStart();
+      case 'stop': return this.onStop();
+      case 'restart': return this.onRestart();
+      case 'pull': return this.onPull();
+      case 'changes': return this.onShowChanges();
+      case 'history': return this.onHistory();
+      case 'branches': return this.onBranches();
+      case 'stash': return this.onStash();
+      case 'merge': return this.onMerge();
+      case 'explorer': return this.onOpenExplorer();
+      case 'terminal': return this.onOpenTerminal();
+      case 'remote': return this.onOpenRemote();
+      case 'copy-path':
+        return void navigator.clipboard.writeText(this.repo().path).catch(() => undefined);
+      case 'copy-name':
+        return void navigator.clipboard.writeText(this.repo().name).catch(() => undefined);
     }
   }
 

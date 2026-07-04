@@ -22,14 +22,17 @@ import { ReposStore } from '../../../core/state/repos.store';
 import { ServicesStore } from '../../../core/state/services.store';
 import {
   ButtonComponent,
+  ContextMenuService,
   DialogLogComponent,
   DialogShellComponent,
+  FilterTableComponent,
+  IconButtonComponent,
   IconComponent,
-  PaginationComponent,
   SearchableSelectComponent,
+  TableHeadDirective,
+  TableRowDirective,
   TooltipDirective,
-  clampPage,
-  pageSlice,
+  type MenuEntry,
 } from '../../../ui';
 import { DialogBase } from '../dialog-base';
 import { mergeLog, validateBranchName } from './branch.logic';
@@ -45,9 +48,12 @@ const PAGE_SIZE = 15;
     ButtonComponent,
     DialogLogComponent,
     DialogShellComponent,
+    FilterTableComponent,
+    IconButtonComponent,
     IconComponent,
-    PaginationComponent,
     SearchableSelectComponent,
+    TableHeadDirective,
+    TableRowDirective,
     TooltipDirective,
     TPipe,
   ],
@@ -102,92 +108,75 @@ const PAGE_SIZE = 15;
           @if (branches().length === 0) {
             <p class="branch__empty">{{ 'dialog.branch.empty' | t }}</p>
           } @else {
-            <div class="branch__table-wrap">
-              <table class="branch__table">
-                <thead>
-                  <tr>
-                    <th>{{ 'dialog.branch.col_branch' | t }}</th>
-                    <th class="branch__actions-head">{{ 'dialog.branch.col_actions' | t }}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (b of visible(); track b) {
-                    <tr>
-                      <td>
-                        <span class="branch__name">{{ b }}</span>
-                        @if (b === current()) {
-                          <span class="branch__current">{{ 'dialog.branch.current_tag' | t }}</span>
-                        }
-                      </td>
-                      <td>
-                        <div class="branch__actions">
-                          <ui-button
-                            size="sm"
-                            variant="success"
-                            [uiTooltip]="'dialog.branch.tip_checkout' | t"
-                            [disabled]="busy() || b === current()"
-                            (clicked)="checkout(b)"
-                          >
-                            <ui-icon name="corner-down-left" [size]="14" /> {{ 'dialog.branch.btn_checkout' | t }}
-                          </ui-button>
-                          <ui-button
-                            size="sm"
-                            variant="purple-alt"
-                            [uiTooltip]="'dialog.branch.tip_history' | t"
-                            (clicked)="openHistory(b)"
-                          >
-                            <ui-icon name="history" [size]="14" /> {{ 'dialog.branch.btn_history' | t }}
-                          </ui-button>
-                          <ui-button
-                            size="sm"
-                            variant="neutral"
-                            [uiTooltip]="'dialog.branch.tip_rename' | t"
-                            [disabled]="busy()"
-                            (clicked)="rename(b)"
-                          >
-                            <ui-icon name="pencil" [size]="14" /> {{ 'dialog.branch.btn_rename' | t }}
-                          </ui-button>
-                          <ui-button
-                            size="sm"
-                            variant="blue"
-                            [uiTooltip]="'dialog.branch.tip_publish' | t"
-                            [disabled]="busy()"
-                            (clicked)="publish(b)"
-                          >
-                            <ui-icon name="arrow-up" [size]="14" /> {{ 'dialog.branch.btn_publish' | t }}
-                          </ui-button>
-                          <ui-button
-                            size="sm"
-                            variant="purple"
-                            [uiTooltip]="'dialog.branch.tip_delete_remote' | t"
-                            [disabled]="busy()"
-                            (clicked)="deleteRemote(b)"
-                          >
-                            <ui-icon name="cloud" [size]="14" /> {{ 'dialog.branch.btn_delete_remote' | t }}
-                          </ui-button>
-                          <ui-button
-                            size="sm"
-                            variant="danger-deep"
-                            [uiTooltip]="'dialog.branch.tip_delete_local' | t"
-                            [disabled]="busy() || b === current()"
-                            (clicked)="deleteLocal(b)"
-                          >
-                            <ui-icon name="trash" [size]="14" /> {{ 'dialog.branch.btn_delete_local' | t }}
-                          </ui-button>
-                        </div>
-                      </td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            </div>
-            <ui-pagination
-              [(page)]="page"
-              [total]="branches().length"
+            <ui-filter-table
+              [items]="branches()"
+              [haystack]="branchHaystack"
               [pageSize]="pageSize"
+              [searchPlaceholder]="'placeholder.search' | t"
+              [noResultsText]="'placeholder.no_results' | t"
               [prevLabel]="'pagination.prev' | t"
               [nextLabel]="'pagination.next' | t"
-            />
+            >
+              <tr *uiTableHead>
+                <th>{{ 'dialog.branch.col_branch' | t }}</th>
+                <th class="branch__actions-head">{{ 'dialog.branch.col_actions' | t }}</th>
+              </tr>
+              <!-- Right-click offers the same actions as the buttons —
+                   compact icon-buttons keep the table narrow. -->
+              <tr *uiTableRow="let b" (contextmenu)="onRowMenu($event, b)">
+                <td>
+                  <span class="branch__name">{{ b }}</span>
+                  @if (b === current()) {
+                    <span class="branch__current">{{ 'dialog.branch.current_tag' | t }}</span>
+                  }
+                </td>
+                <td>
+                  <div class="branch__actions">
+                    <ui-icon-button
+                      size="sm"
+                      variant="success"
+                      [uiTooltip]="'dialog.branch.tip_checkout' | t"
+                      [disabled]="busy() || b === current()"
+                      (clicked)="checkout(b)"
+                    ><ui-icon name="corner-down-left" [size]="14" /></ui-icon-button>
+                    <ui-icon-button
+                      size="sm"
+                      variant="purple-alt"
+                      [uiTooltip]="'dialog.branch.tip_history' | t"
+                      (clicked)="openHistory(b)"
+                    ><ui-icon name="history" [size]="14" /></ui-icon-button>
+                    <ui-icon-button
+                      size="sm"
+                      variant="neutral"
+                      [uiTooltip]="'dialog.branch.tip_rename' | t"
+                      [disabled]="busy()"
+                      (clicked)="rename(b)"
+                    ><ui-icon name="pencil" [size]="14" /></ui-icon-button>
+                    <ui-icon-button
+                      size="sm"
+                      variant="blue"
+                      [uiTooltip]="'dialog.branch.tip_publish' | t"
+                      [disabled]="busy()"
+                      (clicked)="publish(b)"
+                    ><ui-icon name="arrow-up" [size]="14" /></ui-icon-button>
+                    <ui-icon-button
+                      size="sm"
+                      variant="purple"
+                      [uiTooltip]="'dialog.branch.tip_delete_remote' | t"
+                      [disabled]="busy()"
+                      (clicked)="deleteRemote(b)"
+                    ><ui-icon name="cloud" [size]="14" /></ui-icon-button>
+                    <ui-icon-button
+                      size="sm"
+                      variant="danger-deep"
+                      [uiTooltip]="'dialog.branch.tip_delete_local' | t"
+                      [disabled]="busy() || b === current()"
+                      (clicked)="deleteLocal(b)"
+                    ><ui-icon name="trash" [size]="14" /></ui-icon-button>
+                  </div>
+                </td>
+              </tr>
+            </ui-filter-table>
           }
         </div>
 
@@ -216,6 +205,7 @@ export class BranchDialogComponent extends DialogBase {
   private readonly repos = inject(ReposStore);
   private readonly services = inject(ServicesStore);
   private readonly i18n = inject(TranslationService);
+  private readonly menu = inject(ContextMenuService);
 
   protected readonly branches = signal<readonly string[]>([]);
   protected readonly recentCount = signal(0);
@@ -235,10 +225,9 @@ export class BranchDialogComponent extends DialogBase {
   private logBaseline = 0;
 
   protected readonly pageSize = PAGE_SIZE;
-  protected readonly page = signal(1);
 
-  /** Branches on the current page (clamped). */
-  protected readonly visible = computed(() => pageSlice(this.branches(), this.page(), PAGE_SIZE));
+  /** ui-filter-table haystack: a branch IS its searchable text. */
+  protected readonly branchHaystack = (b: string): string => b;
 
   /** Git-stream lines since the dialog opened (the live op output). */
   private readonly streamedGit = computed<readonly string[]>(() =>
@@ -263,6 +252,48 @@ export class BranchDialogComponent extends DialogBase {
       this.logBaseline = this.services.logsFor(this.repoName())().length;
       void this.reload();
     });
+  }
+
+  /** Right-click on a branch row — same actions as the icon-buttons. */
+  protected async onRowMenu(event: MouseEvent, b: string): Promise<void> {
+    const t = (key: string): string => this.i18n.t(key);
+    const isCurrent = b === this.current();
+    const busy = this.busy();
+    const items: MenuEntry[] = [
+      {
+        id: 'checkout',
+        label: t('dialog.branch.btn_checkout'),
+        icon: 'corner-down-left',
+        disabled: busy || isCurrent,
+      },
+      { id: 'history', label: t('dialog.branch.btn_history'), icon: 'history' },
+      { id: 'rename', label: t('dialog.branch.btn_rename'), icon: 'pencil', disabled: busy },
+      { id: 'publish', label: t('dialog.branch.btn_publish'), icon: 'arrow-up', disabled: busy },
+      {
+        id: 'delete-remote',
+        label: t('dialog.branch.btn_delete_remote'),
+        icon: 'cloud',
+        danger: true,
+        disabled: busy,
+        separator: true,
+      },
+      {
+        id: 'delete-local',
+        label: t('dialog.branch.btn_delete_local'),
+        icon: 'trash',
+        danger: true,
+        disabled: busy || isCurrent,
+      },
+    ];
+
+    switch (await this.menu.openFromEvent(event, items)) {
+      case 'checkout': return this.checkout(b);
+      case 'history': return this.openHistory(b);
+      case 'rename': return this.rename(b);
+      case 'publish': return this.publish(b);
+      case 'delete-remote': return this.deleteRemote(b);
+      case 'delete-local': return this.deleteLocal(b);
+    }
   }
 
   /** Detach the live log into its own OS window (reuses `open_log_window`). */
@@ -439,8 +470,7 @@ export class BranchDialogComponent extends DialogBase {
     this.branches.set(ordered.branches);
     this.recentCount.set(ordered.recentCount);
     this.current.set(current);
-    // Keep the page valid when the list shrinks (e.g. after a delete).
-    this.page.set(clampPage(this.page(), ordered.branches.length, PAGE_SIZE));
+    // Paging self-heals on shrink: ui-filter-table clamps on read.
     if (this.base() === '') {
       this.base.set(current);
     }

@@ -57,3 +57,66 @@
   border-radius: var(--geo-corner-combo);
   box-shadow: 0 6px 24px rgb(0 0 0 / 55%);
 }
+
+/// Standard text input (dialogs + ui-filter-table search). Moved here from
+/// dialogs/shared/_controls.scss (which now delegates) so `ui/` components
+/// can share it without importing the features layer.
+@mixin text-input {
+  @include transition(border-color, background-color);
+  height: var(--geo-btn-height-md);
+  padding: 0 8px;
+  background-color: var(--color-section);
+  border: var(--geo-border-width) solid var(--color-border-default);
+  border-radius: var(--geo-corner-btn);
+  color: var(--color-text-primary);
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+
+  &::placeholder {
+    color: var(--color-text-placeholder);
+  }
+
+  &:focus {
+    outline: none;
+    border-color: var(--color-text-accent-bright);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+  }
+}
+
+/// Data table (uppercase muted header, hairline rows, hover). Owned by
+/// `ui-filter-table`; kept as a mixin for any future bespoke table.
+@mixin data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-base);
+
+  th {
+    padding: 6px 10px;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+    font-weight: 700;
+    text-align: left;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background-color: var(--color-section-alt);
+    border-bottom: var(--geo-border-width) solid var(--color-border-subtle);
+  }
+
+  td {
+    padding: 6px 10px;
+    color: var(--color-text-primary);
+    border-bottom: var(--geo-border-width) solid var(--color-border-subtle);
+    vertical-align: middle;
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  tbody tr:hover td {
+    background-color: var(--color-card-hover);
+  }
+}

@@ -1,3 +1,5 @@
+@use '../../../styles/mixins' as mx;
+
 // Underlined tab bar (ui-tabs).
 .tabs {
   display: flex;
@@ -6,20 +8,16 @@
 }
 
 .tabs__tab {
-  appearance: none;
+  @include mx.control-reset;
+  @include mx.transition(color, border-color);
   margin-bottom: -1px;
   padding: 6px 14px;
-  background: none;
-  border: none;
   border-bottom: 2px solid transparent;
   color: var(--color-text-muted);
-  font-family: var(--font-family);
   font-size: var(--font-size-base);
   font-weight: 600;
   cursor: pointer;
-  transition:
-    color 0.15s ease,
-    border-color 0.15s ease;
+  user-select: none;
 
   &:hover {
     color: var(--color-text-secondary);

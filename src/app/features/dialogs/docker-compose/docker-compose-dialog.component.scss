@@ -14,10 +14,11 @@
   gap: 10px;
 }
 
+// Section title — same role/size as the other dialogs' section titles.
 .docker__title {
   margin: 0;
-  color: var(--color-text-primary);
-  font-size: var(--font-size-lg);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-md);
   font-weight: 700;
 }
 

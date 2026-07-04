@@ -1,0 +1,76 @@
+@use '../../../styles/mixins' as mx;
+
+// Body-appended, fixed-position menu surface. Sits above dialog content
+// (DOM-order) but below tooltips (10000).
+:host {
+  @include mx.popup-surface;
+  position: fixed;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  min-width: 180px;
+  max-width: 320px;
+  padding: 4px;
+  outline: none;
+  user-select: none;
+}
+
+.menu__sep {
+  height: var(--geo-border-width);
+  margin: 4px 6px;
+  background-color: var(--color-divider);
+}
+
+.menu__item {
+  @include mx.control-reset;
+  @include mx.transition(background-color, color);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--geo-btn-height-md);
+  padding: 0 10px 0 8px;
+  border-radius: var(--geo-corner-btn);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+  text-align: left;
+  cursor: pointer;
+
+  // Keyboard + mouse share one highlight (mouseenter syncs activeIndex).
+  &--active:not(:disabled) {
+    background-color: color-mix(in srgb, var(--color-text-accent) 22%, transparent);
+  }
+
+  &--danger {
+    color: var(--color-status-error);
+
+    &.menu__item--active:not(:disabled) {
+      background-color: color-mix(in srgb, var(--color-status-error) 18%, transparent);
+    }
+  }
+
+  &:disabled {
+    color: var(--color-text-faint);
+    cursor: default;
+  }
+}
+
+// Fixed icon column keeps labels aligned whether or not entries carry icons.
+.menu__icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  width: 16px;
+  justify-content: center;
+}
+
+.menu__label {
+  @include mx.ellipsis;
+  flex: 1 1 auto;
+}
+
+.menu__hint {
+  flex-shrink: 0;
+  margin-left: 16px;
+  color: var(--color-text-faint);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+}

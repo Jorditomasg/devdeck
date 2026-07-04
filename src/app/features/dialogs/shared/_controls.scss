@@ -7,29 +7,9 @@
 
 /// Single-line text input — the v1 `ctk.CTkEntry` look (section bg, default
 /// border, btn corner radius).
+// Delegates to the shared kit mixin (single source — ui/ needs it too).
 @mixin text-input {
-  @include mx.transition(border-color, background-color);
-  height: var(--geo-btn-height-md);
-  padding: 0 8px;
-  background-color: var(--color-section);
-  border: var(--geo-border-width) solid var(--color-border-default);
-  border-radius: var(--geo-corner-btn);
-  color: var(--color-text-primary);
-  font-family: var(--font-family);
-  font-size: var(--font-size-base);
-
-  &::placeholder {
-    color: var(--color-text-placeholder);
-  }
-
-  &:focus {
-    outline: none;
-    border-color: var(--color-text-accent-bright);
-  }
-
-  &:disabled {
-    opacity: 0.5;
-  }
+  @include mx.text-input;
 }
 
 /// Monospace multi-line editor / log surface (v1 mono CTkTextbox).
@@ -130,35 +110,7 @@
 
 /// Compact management table (branch/stash lists) — header row + hover rows,
 /// bordered surface supplied by the wrapping element.
+// Delegates to the shared kit mixin (ui-filter-table owns the look now).
 @mixin data-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--font-size-base);
-
-  th {
-    padding: 6px 10px;
-    color: var(--color-text-muted);
-    font-size: var(--font-size-sm);
-    font-weight: 700;
-    text-align: left;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    background-color: var(--color-section-alt);
-    border-bottom: var(--geo-border-width) solid var(--color-border-subtle);
-  }
-
-  td {
-    padding: 6px 10px;
-    color: var(--color-text-primary);
-    border-bottom: var(--geo-border-width) solid var(--color-border-subtle);
-    vertical-align: middle;
-  }
-
-  tbody tr:last-child td {
-    border-bottom: none;
-  }
-
-  tbody tr:hover td {
-    background-color: var(--color-card-hover);
-  }
+  @include mx.data-table;
 }

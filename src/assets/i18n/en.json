@@ -109,7 +109,7 @@
     "expand": "Expand / Collapse options",
     "open_explorer": "Open in explorer",
     "open_terminal": "Open a terminal in this repo",
-    "open_repo": "Right-click: open repository",
+    "open_repo": "Right-click: repository actions",
     "reload_repo": "Reload branch, branch list and git status (no network)",
     "branch_in_profile": "Include branch when saving / applying profiles.\nUnchecked: profiles will not modify this repo's branch.",
     "env_in_profile": "Include env/app when saving / applying profiles.\nUnchecked: profiles will not modify this repo's environment.",
@@ -731,5 +731,16 @@
     "save": "Save",
     "unsaved_title": "Unsaved changes",
     "unsaved_msg": "Discard the unsaved edits?"
+  },
+  "menu": {
+    "open_folder": "Open in explorer",
+    "open_terminal": "Open terminal here",
+    "open_remote": "Open remote repository",
+    "copy_path": "Copy path",
+    "copy_name": "Copy name",
+    "view_changes": "View changes",
+    "copy_subject": "Copy message",
+    "copy_branch": "Copy branch name",
+    "compare_from_here": "Compare from here"
   }
 }

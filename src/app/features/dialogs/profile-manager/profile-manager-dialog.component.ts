@@ -35,7 +35,13 @@ import { ReposStore } from '../../../core/state/repos.store';
 import { SettingsStore } from '../../../core/state/settings.store';
 import { RepoActionsService } from '../../workspace/state/repo-actions.service';
 import { WorkspaceStore } from '../../workspace/state/workspace.store';
-import { ButtonComponent, DialogShellComponent, IconComponent } from '../../../ui';
+import {
+  ButtonComponent,
+  ContextMenuService,
+  DialogShellComponent,
+  IconComponent,
+  type MenuEntry,
+} from '../../../ui';
 import { DialogBase } from '../dialog-base';
 import { NativePickers } from '../shared/native-pickers';
 import {
@@ -99,11 +105,13 @@ const JSON_FILTER = [{ name: 'JSON', extensions: ['json'] }] as const;
           <p class="profiles__label">{{ 'dialog.profile.saved_list_title' | t }}</p>
           <div class="profiles__list">
             @for (profile of profileNames(); track profile) {
+              <!-- Right-click offers the same actions as the buttons below. -->
               <button
                 type="button"
                 class="profiles__row"
                 [class.selected]="profile === selected()"
                 (click)="select(profile)"
+                (contextmenu)="onRowMenu($event, profile)"
               >
                 {{ profile }}
               </button>
@@ -161,6 +169,7 @@ export class ProfileManagerDialogComponent extends DialogBase {
   private readonly actions = inject(RepoActionsService);
   private readonly pickers = inject(NativePickers);
   private readonly i18n = inject(TranslationService);
+  private readonly menu = inject(ContextMenuService);
 
   protected readonly name = signal('');
   protected readonly includeConfigFiles = signal(true); // v1 default ON
@@ -193,6 +202,35 @@ export class ProfileManagerDialogComponent extends DialogBase {
     this.selected.set(profile);
     this.name.set(profile);
     this.inlineError.set('');
+  }
+
+  /** Right-click on a profile row — same actions as the buttons below. */
+  protected async onRowMenu(event: MouseEvent, profile: string): Promise<void> {
+    const t = (key: string): string => this.i18n.t(key);
+    const busy = this.busy() !== null;
+    const items: MenuEntry[] = [
+      { id: 'load', label: t('dialog.profile.btn_load'), icon: 'folder', disabled: busy },
+      { id: 'export', label: t('dialog.profile.btn_export'), icon: 'upload', disabled: busy },
+      {
+        id: 'delete',
+        label: t('dialog.profile.btn_delete'),
+        icon: 'trash',
+        danger: true,
+        disabled: busy,
+        separator: true,
+      },
+    ];
+    const picked = await this.menu.openFromEvent(event, items);
+    if (picked === null) {
+      return;
+    }
+    // The buttons operate on "the selected profile" — select the row first.
+    this.select(profile);
+    switch (picked) {
+      case 'load': return this.load();
+      case 'export': return this.exportProfile();
+      case 'delete': return this.deleteProfile();
+    }
   }
 
   // -- save (§21 :148-180) --------------------------------------------------------

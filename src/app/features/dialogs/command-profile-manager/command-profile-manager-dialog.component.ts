@@ -20,7 +20,13 @@ import {
 import { TPipe } from '../../../core/i18n/t.pipe';
 import { TranslationService } from '../../../core/i18n/translation.service';
 import { IpcCommands } from '../../../core/ipc/commands';
-import { ButtonComponent, DialogShellComponent, IconComponent } from '../../../ui';
+import {
+  ButtonComponent,
+  ContextMenuService,
+  DialogShellComponent,
+  IconComponent,
+  type MenuEntry,
+} from '../../../ui';
 import { DialogBase } from '../dialog-base';
 
 @Component({
@@ -40,11 +46,13 @@ import { DialogBase } from '../dialog-base';
 
           <div class="profmgr__list">
             @for (name of names(); track name) {
+              <!-- Right-click offers the same actions as the toolbar buttons. -->
               <button
                 type="button"
                 class="profmgr__row"
                 [class.selected]="name === selected()"
                 (click)="selectName(name)"
+                (contextmenu)="onRowMenu($event, name)"
               >
                 {{ name }}
               </button>
@@ -129,6 +137,7 @@ export class CommandProfileManagerDialogComponent extends DialogBase {
 
   private readonly commands = inject(IpcCommands);
   private readonly i18n = inject(TranslationService);
+  private readonly menu = inject(ContextMenuService);
   private readonly shell = viewChild.required<DialogShellComponent>('shell');
 
   protected readonly profiles = signal<Readonly<Record<string, string>>>({});
@@ -171,6 +180,34 @@ export class CommandProfileManagerDialogComponent extends DialogBase {
     }
     this.selected.set(name);
     this.editorText.set(this.profiles()[name] ?? '');
+  }
+
+  /** Right-click on a profile row — same actions as the toolbar buttons. */
+  protected async onRowMenu(event: MouseEvent, name: string): Promise<void> {
+    const t = (key: string): string => this.i18n.t(key);
+    const items: MenuEntry[] = [
+      { id: 'rename', label: t('dialog.env_manager.btn_rename'), icon: 'pencil' },
+      { id: 'duplicate', label: t('dialog.env_manager.btn_duplicate'), icon: 'copy' },
+      {
+        id: 'delete',
+        label: t('dialog.env_manager.btn_delete'),
+        icon: 'trash',
+        danger: true,
+        separator: true,
+      },
+    ];
+    const picked = await this.menu.openFromEvent(event, items);
+    if (picked === null) {
+      return;
+    }
+    // The toolbar operates on "the selected profile" — select the row first
+    // (runs the usual unsaved-changes guard).
+    await this.selectName(name);
+    switch (picked) {
+      case 'rename': return this.rename();
+      case 'duplicate': return this.duplicate();
+      case 'delete': return this.deleteConfig();
+    }
   }
 
   // -- mutations -----------------------------------------------------------------

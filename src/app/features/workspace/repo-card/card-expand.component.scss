@@ -80,35 +80,11 @@
   font-size: var(--font-size-md);
 }
 
-.row__cmd {
-  @include mx.control-reset;
-  @include mx.transition(border-color);
-  flex: 1 1 0;
-  min-width: 0;
-  height: var(--geo-btn-height-md);
-  padding: 0 8px;
-  background-color: var(--color-section);
-  border: var(--geo-border-width) solid var(--color-border-default);
-  border-radius: var(--geo-corner-btn);
-  color: var(--color-text-primary);
-  font-family: var(--font-family-mono);
-  font-size: var(--font-size-md);
-
-  &::placeholder {
-    color: var(--color-text-placeholder);
-  }
-
-  &:focus {
-    outline: none;
-    border-color: var(--color-text-accent-bright);
-  }
-}
-
 // Docker compose file buttons (§7 row 3.5): 🐳 Name [r/t], state-colored.
 .docker-btn {
   @include mx.control-reset;
   @include mx.interactive;
-  height: 26px;
+  height: var(--geo-btn-height-md);
   padding: 0 10px;
   border-radius: var(--geo-corner-btn);
   color: var(--color-text-primary);

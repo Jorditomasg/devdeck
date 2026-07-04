@@ -36,6 +36,7 @@ export interface FileDiffPanelText {
           class="fdp__file"
           [class.fdp__file--selected]="file.path === selectedPath()"
           (click)="fileSelected.emit(file)"
+          (contextmenu)="fileMenuRequested.emit({ event: $event, file })"
         >
           <span class="fdp__path" [title]="file.path">
             @if (file.oldPath) {
@@ -105,4 +106,6 @@ export class FileDiffPanelComponent {
   readonly backToDiff = output<void>();
   /** Emits the selected path — the container scopes the log to it. */
   readonly fileHistory = output<string>();
+  /** Right-click on a file row — the container opens the menu. */
+  readonly fileMenuRequested = output<{ event: MouseEvent; file: GitCommitFileStat }>();
 }

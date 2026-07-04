@@ -49,7 +49,16 @@ export interface CardHeaderText {
   ],
   styleUrl: './card-header.component.scss',
   template: `
-    <div class="header" (click)="toggleExpand.emit()">
+    <div
+      class="header"
+      role="button"
+      tabindex="0"
+      [attr.aria-expanded]="expanded()"
+      (click)="toggleExpand.emit()"
+      (keydown.enter)="toggleExpand.emit()"
+      (keydown.space)="onSpaceToggle($event)"
+      (contextmenu)="menuRequested.emit($event)"
+    >
       <!-- §6 item 1: selection checkbox (stops expand toggle) -->
       <label class="header__check" (click)="$event.stopPropagation()">
         <input
@@ -65,13 +74,10 @@ export interface CardHeaderText {
       <!-- §6 item 3: type badge on ui_config.color (kept — shows repo type) -->
       <ui-badge tone="solid" [bg]="typeColor()">{{ typeLabel() }}</ui-badge>
 
-      <!-- §6 item 4: name; right-click opens the remote URL. The ui_config.icon
-           emoji was removed (cleaner header, user request); the type badge stays. -->
-      <span
-        class="header__name"
-        [uiTooltip]="text().openRepoTip"
-        (contextmenu)="onContextMenu($event)"
-      >
+      <!-- §6 item 4: name; right-click anywhere on the header opens the repo
+           actions menu (container-owned). The ui_config.icon emoji was removed
+           (cleaner header, user request); the type badge stays. -->
+      <span class="header__name" [uiTooltip]="text().openRepoTip">
         {{ name() }}
       </span>
 
@@ -161,7 +167,7 @@ export interface CardHeaderText {
             variant="neutral"
             [uiTooltip]="text().openTerminalTip"
             (clicked)="openTerminal.emit()"
-          >&gt;_</ui-icon-button>
+          ><ui-icon name="terminal" /></ui-icon-button>
           <ui-icon-button
             variant="toggle-expand"
             [uiTooltip]="text().expandTip"
@@ -213,17 +219,17 @@ export class CardHeaderComponent {
   readonly openExplorer = output<void>();
   /** Open an interactive PTY terminal window rooted at the repo. */
   readonly openTerminal = output<void>();
-  /** Right-click on the name (v1 Button-3 → open remote URL). */
-  readonly openRemote = output<void>();
+  /** Right-click anywhere on the header — the container opens the menu. */
+  readonly menuRequested = output<MouseEvent>();
+
+  /** Space toggles like Enter but must not scroll the card list. */
+  protected onSpaceToggle(event: Event): void {
+    event.preventDefault();
+    this.toggleExpand.emit();
+  }
   readonly pullClicked = output<void>();
   readonly changesClicked = output<void>();
   readonly conflictsClicked = output<void>();
-
-  protected onContextMenu(event: MouseEvent): void {
-    event.preventDefault();
-    event.stopPropagation();
-    this.openRemote.emit();
-  }
 
   protected onBadgeClick(
     event: MouseEvent,

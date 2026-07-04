@@ -25,9 +25,9 @@ fn dialog_size(kind: &str) -> (f64, f64) {
         "prompt" => (460.0, 240.0),
         "confirm-close" => (460.0, 260.0),
         "clone" => (560.0, 360.0),
-        // Wide enough for the per-branch action buttons (incl. History) in
-        // one row (user report 2026-07-02: they wrapped at 680).
-        "branch" => (960.0, 560.0),
+        // Branch/stash tables use compact icon-buttons (2026-07-04), so both
+        // share the same footprint — coherent side-by-side git dialogs.
+        "branch" => (620.0, 560.0),
         "stash" => (620.0, 560.0),
         "merge-branch" => (600.0, 600.0),
         "settings" => (640.0, 740.0),

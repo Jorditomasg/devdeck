@@ -29,6 +29,8 @@ All `§n` references point into `docs/migration/inventory-gui.md`.
 | `SearchableSelectComponent` | `ui-searchable-select` | `SearchableCombo`: 150ms debounced live filter, 30/+30 infinite scroll at ≥98.5%, max 9 visible rows, recents divider (unfiltered only), ellipsized display + full-text title, Escape/outside-click dismissal, live `options` refresh while open. **`[value]` writes never emit** — only user picks fire `selectionChange`/`valueChange` (v1 `set()` contract). v2 adds ↑/↓/Enter keyboard nav (explicitly allowed by the inventory) | §32 |
 | `LogViewerComponent` | `ui-log-viewer` | Card / global / detached log textboxes (`theme.log_textbox_style()`): mono sm, app bg, card border, 500-line cap, autoscroll-unless-scrolled-up, selectable text. Perf: line cap + stable absolute-line track keys + `content-visibility: auto` per line (virtual window rejected — see JSDoc) | §5, §8, §29 |
 | `DialogShellComponent` | `ui-dialog-shell` | `BaseDialog`: CSS 50% backdrop (replaces the PIL screenshot hack), +20px cascade per `cascadeLevel`, focus trap, configurable ESC/backdrop close, blocked-click **knock** (shake + border flash ≈ v1 `bell()`+lift), header + content + `[uiDialogFooter]` slot, hides all tooltips on open | §13 |
+| `ContextMenuService` (+`ContextMenuComponent`) | — (imperative) | v2 addition, no v1 counterpart: the app-wide right-click primitive. Containers call `openFromEvent(ev, items)` with pre-translated `MenuEntry[]` and switch on the resolved id (`null` = dismissed). Body-appended fixed overlay (tooltip-style flip/clamp), ↑/↓/Enter/Escape keyboard nav, outside-click / blur / resize dismissal, `danger`/`disabled`/`separator`/`hint` entry flags | — |
+| `FilterTableComponent` (+`uiTableHead`/`uiTableRow` directives) | `ui-filter-table` | v2 addition: THE dialog table primitive (branches, stashes). Owns the live search input, the "no results" state, pagination and read-time page clamping; consumers project the `<thead>` row via `*uiTableHead` and the per-item row via `*uiTableRow="let item"` (`haystack` input = item→searchable text). `ViewEncapsulation.None` on purpose — outlet-rendered row templates carry the CONSUMER's scope attribute, so `.ft__`-prefixed global rules are the only way to style them. The empty-LIST state stays in the container | — |
 | `FormRowComponent` | `ui-form-row` | Label+control dialog rows (clone, settings, merge, expand panel) | §7, §15, §20, §22 |
 | `SectionHeaderComponent` | `ui-section-header` | Section titles with actions (log header + detach/clear, settings sections) | §8, §22 |
 
@@ -48,6 +50,11 @@ All `§n` references point into `docs/migration/inventory-gui.md`.
 - **Buttons reserve space** (§33): place icon-buttons/actions in
   `flex-shrink: 0` containers so growing labels can't push them off-screen
   (`ui-section-header` already does this for its actions slot).
+- **Context menus**: bind `(contextmenu)` in the container (or forward it from
+  a presentational child as a `menuRequested` output), build the `MenuEntry[]`
+  with `t()` there, and `await menu.openFromEvent(ev, items)`. Destructive
+  entries go last with `danger: true` + `separator: true`; menus must only
+  OFFER actions that already exist as handlers — never new side effects.
 
 ## Testing
 

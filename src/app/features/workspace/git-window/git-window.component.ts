@@ -42,10 +42,15 @@ import {
   AvatarComponent,
   BadgeComponent,
   ButtonComponent,
+  ContextMenuService,
   IconComponent,
   SearchableSelectComponent,
   SpinnerComponent,
+  type MenuEntry,
 } from '../../../ui';
+import { IpcEvents } from '../../../core/ipc/events';
+import { TauriBridge } from '../../../core/ipc/tauri-bridge';
+import { openDialogWindowForResult } from '../../dialogs/dialog-window.bridge';
 import { OpenerService } from '../opener.service';
 import { ChangesViewComponent } from './changes-view.component';
 import { commitWebUrl } from './commit-web-url';
@@ -165,7 +170,11 @@ type PanelSource = 'ref' | 'range';
             } @else {
               <ul class="gitwin__list">
                 @for (commit of commits(); track commit.sha; let i = $index) {
-                  <li class="gitwin__commit" (click)="onSelectCommit(commit, 'list')">
+                  <li
+                    class="gitwin__commit"
+                    (click)="onSelectCommit(commit, 'list')"
+                    (contextmenu)="onCommitMenu($event, commit, i)"
+                  >
                     <git-graph-cell
                       [row]="graphRows()[i]"
                       [lanes]="graphLanes()"
@@ -236,7 +245,11 @@ type PanelSource = 'ref' | 'range';
             } @else {
               <ul class="gitwin__list">
                 @for (stash of stashes(); track stash.index) {
-                  <li class="gitwin__commit gitwin__stash" (click)="onSelectStash(stash)">
+                  <li
+                    class="gitwin__commit gitwin__stash"
+                    (click)="onSelectStash(stash)"
+                    (contextmenu)="onStashMenu($event, stash)"
+                  >
                     <span class="gitwin__mono gitwin__stash-ref"
                       >stash&#64;{{ '{' }}{{ stash.index }}{{ '}' }}</span
                     >
@@ -293,7 +306,11 @@ type PanelSource = 'ref' | 'range';
             } @else {
               <ul class="gitwin__list">
                 @for (commit of compareCommits(); track commit.sha) {
-                  <li class="gitwin__commit" (click)="onSelectCommit(commit, 'compare')">
+                  <li
+                    class="gitwin__commit"
+                    (click)="onSelectCommit(commit, 'compare')"
+                    (contextmenu)="onCommitMenu($event, commit, -1)"
+                  >
                     <ui-avatar
                       [email]="commit.authorEmail"
                       [name]="commit.authorName"
@@ -330,6 +347,7 @@ type PanelSource = 'ref' | 'range';
             (viewFile)="onViewFile()"
             (backToDiff)="onBackToDiff()"
             (fileHistory)="onFileHistory($event)"
+            (fileMenuRequested)="onFileMenu($event.event, $event.file)"
           />
         </div>
       }
@@ -381,6 +399,7 @@ type PanelSource = 'ref' | 'range';
           (viewFile)="onViewFile()"
           (backToDiff)="onBackToDiff()"
           (fileHistory)="onFileHistory($event)"
+          (fileMenuRequested)="onFileMenu($event.event, $event.file)"
         />
       }
     }
@@ -390,6 +409,9 @@ export class GitWindowComponent implements OnInit {
   protected readonly i18n = inject(TranslationService);
   private readonly commands = inject(IpcCommands);
   private readonly opener = inject(OpenerService);
+  private readonly menu = inject(ContextMenuService);
+  private readonly events = inject(IpcEvents);
+  private readonly bridge = inject(TauriBridge);
 
   /** Repo id from `?git=` — the repo NAME (repo-card passes `repo.name`). */
   private readonly repoId = signal('');
@@ -788,6 +810,126 @@ export class GitWindowComponent implements OnInit {
     const sha = this.detailCommit()?.sha;
     if (sha) {
       void navigator.clipboard.writeText(sha);
+    }
+  }
+
+  // -- context menus ---------------------------------------------------------------
+
+  /** Right-click on a file row of the shared files/diff panel. */
+  protected async onFileMenu(event: MouseEvent, file: GitCommitFileStat): Promise<void> {
+    const t = (key: string): string => this.i18n.t(key);
+    const items: MenuEntry[] = [
+      { id: 'view', label: t('git.view_file'), icon: 'file-text', disabled: file.binary },
+      ...(this.mode === 'history'
+        ? [{ id: 'history', label: t('git.file_history'), icon: 'history' } as const]
+        : []),
+      { id: 'copy-path', label: t('menu.copy_path'), icon: 'copy', separator: true },
+    ];
+
+    switch (await this.menu.openFromEvent(event, items)) {
+      case 'view':
+        await this.onSelectFile(file);
+        return this.onViewFile();
+      case 'history':
+        return this.onFileHistory(file.path);
+      case 'copy-path':
+        return void navigator.clipboard.writeText(file.path).catch(() => undefined);
+    }
+  }
+
+  /**
+   * Right-click on a commit row (history list `i >= 0`, compare list `-1`).
+   * Copy actions were detail-only before — this makes them one right-click.
+   */
+  protected async onCommitMenu(
+    event: MouseEvent,
+    commit: GitCommitInfo,
+    i: number,
+  ): Promise<void> {
+    const t = (key: string): string => this.i18n.t(key);
+    const web = commitWebUrl(this.remoteUrl(), commit.sha);
+    const row = i >= 0 ? this.graphRows()[i] : undefined;
+    const branch = row?.label ?? '';
+    const items: MenuEntry[] = [
+      { id: 'copy-sha', label: t('git.copy_sha'), icon: 'copy', hint: this.short(commit.sha) },
+      { id: 'copy-subject', label: t('menu.copy_subject'), icon: 'copy' },
+      ...(branch
+        ? [{ id: 'copy-branch', label: t('menu.copy_branch'), icon: 'git-branch', hint: branch } as const]
+        : []),
+      { id: 'web', label: t('git.view_web'), icon: 'external-link', disabled: !web, separator: true },
+      ...(this.mode === 'history' && i >= 0
+        ? [{ id: 'compare', label: t('menu.compare_from_here'), icon: 'git-merge' } as const]
+        : []),
+    ];
+
+    switch (await this.menu.openFromEvent(event, items)) {
+      case 'copy-sha':
+        return void navigator.clipboard.writeText(commit.sha).catch(() => undefined);
+      case 'copy-subject':
+        return void navigator.clipboard.writeText(commit.subject).catch(() => undefined);
+      case 'copy-branch':
+        return void navigator.clipboard.writeText(branch).catch(() => undefined);
+      case 'web':
+        if (web) void this.opener.openUrl(web);
+        return;
+      case 'compare':
+        this.compareBase.set(this.short(commit.sha));
+        this.compareTarget.set(this.currentBranch() || 'HEAD');
+        this.view.set('compare');
+        return void this.openRange();
+    }
+  }
+
+  /**
+   * Right-click on a stash row — apply/pop/drop parity with the stash dialog
+   * (the window was view-only before; commands existed but had no surface).
+   */
+  protected async onStashMenu(event: MouseEvent, stash: StashEntry): Promise<void> {
+    const t = (key: string): string => this.i18n.t(key);
+    const items: MenuEntry[] = [
+      { id: 'apply', label: t('dialog.stash.btn_apply'), icon: 'check' },
+      { id: 'pop', label: t('dialog.stash.btn_pop'), icon: 'upload' },
+      { id: 'drop', label: t('dialog.stash.btn_drop'), icon: 'trash', danger: true, separator: true },
+    ];
+    const picked = await this.menu.openFromEvent(event, items);
+    if (!picked) {
+      return;
+    }
+    if (picked === 'drop') {
+      // Confirm as a child window parented to THIS git window (the same
+      // pattern the changes view uses for its discard confirm).
+      const title = t('dialog.stash.drop_confirm_title');
+      const ok = await openDialogWindowForResult<boolean>(
+        this.commands,
+        this.events,
+        'messagebox',
+        title,
+        {
+          kind: 'confirm',
+          title,
+          message: this.i18n.t('dialog.stash.drop_confirm_msg', {
+            ref: `stash@{${stash.index}}`,
+          }),
+        },
+        false,
+        this.bridge.currentWindowLabel(),
+      );
+      if (!ok) {
+        return;
+      }
+    }
+    try {
+      const path = this.repoPath();
+      if (picked === 'apply') {
+        await this.commands.git.stashApply(path, stash.index);
+      } else if (picked === 'pop') {
+        await this.commands.git.stashPop(path, stash.index);
+      } else {
+        await this.commands.git.stashDrop(path, stash.index);
+      }
+      await this.loadStashes();
+    } catch (err: unknown) {
+      this.error.set(this.messageOf(err));
     }
   }
 

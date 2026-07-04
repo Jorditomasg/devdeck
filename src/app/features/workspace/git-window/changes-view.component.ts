@@ -25,7 +25,14 @@ import { IpcEvents } from '../../../core/ipc/events';
 import { TauriBridge } from '../../../core/ipc/tauri-bridge';
 import type { GitChangeEntry, OpOutput } from '../../../core/ipc/tauri.types';
 import { openDialogWindowForResult } from '../../dialogs/dialog-window.bridge';
-import { ButtonComponent, DiffViewComponent, IconComponent, SpinnerComponent } from '../../../ui';
+import {
+  ButtonComponent,
+  ContextMenuService,
+  DiffViewComponent,
+  IconComponent,
+  SpinnerComponent,
+  type MenuEntry,
+} from '../../../ui';
 // Direct imports ON PURPOSE (not via the ui barrel): keeps CodeMirror out of
 // the initial bundle — see the note in ui/index.ts.
 import { CodeEditComponent } from '../../../ui/code-edit/code-edit.component';
@@ -62,6 +69,7 @@ type PaneMode = 'diff' | 'edit';
                   class="chg__file"
                   [class.chg__file--selected]="key(entry) === selectedKey()"
                   (click)="onSelect(entry)"
+                  (contextmenu)="onFileMenu($event, entry)"
                 >
                   <span class="chg__status chg__status--{{ entry.status }}">{{
                     entry.status
@@ -92,6 +100,7 @@ type PaneMode = 'diff' | 'edit';
                 class="chg__file"
                 [class.chg__file--selected]="key(entry) === selectedKey()"
                 (click)="onSelect(entry)"
+                (contextmenu)="onFileMenu($event, entry)"
               >
                 <span class="chg__status chg__status--{{ entry.status }}">{{
                   entry.status
@@ -176,6 +185,7 @@ export class ChangesViewComponent implements OnInit {
   private readonly commands = inject(IpcCommands);
   private readonly events = inject(IpcEvents);
   private readonly bridge = inject(TauriBridge);
+  private readonly menu = inject(ContextMenuService);
 
   /** Absolute repo path (resolved by the git-window shell). */
   readonly repoPath = input.required<string>();
@@ -373,6 +383,10 @@ export class ChangesViewComponent implements OnInit {
 
   protected async onDiscard(entry: GitChangeEntry, event: MouseEvent): Promise<void> {
     event.stopPropagation();
+    await this.discardWithConfirm(entry);
+  }
+
+  private async discardWithConfirm(entry: GitChangeEntry): Promise<void> {
     const confirmed = await this.confirm(
       this.i18n.t('git.discard_confirm_title'),
       this.i18n.t('git.discard_confirm_msg', { path: entry.path }),
@@ -383,6 +397,43 @@ export class ChangesViewComponent implements OnInit {
     await this.runAction(
       this.commands.git.discardFile(this.repoPath(), entry.path, isUntracked(entry)),
     );
+  }
+
+  /** Right-click on a file row — same actions as the hover icons, plus copy
+   * path and edit (the icons are invisible until hover; the menu is the
+   * discoverable path). */
+  protected async onFileMenu(event: MouseEvent, entry: GitChangeEntry): Promise<void> {
+    const t = (key: string): string => this.i18n.t(key);
+    const items: MenuEntry[] = entry.staged
+      ? [
+          { id: 'unstage', label: t('git.unstage'), icon: 'minus' },
+          { id: 'copy-path', label: t('menu.copy_path'), icon: 'copy', separator: true },
+        ]
+      : [
+          { id: 'stage', label: t('git.stage'), icon: 'plus' },
+          ...(canEdit(entry)
+            ? [{ id: 'edit', label: t('git.edit_file'), icon: 'pencil' } as const]
+            : []),
+          { id: 'discard', label: t('git.discard'), icon: 'rotate-ccw', danger: true, separator: true },
+          { id: 'copy-path', label: t('menu.copy_path'), icon: 'copy', separator: true },
+        ];
+
+    switch (await this.menu.openFromEvent(event, items)) {
+      case 'stage':
+        return this.runAction(this.commands.git.stageFile(this.repoPath(), entry.path));
+      case 'unstage':
+        return this.runAction(this.commands.git.unstageFile(this.repoPath(), entry.path));
+      case 'discard':
+        return this.discardWithConfirm(entry);
+      case 'edit':
+        await this.onSelect(entry);
+        if (this.paneMode() !== 'edit' && this.editable()) {
+          await this.openEditor(entry);
+        }
+        return;
+      case 'copy-path':
+        return void navigator.clipboard.writeText(entry.path).catch(() => undefined);
+    }
   }
 
   private async runAction(op: Promise<OpOutput>): Promise<void> {

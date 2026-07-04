@@ -21,13 +21,16 @@ import { ReposStore } from '../../../core/state/repos.store';
 import { ServicesStore } from '../../../core/state/services.store';
 import {
   ButtonComponent,
+  ContextMenuService,
   DialogLogComponent,
   DialogShellComponent,
+  FilterTableComponent,
+  IconButtonComponent,
   IconComponent,
-  PaginationComponent,
+  TableHeadDirective,
+  TableRowDirective,
   TooltipDirective,
-  clampPage,
-  pageSlice,
+  type MenuEntry,
 } from '../../../ui';
 import { DialogBase } from '../dialog-base';
 import { stashEntryLabel } from './stash.logic';
@@ -43,8 +46,11 @@ const PAGE_SIZE = 15;
     ButtonComponent,
     DialogLogComponent,
     DialogShellComponent,
+    FilterTableComponent,
+    IconButtonComponent,
     IconComponent,
-    PaginationComponent,
+    TableHeadDirective,
+    TableRowDirective,
     TooltipDirective,
     TPipe,
   ],
@@ -76,7 +82,13 @@ const PAGE_SIZE = 15;
                 />
                 {{ 'dialog.stash.include_untracked' | t }}
               </label>
-              <ui-button variant="blue" [loading]="busy()" (clicked)="add()">
+              <ui-button
+                variant="blue"
+                [loading]="busy()"
+                [disabled]="hasChanges() === false"
+                [uiTooltip]="hasChanges() === false ? ('git.no_changes' | t) : ''"
+                (clicked)="add()"
+              >
                 {{ (busy() ? 'dialog.stash.btn_adding' : 'dialog.stash.btn_add') | t }}
               </ui-button>
             </div>
@@ -85,69 +97,56 @@ const PAGE_SIZE = 15;
           @if (entries().length === 0) {
             <p class="stash__empty">{{ 'dialog.stash.empty' | t }}</p>
           } @else {
-            <div class="stash__table-wrap">
-              <table class="stash__table">
-                <thead>
-                  <tr>
-                    <th>{{ 'dialog.stash.col_stash' | t }}</th>
-                    <th class="stash__actions-head">{{ 'dialog.stash.col_actions' | t }}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (entry of visible(); track entry.index) {
-                    <tr>
-                      <td><span class="stash__name">{{ label(entry) }}</span></td>
-                      <td>
-                        <div class="stash__actions">
-                          <ui-button
-                            size="sm"
-                            variant="purple-alt"
-                            [uiTooltip]="'dialog.stash.tip_files' | t"
-                            (clicked)="viewFiles(entry)"
-                          >
-                            <ui-icon name="file-text" [size]="14" /> {{ 'dialog.stash.btn_files' | t }}
-                          </ui-button>
-                          <ui-button
-                            size="sm"
-                            variant="success"
-                            [uiTooltip]="'dialog.stash.tip_apply' | t"
-                            [disabled]="busy()"
-                            (clicked)="apply(entry)"
-                          >
-                            <ui-icon name="arrow-down" [size]="14" /> {{ 'dialog.stash.btn_apply' | t }}
-                          </ui-button>
-                          <ui-button
-                            size="sm"
-                            variant="blue"
-                            [uiTooltip]="'dialog.stash.tip_pop' | t"
-                            [disabled]="busy()"
-                            (clicked)="pop(entry)"
-                          >
-                            <ui-icon name="arrow-down-to-line" [size]="14" /> {{ 'dialog.stash.btn_pop' | t }}
-                          </ui-button>
-                          <ui-button
-                            size="sm"
-                            variant="danger-deep"
-                            [uiTooltip]="'dialog.stash.tip_drop' | t"
-                            [disabled]="busy()"
-                            (clicked)="drop(entry)"
-                          >
-                            <ui-icon name="trash" [size]="14" /> {{ 'dialog.stash.btn_drop' | t }}
-                          </ui-button>
-                        </div>
-                      </td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            </div>
-            <ui-pagination
-              [(page)]="page"
-              [total]="entries().length"
+            <ui-filter-table
+              [items]="entries()"
+              [haystack]="stashHaystack"
+              [trackBy]="stashTrack"
               [pageSize]="pageSize"
+              [searchPlaceholder]="'placeholder.search' | t"
+              [noResultsText]="'placeholder.no_results' | t"
               [prevLabel]="'pagination.prev' | t"
               [nextLabel]="'pagination.next' | t"
-            />
+            >
+              <tr *uiTableHead>
+                <th>{{ 'dialog.stash.col_stash' | t }}</th>
+                <th class="stash__actions-head">{{ 'dialog.stash.col_actions' | t }}</th>
+              </tr>
+              <!-- Right-click offers the same actions as the buttons. -->
+              <tr *uiTableRow="let entry" (contextmenu)="onRowMenu($event, entry)">
+                <td><span class="stash__name">{{ label(entry) }}</span></td>
+                <td>
+                  <div class="stash__actions">
+                    <ui-icon-button
+                      size="sm"
+                      variant="purple-alt"
+                      [uiTooltip]="'dialog.stash.tip_files' | t"
+                      (clicked)="viewFiles(entry)"
+                    ><ui-icon name="file-text" [size]="14" /></ui-icon-button>
+                    <ui-icon-button
+                      size="sm"
+                      variant="success"
+                      [uiTooltip]="'dialog.stash.tip_apply' | t"
+                      [disabled]="busy()"
+                      (clicked)="apply(entry)"
+                    ><ui-icon name="arrow-down" [size]="14" /></ui-icon-button>
+                    <ui-icon-button
+                      size="sm"
+                      variant="blue"
+                      [uiTooltip]="'dialog.stash.tip_pop' | t"
+                      [disabled]="busy()"
+                      (clicked)="pop(entry)"
+                    ><ui-icon name="arrow-down-to-line" [size]="14" /></ui-icon-button>
+                    <ui-icon-button
+                      size="sm"
+                      variant="danger-deep"
+                      [uiTooltip]="'dialog.stash.tip_drop' | t"
+                      [disabled]="busy()"
+                      (clicked)="drop(entry)"
+                    ><ui-icon name="trash" [size]="14" /></ui-icon-button>
+                  </div>
+                </td>
+              </tr>
+            </ui-filter-table>
           }
         </div>
 
@@ -176,21 +175,25 @@ export class StashDialogComponent extends DialogBase {
   private readonly repos = inject(ReposStore);
   private readonly services = inject(ServicesStore);
   private readonly i18n = inject(TranslationService);
+  private readonly menu = inject(ContextMenuService);
 
   protected readonly name = signal('');
   protected readonly includeUntracked = signal(true); // default ON (design)
   protected readonly entries = signal<readonly StashEntry[]>([]);
   protected readonly busy = signal(false);
+  /** Working tree state — `null` until known; `false` disables Add. */
+  protected readonly hasChanges = signal<boolean | null>(null);
+
+  /** ui-filter-table haystack: searchable text = ref + message + branch. */
+  protected readonly stashHaystack = (e: StashEntry): string =>
+    `${stashEntryLabel(e)} ${e.branch ?? ''}`;
+  protected readonly stashTrack = (e: StashEntry): number => e.index;
   /** Local result notices, appended below the streamed git lines (like merge). */
   private readonly extraLog = signal<readonly string[]>([]);
   /** Length of the repo's git log when the dialog opened — show only newer lines. */
   private logBaseline = 0;
 
   protected readonly pageSize = PAGE_SIZE;
-  protected readonly page = signal(1);
-
-  /** Stash entries on the current page (clamped). */
-  protected readonly visible = computed(() => pageSlice(this.entries(), this.page(), PAGE_SIZE));
 
   /** Dialog log = git-stream lines since the dialog opened + local notices. */
   protected readonly logLines = computed<readonly string[]>(() => {
@@ -242,6 +245,32 @@ export class StashDialogComponent extends DialogBase {
   }
 
   /** Detached git window on the Stashes tab with this entry selected. */
+  /** Right-click on a stash row — same actions as the buttons. */
+  protected async onRowMenu(event: MouseEvent, entry: StashEntry): Promise<void> {
+    const t = (key: string): string => this.i18n.t(key);
+    const busy = this.busy();
+    const items: MenuEntry[] = [
+      { id: 'files', label: t('dialog.stash.btn_files'), icon: 'file-text' },
+      { id: 'apply', label: t('dialog.stash.btn_apply'), icon: 'arrow-down', disabled: busy },
+      { id: 'pop', label: t('dialog.stash.btn_pop'), icon: 'arrow-down-to-line', disabled: busy },
+      {
+        id: 'drop',
+        label: t('dialog.stash.btn_drop'),
+        icon: 'trash',
+        danger: true,
+        disabled: busy,
+        separator: true,
+      },
+    ];
+
+    switch (await this.menu.openFromEvent(event, items)) {
+      case 'files': return this.viewFiles(entry);
+      case 'apply': return this.apply(entry);
+      case 'pop': return this.pop(entry);
+      case 'drop': return this.drop(entry);
+    }
+  }
+
   protected viewFiles(entry: StashEntry): void {
     void this.commands.git
       .openWindow(this.repoName(), `${this.repoName()} — ${this.i18n.t('git.title_stashes')}`, {
@@ -309,8 +338,13 @@ export class StashDialogComponent extends DialogBase {
   private async reload(): Promise<void> {
     const list = await this.commands.git.stashList(this.repoPath()).catch(() => [] as StashEntry[]);
     this.entries.set(list);
-    // Keep the page valid when the list shrinks (e.g. after a drop/pop).
-    this.page.set(clampPage(this.page(), list.length, PAGE_SIZE));
+    // Paging self-heals on shrink: ui-filter-table clamps on read.
+    // Working-tree state gates the Add button (nothing to stash → disabled).
+    // Every mutation (add/apply/pop) changes it, so re-query alongside.
+    void this.commands.git
+      .changesList(this.repoPath())
+      .then((changes) => this.hasChanges.set(changes.length > 0))
+      .catch(() => this.hasChanges.set(null)); // unknown → keep Add enabled
   }
 
   private repoPath(): string {

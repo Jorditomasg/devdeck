@@ -22,9 +22,11 @@ import { TranslationService } from '../../../core/i18n/translation.service';
 import { SettingsStore } from '../../../core/state/settings.store';
 import {
   ButtonComponent,
+  ContextMenuService,
   DialogShellComponent,
   IconButtonComponent,
   IconComponent,
+  type MenuEntry,
 } from '../../../ui';
 import { DialogBase } from '../dialog-base';
 import {
@@ -48,7 +50,8 @@ import {
         } @else {
           <div class="java-mgr__list">
             @for (entry of entries(); track entry.name) {
-              <div class="java-mgr__row">
+              <!-- Right-click offers the same actions as the icon-buttons. -->
+              <div class="java-mgr__row" (contextmenu)="onRowMenu($event, entry)">
                 <span class="java-mgr__name"><ui-icon name="coffee" [size]="14" /> {{ entry.name }}</span>
                 <span class="java-mgr__path" [title]="entry.path">{{ entry.path }}</span>
                 <ui-icon-button
@@ -91,6 +94,7 @@ export class JavaManagerDialogComponent extends DialogBase {
 
   private readonly settings = inject(SettingsStore);
   private readonly i18n = inject(TranslationService);
+  private readonly menu = inject(ContextMenuService);
 
   /** Draft registry: label → JAVA_HOME (persisted on Close). */
   protected readonly draft = signal<Readonly<Record<string, string>>>({
@@ -102,6 +106,25 @@ export class JavaManagerDialogComponent extends DialogBase {
   protected readonly entries = computed<readonly JavaVersionEntry[]>(() =>
     Object.entries(this.draft()).map(([name, path]) => ({ name, path })),
   );
+
+  /** Right-click on a version row — same actions as the icon-buttons. */
+  protected async onRowMenu(event: MouseEvent, entry: JavaVersionEntry): Promise<void> {
+    const t = (key: string): string => this.i18n.t(key);
+    const items: MenuEntry[] = [
+      { id: 'edit', label: t('dialog.settings.java_edit_title'), icon: 'pencil' },
+      {
+        id: 'remove',
+        label: t('dialog.settings.java_delete_title'),
+        icon: 'trash',
+        danger: true,
+        separator: true,
+      },
+    ];
+    switch (await this.menu.openFromEvent(event, items)) {
+      case 'edit': return this.edit(entry);
+      case 'remove': return this.remove(entry.name);
+    }
+  }
 
   /** v1 auto-detect: merge new JDKs, skipping duplicate names AND paths (§22). */
   protected async autodetect(): Promise<void> {

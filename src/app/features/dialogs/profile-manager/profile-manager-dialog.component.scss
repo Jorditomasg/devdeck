@@ -7,10 +7,11 @@
   gap: 8px;
 }
 
+// Section title — same role/size as the other dialogs' section titles.
 .profiles__heading {
   margin: 0 0 4px;
-  color: var(--color-text-primary);
-  font-size: var(--font-size-h2);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-md);
   font-weight: 700;
 }
 

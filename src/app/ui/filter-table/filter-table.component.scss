@@ -1,0 +1,33 @@
+// Encapsulation is OFF (projected row templates carry the consumer's scope
+// attribute — see the component note), so every rule is scoped by the
+// element selector + .ft__ prefix instead.
+@use '../../../styles/mixins' as mx;
+
+ui-filter-table {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+
+  .ft__search {
+    @include mx.text-input;
+    width: 100%;
+  }
+
+  .ft__no-results {
+    margin: 0;
+    padding: 20px;
+    text-align: center;
+    color: var(--color-text-muted);
+  }
+
+  .ft__wrap {
+    border: var(--geo-border-width) solid var(--color-border-subtle);
+    border-radius: var(--geo-corner-panel);
+    overflow: hidden;
+  }
+
+  .ft__table {
+    @include mx.data-table;
+  }
+}

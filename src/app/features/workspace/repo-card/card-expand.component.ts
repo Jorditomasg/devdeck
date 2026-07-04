@@ -167,7 +167,7 @@ export interface CardExpandText {
       <ui-button variant="purple-alt" [uiTooltip]="text().historyTip" (clicked)="history.emit()">
         <ui-icon name="history" [size]="14" /> {{ text().historyText }}
       </ui-button>
-      <ui-button variant="purple" [uiTooltip]="text().cleanTip" (clicked)="clean.emit()">
+      <ui-button variant="purple-alt" [uiTooltip]="text().cleanTip" (clicked)="clean.emit()">
         <ui-icon name="eraser" [size]="14" /> {{ text().cleanText }}
       </ui-button>
       @if (vm().branch.showConfigBtn) {

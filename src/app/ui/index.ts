@@ -21,6 +21,8 @@ export { DividerComponent } from './divider/divider.component';
 export { AvatarComponent } from './avatar/avatar.component';
 export { TooltipDirective } from './tooltip/tooltip.directive';
 export { TooltipOverlayComponent } from './tooltip/tooltip-overlay.component';
+export { ContextMenuService } from './menu/context-menu.service';
+export type { MenuEntry } from './menu/context-menu.types';
 
 // Molecules
 export { SearchableSelectComponent } from './searchable-select/searchable-select.component';
@@ -39,6 +41,11 @@ export { TabsComponent } from './tabs/tabs.component';
 export type { TabDef } from './tabs/tabs.component';
 export { PaginationComponent } from './pagination/pagination.component';
 export { clampPage, pageCount, pageSlice } from './pagination/pagination.logic';
+export {
+  FilterTableComponent,
+  TableHeadDirective,
+  TableRowDirective,
+} from './filter-table/filter-table.component';
 export { DiffViewComponent } from './diff-view/diff-view.component';
 // CodeViewComponent is deliberately NOT re-exported here: it statically
 // imports CodeMirror (~0.5 MB), and a barrel export drags that into the

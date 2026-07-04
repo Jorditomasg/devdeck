@@ -1,3 +1,5 @@
+@use '../../../styles/mixins' as mx;
+
 // Compact previous/next pager (ui-pagination).
 .pager {
   display: flex;
@@ -8,6 +10,8 @@
 }
 
 .pager__btn {
+  @include mx.control-reset;
+  @include mx.interactive;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -19,18 +23,9 @@
   color: var(--color-text-primary);
   font-size: var(--font-size-md);
   line-height: 1;
-  cursor: pointer;
-  transition:
-    border-color 0.15s ease,
-    opacity 0.15s ease;
 
   &:hover:not(:disabled) {
     border-color: var(--color-text-accent-bright);
-  }
-
-  &:disabled {
-    opacity: 0.4;
-    cursor: default;
   }
 }
 

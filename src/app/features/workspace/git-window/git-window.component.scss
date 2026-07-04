@@ -117,9 +117,13 @@
   }
 }
 
-// Separators only where there is no graph to chop (compare/stash lists).
+// Separators only where there is no graph to chop (compare/stash lists) —
+// and no graph means no 46px geometry constraint either: natural row height.
 .gitwin__compare-commits .gitwin__commit,
 .gitwin__stash {
+  height: auto;
+  padding-top: 5px;
+  padding-bottom: 5px;
   border-bottom: var(--geo-border-width) solid var(--color-border-subtle);
 }
 

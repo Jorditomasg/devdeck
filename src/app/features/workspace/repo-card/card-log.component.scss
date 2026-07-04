@@ -26,10 +26,5 @@
 }
 
 .log-view {
-  @include mx.transition(height);
   height: 120px; // v1 embedded textbox height (§8)
-
-  &--detached {
-    height: 320px; // in-page enlarge replaces the v1 detached window
-  }
 }

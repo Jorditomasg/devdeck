@@ -109,7 +109,7 @@
     "expand": "Expandir / Colapsar opciones",
     "open_explorer": "Abrir en el explorador",
     "open_terminal": "Abrir una terminal en este repo",
-    "open_repo": "Clic derecho: abrir repositorio",
+    "open_repo": "Clic derecho: acciones del repositorio",
     "reload_repo": "Recargar rama, lista de ramas y estado git (sin red)",
     "branch_in_profile": "Incluir rama al guardar / aplicar perfiles.\nDesmarcado: los perfiles no modificarán la rama de este repo.",
     "env_in_profile": "Incluir entorno/app al guardar / aplicar perfiles.\nDesmarcado: los perfiles no modificarán el entorno de este repo.",
@@ -731,5 +731,16 @@
     "save": "Guardar",
     "unsaved_title": "Cambios sin guardar",
     "unsaved_msg": "¿Descartar la edición sin guardar?"
+  },
+  "menu": {
+    "open_folder": "Abrir en el explorador",
+    "open_terminal": "Abrir terminal aquí",
+    "open_remote": "Abrir repositorio remoto",
+    "copy_path": "Copiar ruta",
+    "copy_name": "Copiar nombre",
+    "view_changes": "Ver cambios",
+    "copy_subject": "Copiar mensaje",
+    "copy_branch": "Copiar nombre de rama",
+    "compare_from_here": "Comparar desde aquí"
   }
 }

@@ -33,9 +33,11 @@ import { IpcCommands } from '../../../core/ipc/commands';
 import { ReposStore } from '../../../core/state/repos.store';
 import {
   ButtonComponent,
+  ContextMenuService,
   DialogShellComponent,
   IconComponent,
   SearchableSelectComponent,
+  type MenuEntry,
 } from '../../../ui';
 import { DialogBase } from '../dialog-base';
 import {
@@ -80,12 +82,14 @@ import {
 
           <div class="envmgr__list">
             @for (name of names(); track name) {
+              <!-- Right-click offers the same actions as the toolbar buttons. -->
               <button
                 type="button"
                 class="envmgr__row"
                 [class.selected]="name === selected()"
                 [class.danger]="isDanger(name)"
                 (click)="select(name)"
+                (contextmenu)="onRowMenu($event, name)"
               >
                 @if (isDanger(name)) {
                   <span class="envmgr__danger-mark"><ui-icon name="alert-triangle" [size]="16" /></span>
@@ -189,6 +193,7 @@ export class RepoConfigManagerDialogComponent extends DialogBase {
   private readonly commands = inject(IpcCommands);
   private readonly repos = inject(ReposStore);
   private readonly i18n = inject(TranslationService);
+  private readonly menu = inject(ContextMenuService);
   private readonly shell = viewChild.required<DialogShellComponent>('shell');
 
   protected readonly moduleKey = signal('');
@@ -281,6 +286,40 @@ export class RepoConfigManagerDialogComponent extends DialogBase {
 
   protected isDanger(name: string): boolean {
     return this.pendingDanger().includes(name);
+  }
+
+  /** Right-click on a config row — same actions as the toolbar buttons. */
+  protected async onRowMenu(event: MouseEvent, name: string): Promise<void> {
+    const t = (key: string): string => this.i18n.t(key);
+    const items: MenuEntry[] = [
+      { id: 'rename', label: t('dialog.env_manager.btn_rename'), icon: 'pencil' },
+      { id: 'duplicate', label: t('dialog.env_manager.btn_duplicate'), icon: 'copy' },
+      {
+        id: 'toggle-danger',
+        label: t(this.isDanger(name) ? 'tooltip.mark_danger_on' : 'tooltip.mark_danger_off'),
+        icon: 'alert-triangle',
+      },
+      {
+        id: 'delete',
+        label: t('dialog.env_manager.btn_delete'),
+        icon: 'trash',
+        danger: true,
+        separator: true,
+      },
+    ];
+    const picked = await this.menu.openFromEvent(event, items);
+    if (picked === null) {
+      return;
+    }
+    // The toolbar operates on "the selected config" — select the row first
+    // (runs the usual unsaved-changes guard).
+    await this.select(name);
+    switch (picked) {
+      case 'rename': return this.rename();
+      case 'duplicate': return this.duplicate();
+      case 'toggle-danger': return this.toggleDanger();
+      case 'delete': return this.deleteConfig();
+    }
   }
 
   // -- mutations (§23) ----------------------------------------------------------

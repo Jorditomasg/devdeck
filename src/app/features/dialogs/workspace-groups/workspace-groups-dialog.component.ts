@@ -20,16 +20,23 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  ElementRef,
   computed,
   inject,
   signal,
+  viewChild,
 } from '@angular/core';
 
 import { TPipe } from '../../../core/i18n/t.pipe';
 import { TranslationService } from '../../../core/i18n/translation.service';
 import type { WorkspaceGroup } from '../../../core/ipc/tauri.types';
 import { SettingsStore } from '../../../core/state/settings.store';
-import { ButtonComponent, DialogShellComponent } from '../../../ui';
+import {
+  ButtonComponent,
+  ContextMenuService,
+  DialogShellComponent,
+  type MenuEntry,
+} from '../../../ui';
 import { DialogBase } from '../dialog-base';
 import { NativePickers } from '../shared/native-pickers';
 import {
@@ -57,11 +64,13 @@ import {
           <p class="groups__label">{{ 'dialog.workspace_groups.groups_label' | t }}</p>
           <div class="groups__list">
             @for (group of groups(); track group.name; let i = $index) {
+              <!-- Right-click offers the same actions as the buttons around. -->
               <button
                 type="button"
                 class="groups__row"
                 [class.selected]="i === selectedIndex()"
                 (click)="select(i)"
+                (contextmenu)="onGroupMenu($event, i)"
               >
                 {{ group.name }}
                 @if (group.name === activeName()) {
@@ -118,6 +127,7 @@ import {
                 [class.selected]="path === selectedPath()"
                 [title]="path"
                 (click)="selectedPath.set(path)"
+                (contextmenu)="onPathMenu($event, path)"
               >
                 {{ path }}
               </button>
@@ -154,6 +164,7 @@ export class WorkspaceGroupsDialogComponent extends DialogBase {
   private readonly settings = inject(SettingsStore);
   private readonly i18n = inject(TranslationService);
   private readonly pickers = inject(NativePickers);
+  private readonly menu = inject(ContextMenuService);
 
   /** Local working copy — persisted only on Save (see class JSDoc). */
   protected readonly groups = signal<readonly WorkspaceGroup[]>(
@@ -188,6 +199,55 @@ export class WorkspaceGroupsDialogComponent extends DialogBase {
     this.selectedIndex.set(index);
     this.name.set(this.groups()[index]?.name ?? '');
     this.selectedPath.set('');
+  }
+
+  /** Right-click on a group row — same actions as the surrounding buttons. */
+  protected async onGroupMenu(event: MouseEvent, index: number): Promise<void> {
+    const t = (key: string): string => this.i18n.t(key);
+    const isActive = this.groups()[index]?.name === this.activeName();
+    const items: MenuEntry[] = [
+      {
+        id: 'set-active',
+        label: t('dialog.workspace_groups.btn_set_active'),
+        icon: 'check',
+        disabled: isActive,
+      },
+      { id: 'rename', label: t('btn.rename'), icon: 'pencil' },
+      {
+        id: 'delete',
+        label: t('btn.delete_group'),
+        icon: 'trash',
+        danger: true,
+        separator: true,
+      },
+    ];
+    const picked = await this.menu.openFromEvent(event, items);
+    if (picked === null) {
+      return;
+    }
+    // The buttons operate on "the selected group" — select the row first.
+    this.select(index);
+    switch (picked) {
+      case 'set-active': return this.setActive();
+      case 'rename':
+        // Renaming is type-then-confirm: put the caret in the name field.
+        this.nameField()?.nativeElement.select();
+        return;
+      case 'delete': return this.deleteGroup();
+    }
+  }
+
+  private readonly nameField = viewChild<ElementRef<HTMLInputElement>>('nameInput');
+
+  /** Right-click on a path row — Remove, same as the button below. */
+  protected async onPathMenu(event: MouseEvent, path: string): Promise<void> {
+    const items: MenuEntry[] = [
+      { id: 'remove', label: this.i18n.t('btn.remove_path'), icon: 'trash', danger: true },
+    ];
+    if ((await this.menu.openFromEvent(event, items)) === 'remove') {
+      this.selectedPath.set(path); // removePath() removes the selected path
+      this.removePath();
+    }
   }
 
   /** Insert `new_group_name` auto-suffixed on collision, and select it (§24). */

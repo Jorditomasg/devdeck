@@ -17,6 +17,7 @@ import { ButtonComponent } from '../../../ui/button/button.component';
 import { IconButtonComponent } from '../../../ui/icon-button/icon-button.component';
 import { IconComponent } from '../../../ui/icon/icon.component';
 import { StatusDotComponent } from '../../../ui/status-dot/status-dot.component';
+import { TooltipDirective } from '../../../ui/tooltip/tooltip.directive';
 import { OpenerService } from '../opener.service';
 import { dotStatusFor } from '../repo-card/card-visibility';
 import {
@@ -42,7 +43,7 @@ import {
 @Component({
   selector: 'tray-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ButtonComponent, IconButtonComponent, IconComponent, StatusDotComponent],
+  imports: [ButtonComponent, IconButtonComponent, IconComponent, StatusDotComponent, TooltipDirective],
   styleUrl: './tray-panel.component.scss',
   template: `
     <section class="panel">
@@ -80,7 +81,7 @@ import {
               <button
                 type="button"
                 class="row__port"
-                [title]="i18n.t('tooltip.open_port')"
+                [uiTooltip]="i18n.t('tooltip.open_port')"
                 (click)="openUrl(svc.url)"
               >
                 :{{ svc.port }}
@@ -91,14 +92,14 @@ import {
                 <ui-icon-button
                   variant="danger"
                   size="sm"
-                  [title]="i18n.t('tooltip.stop_btn')"
+                  [uiTooltip]="i18n.t('tooltip.stop_btn')"
                   (clicked)="stop(svc.id)"
                   ><ui-icon name="square" [size]="14"
                 /></ui-icon-button>
                 <ui-icon-button
-                  variant="blue"
+                  variant="warning"
                   size="sm"
-                  [title]="i18n.t('tooltip.restart_btn')"
+                  [uiTooltip]="i18n.t('tooltip.restart_btn')"
                   (clicked)="restart(svc.id)"
                   ><ui-icon name="refresh" [size]="14"
                 /></ui-icon-button>
@@ -106,7 +107,7 @@ import {
                 <ui-icon-button
                   variant="start"
                   size="sm"
-                  [title]="i18n.t('tooltip.start_btn')"
+                  [uiTooltip]="i18n.t('tooltip.start_btn')"
                   (clicked)="start(svc.id)"
                   ><ui-icon name="play" [size]="14"
                 /></ui-icon-button>
@@ -114,7 +115,7 @@ import {
               <ui-icon-button
                 variant="neutral"
                 size="sm"
-                [title]="i18n.t('tray.panel.logs_btn')"
+                [uiTooltip]="i18n.t('tray.panel.logs_btn')"
                 (clicked)="openLogs(svc)"
                 ><ui-icon name="file-text" [size]="14"
               /></ui-icon-button>

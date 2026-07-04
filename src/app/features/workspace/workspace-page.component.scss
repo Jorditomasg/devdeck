@@ -20,10 +20,10 @@
   gap: 10px;
   margin: 4px 10px 0;
   padding: 6px 10px;
-  border: var(--geo-border-width) solid var(--color-warning, #c9922e);
+  border: var(--geo-border-width) solid var(--color-status-starting);
   border-radius: var(--geo-corner-card);
-  background-color: color-mix(in srgb, var(--color-warning, #c9922e) 12%, transparent);
-  color: var(--color-text-accent);
+  background-color: color-mix(in srgb, var(--color-status-starting) 12%, transparent);
+  color: var(--color-text-warning-badge);
   font-size: var(--font-size-md);
 }
 
@@ -35,15 +35,15 @@
 .page__orphans-stop {
   flex-shrink: 0;
   padding: 3px 10px;
-  border: var(--geo-border-width) solid var(--color-warning, #c9922e);
-  border-radius: var(--geo-corner-button, 4px);
+  border: var(--geo-border-width) solid var(--color-status-starting);
+  border-radius: var(--geo-corner-btn);
   background-color: transparent;
-  color: var(--color-text-accent);
+  color: var(--color-text-warning-badge);
   font-size: var(--font-size-sm);
   cursor: pointer;
 
   &:hover {
-    background-color: color-mix(in srgb, var(--color-warning, #c9922e) 22%, transparent);
+    background-color: color-mix(in srgb, var(--color-status-starting) 22%, transparent);
   }
 }
 
@@ -59,6 +59,12 @@
   border: var(--geo-border-width) solid var(--color-border-card);
   border-radius: var(--geo-corner-card);
   background-color: color-mix(in srgb, var(--color-card) 55%, transparent);
+
+  // The search input inside has no border of its own — the bar carries its
+  // focus cue.
+  &:focus-within {
+    border-color: var(--color-border-default);
+  }
 }
 
 .page__search {
@@ -67,7 +73,7 @@
   padding: 5px 2px;
   border: none;
   background-color: transparent;
-  color: var(--color-text);
+  color: var(--color-text-primary);
   font-size: var(--font-size-md);
 
   &:focus {
@@ -96,7 +102,7 @@
   padding: 5px 10px;
   border: none;
   border-left: var(--geo-border-width) solid var(--color-divider);
-  border-radius: 0 var(--geo-corner-card) var(--geo-corner-card) 0;
+  border-radius: 0 var(--geo-corner-btn) var(--geo-corner-btn) 0;
   background-color: transparent;
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
@@ -104,12 +110,12 @@
   cursor: pointer;
 
   &:hover {
-    color: var(--color-text);
-    background-color: color-mix(in srgb, var(--color-text) 6%, transparent);
+    color: var(--color-text-primary);
+    background-color: color-mix(in srgb, var(--color-text-primary) 6%, transparent);
   }
 
   &--on {
-    background-color: color-mix(in srgb, var(--color-accent, #4a8) 18%, transparent);
+    background-color: color-mix(in srgb, var(--color-text-accent) 18%, transparent);
     color: var(--color-text-accent);
   }
 }
@@ -136,8 +142,8 @@
     right: 0;
     height: 2px;
     border-radius: 1px;
-    background-color: var(--color-accent, #4a8);
-    box-shadow: 0 0 6px var(--color-accent, #4a8);
+    background-color: var(--color-text-accent);
+    box-shadow: 0 0 6px var(--color-text-accent);
   }
 
   &--drop-before::before {
@@ -160,7 +166,7 @@
   align-items: center;
   justify-content: center;
   width: 28px;
-  border-radius: var(--geo-corner-button, 4px);
+  border-radius: var(--geo-corner-btn);
   color: var(--color-text-faint);
   cursor: grab;
   user-select: none;
@@ -174,7 +180,7 @@
 
   &:hover {
     color: var(--color-text-accent);
-    background-color: color-mix(in srgb, var(--color-text) 8%, transparent);
+    background-color: color-mix(in srgb, var(--color-text-primary) 8%, transparent);
   }
 }
 
@@ -221,6 +227,17 @@
 .page__status {
   flex: 1 1 0;
   min-width: 0;
+}
+
+// Active environment + profile at a glance (middle segment).
+.page__context {
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
 }
 
 .page__counts {

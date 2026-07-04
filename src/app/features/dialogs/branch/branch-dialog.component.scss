@@ -62,16 +62,6 @@
 
 // -- Branch table -------------------------------------------------------------
 
-.branch__table-wrap {
-  border: var(--geo-border-width) solid var(--color-border-subtle);
-  border-radius: var(--geo-corner-panel);
-  overflow: hidden;
-}
-
-.branch__table {
-  @include c.data-table;
-}
-
 .branch__actions-head {
   text-align: right;
 }

@@ -37,14 +37,6 @@
   color: var(--color-text-accent-bright);
 }
 
-.panel__profile {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .panel__bulk {
   display: flex;
   gap: 6px;

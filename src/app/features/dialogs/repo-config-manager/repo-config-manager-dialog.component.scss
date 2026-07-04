@@ -104,11 +104,18 @@
   color: var(--color-text-secondary);
   font-size: var(--font-size-base);
   cursor: pointer;
+  transition:
+    background-color 120ms ease-out,
+    border-color 120ms ease-out;
+
+  &:hover:not(:disabled):not(.active) {
+    border-color: var(--color-text-accent-bright);
+  }
 
   &.active {
     background-color: var(--color-active-highlight);
     border-color: var(--color-active-highlight);
-    color: #1a1a1a;
+    color: var(--color-active-highlight-fg);
   }
 
   &:disabled {

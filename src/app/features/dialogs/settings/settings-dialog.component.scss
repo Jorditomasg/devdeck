@@ -85,8 +85,8 @@
   gap: 12px;
   margin-top: 8px;
   padding: 10px 12px;
-  border-radius: 8px;
-  background: var(--color-accent-soft, rgba(64, 132, 255, 0.12));
+  border-radius: var(--geo-corner-panel);
+  background: color-mix(in srgb, var(--color-text-accent) 12%, transparent);
 }
 
 .settings__appearance {
