@@ -26,8 +26,10 @@ Let the user launch a repo's configured start commands (detected `run_command` +
 - `commands.terminal.openWindow(...)` (`src/app/core/ipc/commands.ts`) gains the optional `command` param.
 - Repo card (`repo-card.component.ts` / `card-header.component.ts`): terminal button click opens a menu (reuse the app-wide context-menu component):
   1. **Terminal** — clean shell (current behavior).
-  2. Separator + "Commands" section: detected `run_command` (if any), then each command profile sorted by name.
+  2. Separator + the repo's command profiles, sorted by name.
+  3. Separator at the bottom + **Add command…** — opens the existing command-profile manager dialog.
 - Selecting a command opens the terminal with that command; window title `<repo> — <command name>`.
+- The detected `run_command` is NOT listed (user decision, 2026-07-05): the menu offers only the explicitly-saved command profiles plus the add entry.
 - Profiles load lazily today (on card expand); the menu fetches them on open if not yet loaded.
 - The header context-menu entry "Open terminal here" stays as-is (clean shell).
 
