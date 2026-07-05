@@ -5,6 +5,10 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+  // Fill the dialog body so the preview can flex and own the scroll (instead
+  // of the whole dialog scrolling with a cramped fixed-height preview).
+  height: 100%;
+  min-height: 0;
 }
 
 .import__section-title {
@@ -83,7 +87,10 @@
 .import__preview {
   @include c.mono-textarea;
   margin: 0;
-  height: 170px;
+  // Grow to fill the dialog; this is the panel that shows what changes, so it
+  // gets the space and owns its own scroll.
+  flex: 1 1 auto;
+  min-height: 200px;
   overflow: auto;
   white-space: pre-wrap;
 }
