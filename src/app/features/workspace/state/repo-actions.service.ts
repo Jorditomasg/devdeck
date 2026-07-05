@@ -365,14 +365,6 @@ export class RepoActionsService {
     }
   }
 
-  /** Saved environment names of one module (combo options — §7 row 2). */
-  async loadEnvironmentNames(repo: RepoInfo, moduleKey: string): Promise<string[]> {
-    const envs = await this.commands.config.getSavedEnvironments(
-      configKeyFor(repo.name, moduleKey),
-    );
-    return Object.keys(envs).sort((a, b) => a.localeCompare(b));
-  }
-
   // -- docker (§11) -------------------------------------------------------------
 
   /** Open the per-file docker dialog is owned by `DialogService` (§19). */

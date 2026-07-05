@@ -164,8 +164,20 @@ export class RepoCardComponent {
   }
   /** Increments per log batch — drives the §8 orange dot flash. */
   protected readonly flashTick = signal(0);
-  /** Saved-environment names per module key (loaded on first expand, §7). */
-  private readonly envOptions = signal<Readonly<Record<string, readonly string[]>>>({});
+  /**
+   * Saved-environment names per module key — derived LIVE from the persisted
+   * config (any window). Deleting/renaming a saved env in the manager window
+   * emits `config://changed`, so the combo options update without a reload.
+   */
+  private readonly envOptions = computed<Readonly<Record<string, readonly string[]>>>(() => {
+    const repo = this.repo();
+    const byModule = this.settings.config()?.repo_configs?.[repo.name] ?? {};
+    const out: Record<string, readonly string[]> = {};
+    for (const module of repo.modules) {
+      out[module.key] = Object.keys(byModule[module.key] ?? {}).sort((a, b) => a.localeCompare(b));
+    }
+    return out;
+  });
   /** Saved command profiles, name → command (loaded on first expand, §7). */
   private readonly commandProfiles = signal<Readonly<Record<string, string>>>({});
   /** Branch combo display value — writable so a failed checkout can revert. */
@@ -494,6 +506,26 @@ export class RepoCardComponent {
         untracked(() => void this.refreshDepsState());
       }
     });
+
+    // Env selection lives in the persisted config (any window). If a saved env
+    // that was applied gets deleted/renamed in the manager window, drop the
+    // now-dangling selection live — no need to close the manager first.
+    effect(() => {
+      if (!this.settings.config()) {
+        return;
+      }
+      const options = this.envOptions();
+      const values = this.state().configValues;
+      const repo = this.repo();
+      untracked(() => {
+        for (const module of repo.modules) {
+          const selected = values[module.key];
+          if (selected && !options[module.key]?.includes(selected)) {
+            void this.actions.applyConfigSelection(repo, module.key, '');
+          }
+        }
+      });
+    });
   }
 
   // -- header handlers (§6, §12) ---------------------------------------------------
@@ -733,24 +765,11 @@ export class RepoCardComponent {
     void this.actions.applyConfigSelection(this.repo(), event.moduleKey, name);
   }
 
-  protected async onOpenConfigManager(_moduleKey: string): Promise<void> {
-    const repo = this.repo();
-    await this.dialogs.openRepoConfigManager(repo.name);
-    // Manager closed → reload the combo names (it may have added/renamed/deleted).
-    for (const module of repo.modules) {
-      void this.actions
-        .loadEnvironmentNames(repo, module.key)
-        .then((names) => {
-          this.envOptions.update((all) => ({ ...all, [module.key]: names }));
-          // A deleted/renamed config that was selected no longer exists →
-          // clear the stale selection so the combo falls back to "no selection".
-          const selected = this.ws.card(repo.name).configValues[module.key];
-          if (selected && !names.includes(selected)) {
-            void this.actions.applyConfigSelection(repo, module.key, '');
-          }
-        })
-        .catch(() => undefined);
-    }
+  protected onOpenConfigManager(_moduleKey: string): void {
+    // Combo options + stale-selection cleanup are reactive now (the envOptions
+    // computed and the config-sync effect both track `config://changed`), so
+    // opening the manager is fire-and-forget.
+    void this.dialogs.openRepoConfigManager(this.repo().name);
   }
 
   protected onModuleTracked(event: { moduleKey: string; tracked: boolean }): void {
@@ -808,22 +827,12 @@ export class RepoCardComponent {
     this.commandProfiles.set(m);
   }
 
-  /** First-expand loads: branches, saved envs, compose prefetch (§7). */
+  /** First-expand loads: branches, command profiles, compose prefetch (§7). */
   private async onFirstExpand(): Promise<void> {
     const repo = this.repo();
     const tasks: Promise<unknown>[] = [];
     if (!this.ws.card(repo.name).branchesLoaded) {
       tasks.push(this.actions.loadBranches(repo));
-    }
-    for (const module of repo.modules) {
-      tasks.push(
-        this.actions
-          .loadEnvironmentNames(repo, module.key)
-          .then((names) =>
-            this.envOptions.update((all) => ({ ...all, [module.key]: names })),
-          )
-          .catch(() => undefined),
-      );
     }
     if (!this.cmdProfilesLoaded) {
       tasks.push(this.loadCommandProfiles());
