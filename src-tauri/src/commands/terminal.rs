@@ -19,10 +19,15 @@ use crate::terminal::shell::{detect_shells, resolve_shell, ShellInfo};
 const DEFAULT_COLS: u16 = 80;
 const DEFAULT_ROWS: u16 = 24;
 
-/// `open_terminal_window { repoId, cwd, title }` → allocate a terminal id,
-/// spawn a PTY shell rooted at `cwd`, and open (focusing if it somehow already
-/// exists) a detached `term-<id>` window loading `?terminal=<id>`. Returns the
-/// new terminal id. Mirrors `open_log_window`.
+/// `open_terminal_window { repoId, cwd, title, command? }` → allocate a
+/// terminal id, spawn a PTY shell rooted at `cwd`, and open (focusing if it
+/// somehow already exists) a detached `term-<id>` window loading
+/// `?terminal=<id>`. Returns the new terminal id. Mirrors `open_log_window`.
+///
+/// When `command` is a non-empty string it is typed-ahead into the PTY
+/// (`<command>\r`) right after spawn — the tty buffers the line until the
+/// shell is ready, the command stays visible in the terminal, and Ctrl+C
+/// leaves the user in a live interactive shell (design doc 2026-07-05).
 #[tauri::command]
 pub async fn open_terminal_window(
     app: tauri::AppHandle,
@@ -30,6 +35,7 @@ pub async fn open_terminal_window(
     repo_id: String,
     cwd: String,
     title: String,
+    command: Option<String>,
 ) -> CmdResult<String> {
     let id = state.terminals.next_id(&repo_id);
     // Honor the Settings shell override (`AppConfig::terminal_shell`); fall
@@ -43,6 +49,9 @@ pub async fn open_terminal_window(
         DEFAULT_COLS,
         DEFAULT_ROWS,
     )?;
+    if let Some(cmd) = command.as_deref().map(str::trim).filter(|c| !c.is_empty()) {
+        state.terminals.write(&id, format!("{cmd}\r").as_bytes())?;
+    }
 
     let label = window_label("term", &id);
     let url = format!("index.html?terminal={}", urlencode_component(&id));

@@ -122,7 +122,7 @@ Rust-side: `<repoId>::term::<n>`, monotonic per repo.
 
 | # | Command | Args | Returns | Backing |
 |---|---|---|---|---|
-| 62 | `open_terminal_window` | `{ repoId: string, cwd: string, title: string }` | `string` (the new terminal id) | allocates the id, spawns a PTY shell (`$SHELL`/`pwsh`→`powershell` default) rooted at `cwd`, opens the `term-<id>` window loading `?terminal=<id>` |
+| 62 | `open_terminal_window` | `{ repoId: string, cwd: string, title: string, command?: string }` | `string` (the new terminal id) | allocates the id, spawns a PTY shell (`$SHELL`/`pwsh`→`powershell` default) rooted at `cwd`, opens the `term-<id>` window loading `?terminal=<id>`; a non-empty `command` is typed-ahead (`<command>\r`) into the shell right after spawn |
 | 63 | `attach_terminal` | `{ id: string, channel: Channel<ArrayBuffer> }` | `void` | binds the window's output channel: flushes the pre-attach ring buffer, then streams live raw PTY bytes |
 | 64 | `terminal_write` | `{ id: string, data: string }` | `void` | forwards keystrokes (the `xterm.onData` string) to the PTY input |
 | 65 | `terminal_resize` | `{ id: string, cols: number, rows: number }` | `void` | resizes the PTY viewport (SIGWINCH) |
