@@ -10,13 +10,10 @@
  *   `docker://status`; the dialog merges payloads for this repo and forces
  *   one poll after every operation (`docker_refresh_status`) with the v1
  *   +3 s follow-up for slow containers.
- * - **Live logs** (design doc 2026-07-05): the Logs selector attaches to a
- *   `docker compose logs -f` follower (`docker_log_start`) whose lines flow
- *   through the shared `service://log-line` pipeline under the synthetic id
- *   `docker::<file>::<service>` — so the panel reuses `ServicesStore.logsFor`
- *   like every other log, is detachable via `open_log_window`, and the stream
- *   only runs while attached. "Load full history" fetches the `--tail=all`
- *   snapshot on demand.
+ * - **Logs**: the per-service Logs button opens the detached log window
+ *   (`open_log_window`) directly for the synthetic id `docker::<file>::<service>`;
+ *   that window owns the `docker compose logs -f` follower and the "Load full
+ *   history" (`--tail=all`) toggle. The dialog itself no longer embeds a panel.
  * - **Profile selection** (design doc 2026-07-05): the per-service checkboxes
  *   relay through `set_docker_selection` (this dialog runs in an isolated
  *   webview and cannot touch the main window's store directly); the main
@@ -48,11 +45,9 @@ import { IpcCommands } from '../../../core/ipc/commands';
 import { IpcEvents } from '../../../core/ipc/events';
 import type { ComposeService, OpOutput } from '../../../core/ipc/tauri.types';
 import { ReposStore } from '../../../core/state/repos.store';
-import { ServicesStore } from '../../../core/state/services.store';
 import type { UnlistenFn } from '../../../core/ipc/tauri-bridge';
 import {
   ButtonComponent,
-  DialogLogComponent,
   DialogShellComponent,
   SearchableSelectComponent,
   StatusDotComponent,
@@ -71,15 +66,11 @@ import {
 /** v1 post-operation follow-up poll delay (slow containers, §11). */
 const FOLLOW_UP_MS = 3000;
 
-/** Tail requested by "Load full history" — effectively `--tail all`. */
-const FULL_TAIL = 100_000;
-
 @Component({
   selector: 'app-docker-compose-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ButtonComponent,
-    DialogLogComponent,
     DialogShellComponent,
     SearchableSelectComponent,
     StatusDotComponent,
@@ -196,7 +187,7 @@ const FULL_TAIL = 100_000;
                 <ui-button
                   variant="neutral-alt"
                   size="sm"
-                  (clicked)="selectLogs(svc.name)"
+                  (clicked)="openLogs(svc.name)"
                 >
                   {{ 'docker.btn_service_logs' | t }}
                 </ui-button>
@@ -204,30 +195,6 @@ const FULL_TAIL = 100_000;
             }
           }
         </div>
-
-        <!-- Log panel — live "logs -f" stream (§19 + design doc 2026-07-05) -->
-        @if (logService() !== '') {
-          <div class="docker__log-actions">
-            <ui-button
-              variant="neutral"
-              size="sm"
-              [loading]="logLoading()"
-              (clicked)="toggleFull()"
-            >
-              {{ (showingFull() ? 'docker.btn_live_logs' : 'docker.btn_full_logs') | t }}
-            </ui-button>
-          </div>
-        }
-        <ui-dialog-log
-          [label]="logLabel()"
-          [lines]="displayLines()"
-          [emptyText]="'label.log_empty' | t"
-          [detachText]="'btn.detach_log' | t"
-          [clearText]="'btn.clear_log' | t"
-          [canDetach]="logService() !== '' && !showingFull()"
-          (detach)="detachLog()"
-          (clear)="clearLog()"
-        />
       </div>
 
       <div uiDialogFooter>
@@ -250,7 +217,6 @@ export class DockerComposeDialogComponent extends DialogBase {
   private readonly commands = inject(IpcCommands);
   private readonly events = inject(IpcEvents);
   private readonly repos = inject(ReposStore);
-  private readonly servicesStore = inject(ServicesStore);
   private readonly i18n = inject(TranslationService);
 
   protected readonly file = signal('');
@@ -265,20 +231,9 @@ export class DockerComposeDialogComponent extends DialogBase {
   /** Profile-selected service names for the current file (checkbox state). */
   private readonly selected = signal<ReadonlySet<string>>(new Set());
 
-  // -- live log state --
-  /** Service whose log is shown (`''` = none). */
-  protected readonly logService = signal('');
-  /** Absolute line number of the first shown live line (clear / trim baseline). */
-  protected readonly logBaseline = signal(0);
-  /** Full-history snapshot lines when "Load full history" is active, else null. */
-  private readonly fullHistory = signal<readonly string[] | null>(null);
-  protected readonly logLoading = signal(false);
-
   private unlisten: UnlistenFn | undefined;
   private refreshTimer: ReturnType<typeof setInterval> | undefined;
   private followUpTimer: ReturnType<typeof setTimeout> | undefined;
-  /** Currently-attached `docker::…` id (so we can detach on switch/close). */
-  private attachedId = '';
 
   protected readonly files = computed<readonly string[]>(
     () => this.repos.repoByName(this.repoName())?.dockerComposeFiles ?? [],
@@ -295,42 +250,6 @@ export class DockerComposeDialogComponent extends DialogBase {
     }),
   );
 
-  protected readonly showingFull = computed(() => this.fullHistory() !== null);
-
-  protected readonly logLabel = computed(() =>
-    this.logService() === ''
-      ? this.i18n.t('docker.logs_title_empty')
-      : this.i18n.t('docker.logs_title', { name: this.logService() }),
-  );
-
-  /** Synthetic log id of the shown service (`''` when none). */
-  private readonly logId = computed(() => {
-    const service = this.logService();
-    return service === '' ? '' : dockerLogId(this.file(), service);
-  });
-
-  /** Lines shown in the panel: full-history snapshot, else the live stream. */
-  protected readonly displayLines = computed<readonly string[]>(() => {
-    const full = this.fullHistory();
-    if (full !== null) {
-      return full;
-    }
-    const id = this.logId();
-    if (id === '') {
-      return [];
-    }
-    // `logBaseline` is an ABSOLUTE line number (Clear bumps it to the current
-    // end); convert to a buffer index with the ring-buffer's head-trim count so
-    // Clear stays correct even after the 500-line cap starts dropping lines.
-    const dropped = this.servicesStore.droppedFor(id)();
-    const from = Math.max(0, this.logBaseline() - dropped);
-    return this.servicesStore
-      .logsFor(id)()
-      .slice(from)
-      .filter((l) => l.stream === 'docker')
-      .map((l) => l.line);
-  });
-
   constructor() {
     super();
     const destroyRef = inject(DestroyRef);
@@ -338,7 +257,6 @@ export class DockerComposeDialogComponent extends DialogBase {
       this.unlisten?.();
       clearInterval(this.refreshTimer);
       clearTimeout(this.followUpTimer);
-      this.detachLogStream();
     });
     // Inputs are bound after construction (NgComponentOutlet) — init deferred.
     afterNextRender(() => void this.init());
@@ -360,9 +278,7 @@ export class DockerComposeDialogComponent extends DialogBase {
     if (file === this.file()) {
       return;
     }
-    this.detachLogStream();
     this.file.set(file);
-    this.logService.set('');
     // Seed only applies to the initially-locked file; other files start clean.
     this.selected.set(new Set());
     void this.loadServices();
@@ -414,80 +330,20 @@ export class DockerComposeDialogComponent extends DialogBase {
     );
   }
 
-  // -- live logs (design doc 2026-07-05) --------------------------------------
+  // -- logs -------------------------------------------------------------------
 
-  /** Show one service's LIVE log: detach the previous stream, attach the new. */
-  protected selectLogs(name: string): void {
-    if (name === this.logService()) {
-      return;
-    }
-    this.detachLogStream();
-    this.fullHistory.set(null);
-    this.logService.set(name);
-    const id = this.logId();
-    // Live buffer for a fresh id starts empty; baseline 0 shows all from now.
-    this.logBaseline.set(0);
-    this.attachedId = id;
-    void this.commands.docker
-      .logStart(id)
-      .catch((err: unknown) => console.error('docker log start failed', err));
-  }
-
-  /** Detach the live log into its own OS window (reuses `open_log_window`). */
-  protected detachLog(): void {
-    const id = this.logId();
-    if (id === '') {
-      return;
-    }
+  /**
+   * Open one service's log in its own OS window. The window owns the
+   * `docker compose logs -f` follower (via the self-describing id) and the
+   * "Load full history" toggle; the dialog no longer embeds a panel.
+   */
+  protected openLogs(name: string): void {
     void this.commands
-      .openLogWindow(id, this.i18n.t('docker.logs_title', { name: this.logService() }))
+      .openLogWindow(
+        dockerLogId(this.file(), name),
+        this.i18n.t('docker.logs_title', { name }),
+      )
       .catch((err: unknown) => console.error('open log window failed', err));
-  }
-
-  /** Clear the in-dialog view (baseline bump — the live buffer keeps filling). */
-  protected clearLog(): void {
-    if (this.fullHistory() !== null) {
-      this.fullHistory.set([]);
-      return;
-    }
-    const id = this.logId();
-    if (id !== '') {
-      // Absolute end = first buffered line's number + current length; slicing
-      // from here hides everything up to now while live lines keep arriving.
-      this.logBaseline.set(
-        this.servicesStore.droppedFor(id)() + this.servicesStore.logsFor(id)().length,
-      );
-    }
-  }
-
-  /** Toggle between the live tail and the full `--tail all` history snapshot. */
-  protected async toggleFull(): Promise<void> {
-    if (this.fullHistory() !== null) {
-      this.fullHistory.set(null);
-      return;
-    }
-    const service = this.logService();
-    if (service === '' || this.logLoading()) {
-      return;
-    }
-    this.logLoading.set(true);
-    try {
-      const text = await this.commands.docker.composeLogs(this.file(), service, FULL_TAIL);
-      this.fullHistory.set(text.split('\n'));
-    } catch (err: unknown) {
-      this.fullHistory.set([describe(err)]);
-    } finally {
-      this.logLoading.set(false);
-    }
-  }
-
-  private detachLogStream(): void {
-    if (this.attachedId !== '') {
-      void this.commands.docker
-        .logStop(this.attachedId)
-        .catch((err: unknown) => console.error('docker log stop failed', err));
-      this.attachedId = '';
-    }
   }
 
   // -- internals ----------------------------------------------------------------

@@ -13,9 +13,6 @@ export type StatusMap = Readonly<Record<string, DockerServiceState>>;
 /** v1 §19 dialog auto-refresh cadence (5000 ms while the switch is ON). */
 export const DIALOG_REFRESH_MS = 5000;
 
-/** Default `docker compose logs` tail length for the bottom panel. */
-export const LOGS_TAIL = 200;
-
 /**
  * Synthetic service id of a compose service's live log — the `?log=` value,
  * `LogCache` key AND `docker_log_start` argument. MUST match the Rust parser

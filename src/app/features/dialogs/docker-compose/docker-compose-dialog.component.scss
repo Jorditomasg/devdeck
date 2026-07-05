@@ -127,9 +127,3 @@
     color: var(--color-status-stopped);
   }
 }
-
-// Live/full-history toggle above the shared dialog-log panel.
-.docker__log-actions {
-  display: flex;
-  justify-content: flex-end;
-}

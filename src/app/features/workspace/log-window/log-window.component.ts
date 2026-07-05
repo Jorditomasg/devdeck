@@ -31,6 +31,9 @@ const DETACHED_LINE_CAP = 5000;
 /** Prefix marking a docker live-log id (mirrors Rust `DOCKER_LOG_PREFIX`). */
 const DOCKER_LOG_PREFIX = 'docker::';
 
+/** Tail requested by "Load full history" — effectively `--tail all`. */
+const FULL_TAIL = 100_000;
+
 @Component({
   selector: 'log-window',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -40,6 +43,16 @@ const DOCKER_LOG_PREFIX = 'docker::';
     <header class="logwin__header">
       <span class="logwin__title">{{ title() }}</span>
       <span class="logwin__spacer"></span>
+      @if (isDocker()) {
+        <ui-button
+          variant="log-action"
+          size="sm"
+          [loading]="fullLoading()"
+          (clicked)="toggleFull()"
+        >
+          {{ i18n.t(showingFull() ? 'docker.btn_live_logs' : 'docker.btn_full_logs') }}
+        </ui-button>
+      }
       <ui-button variant="log-action" size="sm" (clicked)="onCopy()">
         <ui-icon name="copy" [size]="13" /> {{ i18n.t('btn.copy_log') }}
       </ui-button>
@@ -49,9 +62,9 @@ const DOCKER_LOG_PREFIX = 'docker::';
     </header>
     <ui-log-viewer
       class="logwin__view"
-      [lines]="lines()"
-      [startIndex]="dropped()"
-      [maxLines]="cap"
+      [lines]="viewLines()"
+      [startIndex]="showingFull() ? 0 : dropped()"
+      [maxLines]="showingFull() ? viewLines().length : cap"
       [emptyText]="i18n.t('label.log_empty')"
     />
   `,
@@ -73,6 +86,20 @@ export class LogWindowComponent implements OnInit, OnDestroy {
     this.serviceId() === GLOBAL_LOG_ID
       ? this.i18n.t('label.global_log_section')
       : this.serviceId(),
+  );
+
+  /** True for docker log windows — unlocks the "Load full history" toggle. */
+  protected readonly isDocker = computed(() =>
+    this.serviceId().startsWith(DOCKER_LOG_PREFIX),
+  );
+
+  /** Full `--tail all` snapshot while "Load full history" is active, else null. */
+  private readonly full = signal<readonly string[] | null>(null);
+  protected readonly fullLoading = signal(false);
+  protected readonly showingFull = computed(() => this.full() !== null);
+  /** Lines to render: the full-history snapshot, else the live buffer. */
+  protected readonly viewLines = computed<readonly string[]>(
+    () => this.full() ?? this.lines(),
   );
 
   private unlisten: (() => void) | null = null;
@@ -120,12 +147,37 @@ export class LogWindowComponent implements OnInit, OnDestroy {
   }
 
   protected onCopy(): void {
-    void navigator.clipboard.writeText(this.lines().join('\n'));
+    void navigator.clipboard.writeText(this.viewLines().join('\n'));
   }
 
   protected onClear(): void {
     this.lines.set([]);
     this.dropped.set(0);
+  }
+
+  /** Toggle between the live tail and the full `--tail all` history snapshot. */
+  protected async toggleFull(): Promise<void> {
+    if (this.full() !== null) {
+      this.full.set(null);
+      return;
+    }
+    const parsed = parseDockerLogId(this.serviceId());
+    if (parsed === null || this.fullLoading()) {
+      return;
+    }
+    this.fullLoading.set(true);
+    try {
+      const text = await this.commands.docker.composeLogs(
+        parsed.file,
+        parsed.service,
+        FULL_TAIL,
+      );
+      this.full.set(text.split('\n'));
+    } catch (err: unknown) {
+      this.full.set([describe(err)]);
+    } finally {
+      this.fullLoading.set(false);
+    }
   }
 
   private append(incoming: readonly string[]): void {
@@ -139,4 +191,31 @@ export class LogWindowComponent implements OnInit, OnDestroy {
       return merged;
     });
   }
+}
+
+/**
+ * Split a docker log id into its compose file and service — mirrors the Rust
+ * `parse_docker_log_id` (`docker/logs.rs`): `docker::<file>::<service>`, last
+ * `::` separates file from service (empty service = whole stack).
+ */
+function parseDockerLogId(id: string): { file: string; service: string } | null {
+  if (!id.startsWith(DOCKER_LOG_PREFIX)) {
+    return null;
+  }
+  const rest = id.slice(DOCKER_LOG_PREFIX.length);
+  const sep = rest.lastIndexOf('::');
+  if (sep === -1) {
+    return null;
+  }
+  return { file: rest.slice(0, sep), service: rest.slice(sep + 2) };
+}
+
+function describe(err: unknown): string {
+  if (err instanceof Error) {
+    return err.message;
+  }
+  if (typeof err === 'object' && err !== null && 'message' in err) {
+    return String((err as { message: unknown }).message);
+  }
+  return String(err);
 }
