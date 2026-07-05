@@ -14,9 +14,7 @@ use std::path::{Path, PathBuf};
 use super::error::CmdResult;
 use super::{op_log_sink, path_basename};
 use crate::docker::{self, ComposeService, OpOutput, StatusTarget};
-use crate::events::{
-    DockerSelectionPayload, DockerServiceState, EventEmitter, LogStream, DOCKER_SELECTION,
-};
+use crate::events::{DockerSelectionPayload, DockerServiceState, LogStream, DOCKER_SELECTION};
 use crate::state::AppState;
 
 /// Log `name` for a compose operation: the repo directory containing the
