@@ -75,6 +75,16 @@ more juggling a dozen terminals.
 - **Self-updating** — new releases install from within the app (Windows installer and Linux
   AppImage).
 
+## Requirements
+
+DevDeck bundles no toolchains — it drives the tools already on your `PATH`. Install
+only what the repos you actually run need:
+
+| Tool | When you need it |
+|---|---|
+| **Git** | Required for all git features (badges, history, compare, stash). On Windows, repos hosted under WSL run git inside the distro automatically. |
+| **Docker** (with `docker compose`, or the legacy `docker-compose`) | Optional — only to bring Docker Compose repos up/down. |
+
 ## Install
 
 You don't need to build anything — grab the right file for your OS from the
