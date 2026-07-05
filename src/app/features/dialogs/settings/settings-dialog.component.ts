@@ -33,6 +33,7 @@ import {
 } from '../../../core/i18n/translation.service';
 import { IpcCommands } from '../../../core/ipc/commands';
 import type { ShellInfo } from '../../../core/ipc/tauri.types';
+import { AutostartStore } from '../../../core/state/autostart.store';
 import { SettingsStore } from '../../../core/state/settings.store';
 import {
   PALETTES,
@@ -132,6 +133,14 @@ const LANGUAGE_CODES: readonly LanguageCode[] = ['en', 'es'];
               (change)="minimizeToTray.set(!minimizeToTray())"
             />
             {{ 'dialog.settings.minimize_to_tray' | t }}
+          </label>
+          <label class="settings__check">
+            <input
+              type="checkbox"
+              [checked]="autostartDraft()"
+              (change)="autostartDraft.set(!autostartDraft())"
+            />
+            {{ 'dialog.settings.autostart' | t }}
           </label>
         </ui-form-row>
         <div class="settings__divider"></div>
@@ -239,6 +248,7 @@ export class SettingsDialogComponent extends DialogBase implements OnInit {
   private readonly theme = inject(ThemeService);
   private readonly i18n = inject(TranslationService);
   private readonly updates = inject(UpdatesStore);
+  private readonly autostart = inject(AutostartStore);
   private readonly commands = inject(IpcCommands);
 
   /** Manual update-check spinner. */
@@ -273,12 +283,17 @@ export class SettingsDialogComponent extends DialogBase implements OnInit {
     this.shells.set(shells);
     const saved = this.terminalShellDraft();
     this.customMode.set(saved !== '' && !shells.some((s) => s.command === saved));
+    // Seed the launch-on-login checkbox from the OS (registry / .desktop).
+    await this.autostart.load().catch(() => {});
+    this.autostartDraft.set(this.autostart.enabled());
   }
 
   /** Draft language (applied + persisted on Save). */
   protected readonly language = signal<LanguageCode>(this.i18n.language());
   /** Draft minimize-to-tray flag (persisted on Save). */
   protected readonly minimizeToTray = signal(this.settings.minimizeToTray());
+  /** Draft launch-on-login flag. Seeded from the OS in ngOnInit; applied on Save. */
+  protected readonly autostartDraft = signal(this.autostart.enabled());
   protected readonly saving = signal(false);
 
   /** Display names resolved through the catalog (v1 display-name list). */
@@ -413,6 +428,9 @@ export class SettingsDialogComponent extends DialogBase implements OnInit {
       }
       if (this.minimizeToTray() !== this.settings.minimizeToTray()) {
         await this.settings.setMinimizeToTray(this.minimizeToTray());
+      }
+      if (this.autostartDraft() !== this.autostart.enabled()) {
+        await this.autostart.set(this.autostartDraft());
       }
       const shell = this.terminalShellDraft().trim();
       if (shell !== this.settings.terminalShell()) {

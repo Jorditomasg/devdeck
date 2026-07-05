@@ -87,6 +87,10 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        // Launch-on-login: Windows `Run` registry key / Linux XDG autostart
+        // `.desktop`. The OS is the source of truth; the frontend reads/writes
+        // it via the plugin's JS bindings (no app-level IPC command).
+        .plugin(tauri_plugin_autostart::Builder::new().build())
         .setup(setup)
         .on_window_event(|window, event| {
             // Detached terminal windows ("term-*") own a PTY. When the OS

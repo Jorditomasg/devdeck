@@ -163,6 +163,7 @@
       "shortcut_desc_win": "Creates a .lnk shortcut on the Desktop. Launches via wscript.exe — no terminal window.",
       "shortcut_desc_linux": "Creates a .desktop entry in the app launcher and on the Desktop.",
       "minimize_to_tray": "Minimize to system tray instead of taskbar",
+      "autostart": "Launch DevDeck when I log in",
       "java_none_configured": "None configured",
       "java_n_configured": "{count} version(s) configured",
       "language_restart_title": "Restart required",

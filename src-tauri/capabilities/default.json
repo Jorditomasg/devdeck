@@ -12,6 +12,7 @@
       "identifier": "opener:allow-open-path",
       "allow": [{ "path": "**" }]
     },
-    "log:default"
+    "log:default",
+    "autostart:default"
   ]
 }

@@ -163,6 +163,7 @@
       "shortcut_desc_win": "Crea un acceso directo .lnk en el Escritorio. Se lanza con wscript.exe, sin ventana de terminal.",
       "shortcut_desc_linux": "Crea una entrada .desktop en el launcher de aplicaciones y en el Escritorio.",
       "minimize_to_tray": "Minimizar al system tray en lugar de la barra de tareas",
+      "autostart": "Iniciar DevDeck al iniciar sesión",
       "java_none_configured": "Ninguna configurada",
       "java_n_configured": "{count} versión(es) configurada(s)",
       "language_restart_title": "Reinicio requerido",
