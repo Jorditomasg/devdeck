@@ -5,6 +5,38 @@ All notable changes to DevDeck are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.0] - 2026-07-05
+
+### Added
+
+- Environment drift protection: when a repo's environment file changes on disk
+  after you've selected values from it, DevDeck now automatically clears that
+  selection, so stale environment values are never applied.
+- Settings dialog: application behavior and preferences now open in a dedicated
+  dialog.
+- Profiles: a native save dialog lets you choose exactly where to export, and
+  import lets you pick the directory to clone into.
+- Profiles: preview the per-repo changes a quick-save will make before saving,
+  and when an import would overwrite existing settings, review a per-repo
+  before→after diff first.
+
+### Changed
+
+- Launching DevDeck while it is already running now shows a styled in-app
+  prompt instead of a native OS dialog.
+- Docker Compose logs open in their own detached window; the full-history
+  toggle moved into that window and the redundant auto-refresh toggle was
+  removed.
+- Refreshed default appearance: slate palette with no background pattern,
+  neutral profile and expand buttons, and reordered, framed repo status and git
+  badges. New installer icon.
+
+### Fixed
+
+- Enlarged the profile import dialog so its change preview fills the available
+  space.
+- Updated the application identifier to the new format.
+
 ## [3.1.0] - 2026-07-05
 
 ### Added
