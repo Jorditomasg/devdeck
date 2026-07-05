@@ -148,6 +148,26 @@ export class DialogService implements DialogsApi {
     return this.openKindForResult<boolean>('confirm-close', { runningCount }, false);
   }
 
+  /**
+   * Second-instance ("already running") prompt. Opened WITHOUT a parent on
+   * purpose: dialog windows are owned by `main`, and a Windows owned window is
+   * hidden together with its owner — but this fires precisely when `main` may
+   * be minimized to the tray. Detached = top-level = visible regardless.
+   * Resolves `true` when the user chooses to restore the running window.
+   */
+  confirmSecondInstance(): Promise<boolean> {
+    const title = this.i18n.t('dialog.single_instance.title');
+    return openDialogWindowForResult<boolean>(
+      this.commands,
+      this.events,
+      'messagebox',
+      title,
+      { kind: 'confirm', title, message: this.i18n.t('dialog.single_instance.message') },
+      false,
+      undefined, // no parent → shows even while main is in the tray
+    );
+  }
+
   // -- contract: messagebox suite (v1 gui/dialogs/messagebox.py, §14) ---------
 
   /** Themed `show_info` replacement. */

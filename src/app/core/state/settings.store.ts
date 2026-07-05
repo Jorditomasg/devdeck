@@ -86,11 +86,11 @@ export class SettingsStore {
   /**
    * Latest `app://single-instance` payload (second launch forwarding).
    *
-   * Currently UNCONSUMED by design: the Rust single-instance plugin already
-   * focuses the existing window, which covers the v1 behavior. The signal is
-   * kept (and the event subscribed) so future argv forwarding — e.g. a
-   * second launch passing a workspace path — only needs a consumer, not new
-   * IPC plumbing.
+   * Consumed by the workspace page, which shows DevDeck's own styled
+   * "already running" prompt (`dialog-service.confirmSecondInstance`) and
+   * restores the window on confirm — the Rust callback no longer shows a
+   * native dialog. The argv/cwd it carries is still available for future
+   * forwarding (e.g. a second launch passing a workspace path).
    */
   readonly singleInstance = this._singleInstance.asReadonly();
 
