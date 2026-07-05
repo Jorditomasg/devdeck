@@ -18,7 +18,7 @@ describe('initialsOf', () => {
 describe('hueOf', () => {
   it('is deterministic and within 0..359', () => {
     expect(hueOf('a@x.com')).toBe(hueOf('a@x.com'));
-    for (const seed of ['a@x.com', 'b@y.dev', '', 'jordi.tomas@orizon.es']) {
+    for (const seed of ['a@x.com', 'b@y.dev', '', 'test@example.com']) {
       const hue = hueOf(seed);
       expect(hue).toBeGreaterThanOrEqual(0);
       expect(hue).toBeLessThan(360);

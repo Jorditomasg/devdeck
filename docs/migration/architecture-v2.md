@@ -269,7 +269,7 @@ v2/
   src-tauri/
     Cargo.toml                # tauri 2 + tray-icon; serde, serde_json, serde_yaml_ng, tokio,
                               # regex, thiserror, dirs; plugins: single-instance, dialog, opener, log
-    tauri.conf.json           # DevDeck / es.orizon.devdeck / NSIS / resources
+    tauri.conf.json           # DevDeck / com.devdeck.app / NSIS / resources
     capabilities/default.json
     build.rs
     icons/                    # icon.ico (red) + icon-green.ico from v1 assets; PNG set TODO
