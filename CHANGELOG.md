@@ -5,6 +5,40 @@ All notable changes to DevDeck are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.0] - 2026-07-05
+
+### Added
+
+- Launch DevDeck automatically on OS login, toggled from Settings (Windows and
+  Linux).
+- Terminal button on each repo: open a clean shell in the repo, or pick a
+  detected start command from a menu to run it in a fresh terminal.
+- Live, detachable Docker Compose logs with per-service selection, so you can
+  follow one service or the whole stack in its own window.
+- Selective profile export: choose exactly which repos and which setting
+  categories to export via a matrix, with an inline destination path picker.
+- Working-tree changes view in the git window: see and diff your uncommitted
+  changes alongside the commit history.
+- App-wide right-click context menus and searchable tables throughout the
+  dialogs (profiles, java manager, and more).
+- Profile save confirmation now lists exactly which per-repo fields will be
+  overwritten before you commit the change.
+
+### Changed
+
+- Tray icon now reflects app state at a glance with a tri-state "dd" monogram:
+  idle, running, and error.
+- Secondary windows (logs, terminals, git) now open on the monitor under the
+  cursor instead of always on the primary display.
+- The top bar shows the active profile name and only surfaces the quick-save
+  button when there are unsaved changes.
+- Repo cards received a design-coherence pass: badge separators, refined status
+  tones, and cleaner environment-option handling.
+
+### Fixed
+
+- Git badges now appear instantly at startup instead of after the first poll.
+
 ## [3.0.0] - 2026-07-04
 
 ### Added
