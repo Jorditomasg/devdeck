@@ -297,10 +297,12 @@ pub struct TrayStatus {
 }
 
 impl TrayStatus {
-    /// Record a status transition for a service id.
+    /// Record a status transition for a service id. `Error` is KEPT (drives the
+    /// red tray icon via [`TrayStatus::error_count`]); only `Stopped` clears the
+    /// entry — a restart (`Starting`/`Running`) or a later stop overwrites it.
     pub fn record(&self, name: &str, status: ServiceStatus) {
         if let Ok(mut map) = self.statuses.lock() {
-            if matches!(status, ServiceStatus::Stopped | ServiceStatus::Error) {
+            if matches!(status, ServiceStatus::Stopped) {
                 map.remove(name);
             } else {
                 map.insert(name.to_owned(), status);
@@ -328,6 +330,15 @@ impl TrayStatus {
             .and_then(|g| g.clone())
             .map(|l| l.starts_with("es"))
             .unwrap_or(false)
+    }
+
+    /// Services currently in error — drives the red tray icon (precedence
+    /// error > running > idle, inventory-gui.md §25 tray icon lifecycle).
+    pub fn error_count(&self) -> usize {
+        self.statuses
+            .lock()
+            .map(|m| m.values().filter(|s| matches!(s, ServiceStatus::Error)).count())
+            .unwrap_or(0)
     }
 
     /// Services currently running or starting (the v1 "green icon" rule,
@@ -429,16 +440,26 @@ mod tests {
     }
 
     #[test]
-    fn terminal_statuses_clear_the_entry() {
+    fn stopped_clears_entry_but_error_is_kept() {
         let tray = TrayStatus::default();
         tray.record("a", ServiceStatus::Running);
         tray.record("a", ServiceStatus::Stopped);
         assert_eq!(tray.running_count(), 0);
         assert!(!tray.any_active());
 
+        // Error stays (drives the red tray icon) but is not "active".
         tray.record("b", ServiceStatus::Starting);
         tray.record("b", ServiceStatus::Error);
         assert!(!tray.any_active());
+        assert_eq!(tray.error_count(), 1);
+        assert_eq!(tray.running_count(), 0);
+
+        // Restarting clears the error; stopping removes the entry.
+        tray.record("b", ServiceStatus::Running);
+        assert_eq!(tray.error_count(), 0);
+        assert_eq!(tray.running_count(), 1);
+        tray.record("b", ServiceStatus::Stopped);
+        assert_eq!(tray.error_count(), 0);
     }
 
     #[test]

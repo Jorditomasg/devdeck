@@ -41,7 +41,9 @@
     "@angular/build": "^22.0.0",
     "@angular/cli": "^22.0.0",
     "@angular/compiler-cli": "^22.0.0",
+    "@resvg/resvg-js": "^2.6.2",
     "@tauri-apps/cli": "^2.11.0",
+    "png-to-ico": "^3.0.1",
     "sass": "^1.100.0",
     "typescript": "~6.0.0",
     "vitest": "^4.1.8"

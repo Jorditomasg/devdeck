@@ -386,7 +386,7 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let emitter: Arc<dyn EventEmitter> = Arc::new(TrayTrackingEmitter {
         app: handle.clone(),
         tray: tray_status.clone(),
-        tray_green: std::sync::atomic::AtomicBool::new(false),
+        tray_icon_state: std::sync::atomic::AtomicU8::new(TrayIconState::Idle as u8),
         logs: log_cache.clone(),
     });
 
@@ -661,9 +661,9 @@ pub(crate) fn request_quit(app: &tauri::AppHandle) {
 struct TrayTrackingEmitter {
     app: tauri::AppHandle,
     tray: Arc<TrayStatus>,
-    /// Last applied icon state, so `set_icon` only runs on the
-    /// idle↔running edge (not on every status event).
-    tray_green: std::sync::atomic::AtomicBool,
+    /// Last applied icon state (as [`TrayIconState`] `u8`), so `set_icon` only
+    /// runs on a state edge — not on every status event.
+    tray_icon_state: std::sync::atomic::AtomicU8,
     /// Backlog cache for detached log windows — every emitted
     /// `service://log-line` batch is mirrored here (state.rs `LogCache`).
     logs: Arc<state::LogCache>,
@@ -687,14 +687,13 @@ impl EventEmitter for TrayTrackingEmitter {
         if event == SERVICE_STATUS_CHANGED && record_status_payload(&self.tray, &payload) {
             if let Some(tray_icon) = self.app.tray_by_id(TRAY_ID) {
                 let _ = tray_icon.set_tooltip(Some(self.tray.tooltip()));
-                // Green while anything is running/starting (the v1 rule),
-                // base icon otherwise — only on state change.
-                let green = self.tray.running_count() > 0;
-                let was_green = self
-                    .tray_green
-                    .swap(green, std::sync::atomic::Ordering::Relaxed);
-                if green != was_green {
-                    if let Some(image) = tray_icon_image(green) {
+                // Precedence error > running > idle — only swap on a state edge.
+                let state = TrayIconState::from_tray(&self.tray);
+                let previous = self
+                    .tray_icon_state
+                    .swap(state as u8, std::sync::atomic::Ordering::Relaxed);
+                if state as u8 != previous {
+                    if let Some(image) = tray_icon_image(state) {
                         let _ = tray_icon.set_icon(Some(image));
                     }
                 }
@@ -704,20 +703,44 @@ impl EventEmitter for TrayTrackingEmitter {
     }
 }
 
-/// Decode the bundled tray icon for the given state: `icons/icon-green.ico`
-/// while services run, `icons/icon.ico` when idle (inventory-gui.md §25).
-/// Decoding needs the tauri `image-ico` cargo feature (enabled — see
-/// Cargo.toml). A decode failure keeps the current icon (warn only).
-fn tray_icon_image(green: bool) -> Option<tauri::image::Image<'static>> {
-    let bytes: &[u8] = if green {
-        include_bytes!("../icons/icon-green.ico")
-    } else {
-        include_bytes!("../icons/icon.ico")
+/// Aggregate tray icon state, in precedence order (error > running > idle,
+/// inventory-gui.md §25 tray icon lifecycle). The `u8` discriminants are what
+/// `TrayTrackingEmitter::tray_icon_state` stores atomically.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum TrayIconState {
+    Idle = 0,
+    Running = 1,
+    Error = 2,
+}
+
+impl TrayIconState {
+    /// Resolve the aggregate state from live counters: any error wins, else any
+    /// running/starting, else idle.
+    fn from_tray(tray: &TrayStatus) -> Self {
+        if tray.error_count() > 0 {
+            Self::Error
+        } else if tray.running_count() > 0 {
+            Self::Running
+        } else {
+            Self::Idle
+        }
+    }
+}
+
+/// Decode the bundled tray icon for the given state: `icons/icon-red.ico` on
+/// error, `icons/icon-green.ico` while services run, `icons/icon.ico` when idle
+/// (inventory-gui.md §25). Decoding needs the tauri `image-ico` cargo feature
+/// (enabled — see Cargo.toml). A decode failure keeps the current icon (warn).
+fn tray_icon_image(state: TrayIconState) -> Option<tauri::image::Image<'static>> {
+    let bytes: &[u8] = match state {
+        TrayIconState::Error => include_bytes!("../icons/icon-red.ico"),
+        TrayIconState::Running => include_bytes!("../icons/icon-green.ico"),
+        TrayIconState::Idle => include_bytes!("../icons/icon.ico"),
     };
     match tauri::image::Image::from_bytes(bytes) {
         Ok(image) => Some(image),
         Err(err) => {
-            log::warn!("failed to decode tray icon (green: {green}): {err}");
+            log::warn!("failed to decode tray icon: {err}");
             None
         }
     }
