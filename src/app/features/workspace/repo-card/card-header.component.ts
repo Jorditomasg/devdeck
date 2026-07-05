@@ -166,7 +166,7 @@ export interface CardHeaderText {
           <ui-icon-button
             variant="neutral"
             [uiTooltip]="text().openTerminalTip"
-            (clicked)="openTerminal.emit()"
+            (clicked)="openTerminal.emit($event)"
           ><ui-icon name="terminal" /></ui-icon-button>
           <ui-icon-button
             variant="toggle-expand"
@@ -217,8 +217,9 @@ export class CardHeaderComponent {
   readonly stop = output<void>();
   readonly restart = output<void>();
   readonly openExplorer = output<void>();
-  /** Open an interactive PTY terminal window rooted at the repo. */
-  readonly openTerminal = output<void>();
+  /** Terminal button click — the container opens the terminal/commands menu
+   * anchored on the event (design doc 2026-07-05). */
+  readonly openTerminal = output<MouseEvent>();
   /** Right-click anywhere on the header — the container opens the menu. */
   readonly menuRequested = output<MouseEvent>();
 

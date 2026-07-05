@@ -54,6 +54,7 @@ import {
   headerHint,
   repoTypeLabel,
   serviceUrl,
+  terminalMenuEntries,
 } from './card-logic';
 import { dotStatusFor, visibilityForStatus } from './card-visibility';
 
@@ -101,7 +102,7 @@ export function formatCardLine(entry: LogLine): string {
       (stop)="onStop()"
       (restart)="onRestart()"
       (openExplorer)="onOpenExplorer()"
-      (openTerminal)="onOpenTerminal()"
+      (openTerminal)="onOpenTerminal($event)"
       (menuRequested)="onHeaderMenu($event)"
       (pullClicked)="onPull()"
       (changesClicked)="onShowChanges()"
@@ -527,13 +528,39 @@ export class RepoCardComponent {
     void this.opener.openPath(this.repo().path);
   }
 
-  /** Open a detached interactive PTY terminal rooted at the repo path. */
-  protected onOpenTerminal(): void {
+  /** Terminal button (design doc 2026-07-05): menu with a clean shell plus
+   * the repo's start commands, each opening a fire & forget PTY terminal. */
+  protected async onOpenTerminal(event: MouseEvent): Promise<void> {
+    if (!this.cmdProfilesLoaded) {
+      await this.loadCommandProfiles();
+    }
+    const entries = terminalMenuEntries(this.commandProfiles(), {
+      shell: this.i18n.t('label.terminal'),
+      add: this.i18n.t('menu.add_command'),
+    });
+    const picked = await this.menu.openFromEvent(event, entries);
+    if (picked === 'shell') {
+      this.openTerminalWindow();
+    } else if (picked === 'add') {
+      await this.onOpenCommandProfileManager();
+    } else if (picked?.startsWith('profile:')) {
+      const name = picked.slice('profile:'.length);
+      const cmd = this.commandProfiles()[name];
+      if (cmd) {
+        this.openTerminalWindow(cmd, name);
+      }
+    }
+  }
+
+  /** Open the detached PTY window rooted at the repo; a non-empty `command`
+   * is typed-ahead into the shell (fire & forget — no supervision). */
+  private openTerminalWindow(command?: string, titleLabel?: string): void {
     void this.commands.terminal
       .openWindow(
         this.repo().name,
         this.repo().path,
-        `${this.repo().name} — ${this.i18n.t('label.terminal')}`,
+        `${this.repo().name} — ${titleLabel ?? this.i18n.t('label.terminal')}`,
+        command,
       )
       .catch((err: unknown) => console.error('open terminal window failed', err));
   }
@@ -597,7 +624,7 @@ export class RepoCardComponent {
       case 'stash': return this.onStash();
       case 'merge': return this.onMerge();
       case 'explorer': return this.onOpenExplorer();
-      case 'terminal': return this.onOpenTerminal();
+      case 'terminal': return this.openTerminalWindow();
       case 'remote': return this.onOpenRemote();
       case 'copy-path':
         return void navigator.clipboard.writeText(this.repo().path).catch(() => undefined);
