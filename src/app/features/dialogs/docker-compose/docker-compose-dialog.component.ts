@@ -4,8 +4,9 @@
  * - Service rows parsed from the selected compose file
  *   (`docker_compose_services`), each with live status dot, per-service
  *   Start/Stop (busy states), a profile-selection checkbox and a Logs selector.
- * - Header: running counter, auto-refresh switch (5 s forced poll while ON —
- *   v1 §19), Start all (`compose up`) / Stop all (`compose down`).
+ * - Header: running counter, Start all (`compose up`) / Stop all
+ *   (`compose down`). Status auto-refreshes (5 s forced poll) while the
+ *   window is open — no toggle.
  * - **Live status via docker events**: Rust polls every 15 s and pushes
  *   `docker://status`; the dialog merges payloads for this repo and forces
  *   one poll after every operation (`docker_refresh_status`) with the v1
@@ -90,14 +91,6 @@ const FOLLOW_UP_MS = 3000;
             'docker.running_count' | t: { running: running(), total: services().length }
           }}</span>
           <span class="docker__spacer"></span>
-          <label class="docker__check">
-            <input
-              type="checkbox"
-              [checked]="autoRefresh()"
-              (change)="autoRefresh.set(!autoRefresh())"
-            />
-            {{ 'docker.auto_refresh' | t }}
-          </label>
           <ui-button
             variant="success"
             [loading]="busyAll() === 'up'"
@@ -226,7 +219,6 @@ export class DockerComposeDialogComponent extends DialogBase {
   /** Per-service in-flight operation (`start` / `stop`). */
   protected readonly busy = signal<Readonly<Record<string, 'start' | 'stop'>>>({});
   protected readonly busyAll = signal<'up' | 'down' | null>(null);
-  protected readonly autoRefresh = signal(true); // v1 default ON (§19)
 
   /** Profile-selected service names for the current file (checkbox state). */
   private readonly selected = signal<ReadonlySet<string>>(new Set());
@@ -365,9 +357,7 @@ export class DockerComposeDialogComponent extends DialogBase {
     });
     // Dialog auto-refresh: force a poll every 5 s while the switch is ON.
     this.refreshTimer = setInterval(() => {
-      if (this.autoRefresh()) {
-        void this.forceRefresh();
-      }
+      void this.forceRefresh();
     }, DIALOG_REFRESH_MS);
   }
 

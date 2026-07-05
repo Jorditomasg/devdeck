@@ -6,6 +6,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+  height: 100%; // fill the detached window instead of leaving a dead gap
 }
 
 .docker__header {
@@ -31,10 +32,6 @@
   flex: 1;
 }
 
-.docker__check {
-  @include c.checkbox-row;
-}
-
 .docker__file-row {
   display: flex;
   align-items: center;
@@ -55,11 +52,12 @@
 .docker__list {
   @include c.list-surface;
   display: flex;
+  flex: 1; // grow to fill the window; scrolls internally when it overflows
   flex-direction: column;
   gap: 6px;
   min-height: 120px;
-  max-height: 280px;
   padding: 8px;
+  overflow-y: auto;
 }
 
 .docker__hint {

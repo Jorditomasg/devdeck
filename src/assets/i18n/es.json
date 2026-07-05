@@ -687,7 +687,6 @@
   "docker": {
     "title": "Servicios Definidos",
     "no_services": "No se encontraron servicios en el YAML.",
-    "auto_refresh": "Auto-Refresh",
     "btn_start_all": "Iniciar todos",
     "btn_stop_all": "Detener todos",
     "logs_title_empty": "Logs: (seleccione un servicio)",
