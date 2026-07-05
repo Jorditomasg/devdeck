@@ -328,6 +328,16 @@ export class ProfilesStore {
     return names;
   }
 
+  /**
+   * Deselect the active profile without touching the group list — used when
+   * switching to a group that has no remembered profile, so the selector and
+   * status bar don't linger on the previous group's profile.
+   */
+  clearActive(): void {
+    this._activeProfileName.set(null);
+    this._snapshot.set(null);
+  }
+
   /** Load a profile and adopt it as the dirty baseline. `null` = not found. */
   async load(name: string, group?: string): Promise<ProfileDocument | null> {
     this._busy.set(true);

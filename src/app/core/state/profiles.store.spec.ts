@@ -201,6 +201,18 @@ describe('ProfilesStore', () => {
     expect(store.hasSnapshot()).toBe(false);
   });
 
+  it('clearActive() deselects the active profile and drops the baseline', async () => {
+    const bridge = new FakeTauriBridge().whenInvoked(CMD.loadProfile, doc({ api: repoProfile() }));
+    const store = makeStore(bridge);
+    await store.load('KLK2');
+    expect(store.activeProfileName()).toBe('KLK2');
+
+    store.clearActive();
+
+    expect(store.activeProfileName()).toBeNull();
+    expect(store.hasSnapshot()).toBe(false);
+  });
+
   it('isDirtyAgainst is false without a snapshot (nothing to compare)', () => {
     const store = makeStore(new FakeTauriBridge());
     expect(store.isDirtyAgainst(doc({ api: repoProfile() }))).toBe(false);

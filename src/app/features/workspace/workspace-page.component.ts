@@ -251,6 +251,9 @@ export class WorkspacePageComponent {
   /** Skip the effect's initial run — `init()` owns the first scan (ordering). */
   private firstScanSeen = false;
 
+  /** In-flight scan+reload; new switches chain after it (see scanAndReload). */
+  private scanChain: Promise<void> | undefined;
+
   constructor(
     protected readonly i18n: TranslationService,
     protected readonly repos: ReposStore,
@@ -419,12 +422,33 @@ export class WorkspacePageComponent {
   }
 
   /**
+   * Serialize scan+reload so rapid environment switches can't race. `scan`
+   * writes the repos store the moment its IPC resolves, so two concurrent runs
+   * would let the slower (older) one clobber the newer — a switch A→B→C could
+   * end up showing B. Chaining each run after the previous, and re-reading the
+   * active group inside `doScanAndReload`, guarantees only the latest target
+   * lands.
+   */
+  private scanAndReload(): Promise<void> {
+    const run: Promise<void> = (this.scanChain ?? Promise.resolve())
+      .catch(() => undefined)
+      .then(() => this.doScanAndReload())
+      .finally(() => {
+        if (this.scanChain === run) {
+          this.scanChain = undefined;
+        }
+      });
+    this.scanChain = run;
+    return run;
+  }
+
+  /**
    * The §4 scan flow: scan the active group's paths, prune dead card state,
    * restore persisted `repo_state`, then reload the group's profile list and
    * re-apply its last profile STATE-ONLY (`skipDirtyCheck`, §26 — async
    * branch loads would race a false dirty positive).
    */
-  private async scanAndReload(): Promise<void> {
+  private async doScanAndReload(): Promise<void> {
     const group = this.settings.activeGroup();
     const paths = group?.paths ?? [];
     if (paths.length === 0) {
@@ -464,11 +488,14 @@ export class WorkspacePageComponent {
     const groupArg = profileGroupArg(group?.name);
     await this.profiles.refresh(groupArg).catch(() => undefined);
     const last = this.settings.lastProfileForActiveGroup();
-    if (last) {
-      const doc = await this.profiles.load(last, groupArg).catch(() => null);
-      if (doc) {
-        await this.actions.applyProfile(doc, { skipDirtyCheck: true });
-      }
+    const doc = last ? await this.profiles.load(last, groupArg).catch(() => null) : null;
+    if (doc) {
+      await this.actions.applyProfile(doc, { skipDirtyCheck: true });
+    } else {
+      // No remembered profile for this group (or it was deleted): reset the
+      // selector to "no profile" instead of lingering on the previous group's.
+      this.profiles.clearActive();
+      this.ws.clearActiveProfile();
     }
 
     // Re-hydrate transient env selections from `active_configs` (§10). This
