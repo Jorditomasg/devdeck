@@ -14,7 +14,10 @@ use std::path::{Path, PathBuf};
 use super::error::CmdResult;
 use super::{op_log_sink, path_basename};
 use crate::docker::{self, ComposeService, OpOutput, StatusTarget};
-use crate::events::{DockerServiceState, LogStream};
+use crate::events::{
+    DockerSelectionPayload, DockerServiceState, EventEmitter, LogStream, DOCKER_SELECTION,
+};
+use crate::state::AppState;
 
 /// Log `name` for a compose operation: the repo directory containing the
 /// compose file (falls back to the file's own basename at a filesystem root).
@@ -161,6 +164,54 @@ pub async fn docker_refresh_status(
         compose_file: PathBuf::from(compose_file),
     };
     docker::refresh_status(&app, &target).await;
+    Ok(())
+}
+
+/// #55 `docker_log_start { serviceId }` → `void` (docker live-logs, design doc
+/// 2026-07-05): attach a viewer to a compose service's live `logs -f` stream.
+/// The first attach spawns the follower; later attaches (a second window)
+/// share it. `serviceId` is the self-describing `docker::<file>::<service>`
+/// id — also the `?log=` value and `LogCache` key, so the existing backlog +
+/// detached-window pipeline carries docker logs with zero extra plumbing.
+#[tauri::command]
+pub async fn docker_log_start(
+    state: tauri::State<'_, AppState>,
+    service_id: String,
+) -> CmdResult<()> {
+    state.docker_logs.attach(&service_id);
+    Ok(())
+}
+
+/// #56 `docker_log_stop { serviceId }` → `void`: detach a viewer. The LAST
+/// detach kills the `logs -f` process, so nothing runs for a log nobody is
+/// watching (the laziness the feature is built around).
+#[tauri::command]
+pub async fn docker_log_stop(
+    state: tauri::State<'_, AppState>,
+    service_id: String,
+) -> CmdResult<()> {
+    state.docker_logs.detach(&service_id);
+    Ok(())
+}
+
+/// #57 `set_docker_selection { repoName, file, services, active }` → `void`:
+/// pure relay that re-emits the docker selection as `docker://selection` so the
+/// main window folds it into card state. The docker-compose dialog runs in its
+/// own isolated webview and cannot touch the main window's `WorkspaceStore`
+/// directly; routing through Rust keeps the events-are-Rust-only rule intact
+/// (design doc 2026-07-05 §selection).
+#[tauri::command]
+pub async fn set_docker_selection(
+    state: tauri::State<'_, AppState>,
+    repo_name: String,
+    file: String,
+    services: Vec<String>,
+    active: bool,
+) -> CmdResult<()> {
+    let payload = DockerSelectionPayload { repo_name, file, services, active };
+    if let Ok(value) = serde_json::to_value(&payload) {
+        state.emitter.emit(DOCKER_SELECTION, value);
+    }
     Ok(())
 }
 

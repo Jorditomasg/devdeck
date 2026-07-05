@@ -12,13 +12,14 @@ describe('EVT registry', () => {
     expect(EVT.repoScanProgress).toBe('repo://scan-progress');
     expect(EVT.gitBadge).toBe('git://badge');
     expect(EVT.dockerStatus).toBe('docker://status');
+    expect(EVT.dockerSelection).toBe('docker://selection');
     expect(EVT.appSingleInstance).toBe('app://single-instance');
     expect(EVT.appCloseRequested).toBe('app://close-requested');
     expect(EVT.updateProgress).toBe('update://progress');
     expect(EVT.dialogResolved).toBe('dialog://resolved');
     expect(EVT.configChanged).toBe('config://changed');
     expect(EVT.profilesChanged).toBe('profiles://changed');
-    expect(Object.values(EVT).length).toBe(11);
+    expect(Object.values(EVT).length).toBe(12);
   });
 });
 

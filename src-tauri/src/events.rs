@@ -44,6 +44,15 @@ pub const GIT_BADGE: &str = "git://badge";
 /// inventory-backend.md §9). Emitted by the `docker` layer.
 pub const DOCKER_STATUS: &str = "docker://status";
 
+/// A docker service selection changed in the (isolated-webview) docker-compose
+/// window; the main window's `WorkspaceStore` folds it into per-card
+/// `dockerActive` / `dockerServices` and marks the profile dirty. Emitted from
+/// `commands::docker::set_docker_selection` — a pure Rust relay so the
+/// frontend never emits an event (events-are-Rust-only rule) and cross-window
+/// selection stays live without waiting for the dialog to close (design doc
+/// 2026-07-05 docker-live-logs §selection). Payload: [`DockerSelectionPayload`].
+pub const DOCKER_SELECTION: &str = "docker://selection";
+
 /// A second app instance was launched; payload carries its argv so the
 /// frontend can react (e.g. switch workspace). Emitted from the
 /// single-instance plugin callback in `lib.rs` (architecture-v2.md §7.6).
@@ -188,6 +197,19 @@ pub enum DockerServiceState {
 pub struct DockerStatusPayload {
     pub name: String,
     pub services: std::collections::HashMap<String, DockerServiceState>,
+}
+
+/// Payload for [`DOCKER_SELECTION`]. `file` is the compose file BASENAME (the
+/// key `dockerServices` / `dockerActive` are stored under, card-side);
+/// `services` is the selected service list for that file; `active` says whether
+/// the file participates in the profile's docker start.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DockerSelectionPayload {
+    pub repo_name: String,
+    pub file: String,
+    pub services: Vec<String>,
+    pub active: bool,
 }
 
 /// Payload for [`APP_SINGLE_INSTANCE`]. Owned by `lib.rs` (single-instance

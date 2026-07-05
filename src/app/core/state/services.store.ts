@@ -273,13 +273,19 @@ export class ServicesStore {
     if (dropped > 0) {
       this.droppedSignal(event.name).update((d) => d + dropped);
     }
-    const globalEntries: GlobalLogLine[] = entries.map((e) => ({
-      ...e,
-      name: event.name,
-    }));
-    this._globalLog.update((existing) =>
-      appendCapped(existing, globalEntries, GLOBAL_LOG_MAX_LINES),
-    );
+    // Live docker `logs -f` followers stream under synthetic `docker::…` ids
+    // (design doc 2026-07-05); keep them out of the all-services global log —
+    // their id is not a real service name and would read as noise there.
+    // Docker OPERATION logs (up/down) still land globally under the repo name.
+    if (!event.name.startsWith('docker::')) {
+      const globalEntries: GlobalLogLine[] = entries.map((e) => ({
+        ...e,
+        name: event.name,
+      }));
+      this._globalLog.update((existing) =>
+        appendCapped(existing, globalEntries, GLOBAL_LOG_MAX_LINES),
+      );
+    }
   }
 
   /**

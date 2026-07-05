@@ -164,6 +164,9 @@ export const CMD = {
   dockerComposeStatus: 'docker_compose_status',
   dockerComposeLogs: 'docker_compose_logs',
   dockerRefreshStatus: 'docker_refresh_status',
+  dockerLogStart: 'docker_log_start',
+  dockerLogStop: 'docker_log_stop',
+  setDockerSelection: 'set_docker_selection',
   // updates & about (§2.9)
   checkForUpdate: 'check_for_update',
   installUpdate: 'install_update',
@@ -816,6 +819,38 @@ export class IpcCommands {
         repoName,
         composeFile,
         services,
+      }),
+
+    /**
+     * Attach a viewer to a compose service's LIVE `logs -f` stream; lines then
+     * flow through `service://log-line` under `serviceId` (a self-describing
+     * `docker::<file>::<service>` id — also the `?log=` value + backlog key).
+     * The first attach spawns the follower, later ones share it. Always pair
+     * with {@link logStop} on teardown.
+     */
+    logStart: (serviceId: string): Promise<void> =>
+      this.bridge.invoke<void>(CMD.dockerLogStart, { serviceId }),
+
+    /** Detach a viewer; the last detach kills the `logs -f` process. */
+    logStop: (serviceId: string): Promise<void> =>
+      this.bridge.invoke<void>(CMD.dockerLogStop, { serviceId }),
+
+    /**
+     * Relay a docker service selection to the main window (Rust re-emits
+     * `docker://selection`). `file` is the compose file BASENAME; `services`
+     * the selected list; `active` whether the file joins the profile start.
+     */
+    setSelection: (
+      repoName: string,
+      file: string,
+      services: readonly string[],
+      active: boolean,
+    ): Promise<void> =>
+      this.bridge.invoke<void>(CMD.setDockerSelection, {
+        repoName,
+        file,
+        services,
+        active,
       }),
   };
 

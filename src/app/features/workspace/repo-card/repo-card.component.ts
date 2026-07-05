@@ -795,7 +795,14 @@ export class RepoCardComponent {
   }
 
   protected onDockerFile(file: string): void {
-    this.dialogs.openDockerCompose(this.repo().name, file);
+    // Seed the dialog checkboxes with the card's current selection for this
+    // file (keyed by basename, the same key the profile stores under).
+    const base = file.replace(/\\/g, '/').split('/').pop() ?? file;
+    const state = this.state();
+    this.dialogs.openDockerCompose(this.repo().name, file, {
+      services: state.dockerServices[base] ?? [],
+      active: this.isComposeActive(file),
+    });
   }
 
   // -- log handlers (§8) ---------------------------------------------------------------

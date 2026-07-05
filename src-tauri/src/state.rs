@@ -17,7 +17,7 @@ use std::sync::{Arc, Mutex, RwLock};
 use tokio::sync::Semaphore;
 
 use crate::config::ConfigStore;
-use crate::docker::StatusPoller;
+use crate::docker::{DockerLogManager, StatusPoller};
 use crate::domain::{RepoInfo, RepoTypeDef, ServiceStatus};
 use crate::events::EventEmitter;
 use crate::git::BadgePoller;
@@ -55,6 +55,9 @@ pub struct AppState {
     pub badge_poller: BadgePoller,
     /// 15 s docker compose status poll loop handle (`docker://status`).
     pub docker_poller: StatusPoller,
+    /// Ref-counted live `docker compose logs -f` followers (`docker_log_start`
+    /// / `docker_log_stop`) — one process per watched log, none otherwise.
+    pub docker_logs: Arc<DockerLogManager>,
     /// THE `git status` concurrency cap (3) — shared by the 30 s badge
     /// poll loop AND the on-demand badge queries (`git_status_summary`,
     /// `git_refresh_badge`), so the combined concurrency can never exceed
@@ -168,6 +171,10 @@ impl LogCache {
     }
 
     /// Record one emitted batch for `name`, mirroring into the aggregate.
+    /// Live docker `logs -f` followers use synthetic `docker::…` ids (design
+    /// doc 2026-07-05); those are kept out of the `GLOBAL` aggregate (their id
+    /// is not a real service name and would read as noise) while still cached
+    /// per-id so their detached window backlog seeds correctly.
     pub fn push_batch(&self, name: &str, lines: &[String]) {
         let mut buffers = self.buffers.lock().expect("log cache poisoned");
         let push = |buf: &mut std::collections::VecDeque<String>, line: String, cap: usize| {
@@ -179,6 +186,9 @@ impl LogCache {
         let service = buffers.entry(name.to_string()).or_default();
         for line in lines {
             push(service, line.clone(), Self::CAP);
+        }
+        if name.starts_with(crate::docker::DOCKER_LOG_PREFIX) {
+            return;
         }
         let global = buffers.entry(Self::GLOBAL.to_string()).or_default();
         for line in lines {
@@ -214,6 +224,7 @@ impl AppState {
         repo_defs: Vec<RepoTypeDef>,
         badge_poller: BadgePoller,
         docker_poller: StatusPoller,
+        docker_logs: Arc<DockerLogManager>,
         badge_semaphore: Arc<Semaphore>,
         tray: Arc<TrayStatus>,
         logs: Arc<LogCache>,
@@ -228,6 +239,7 @@ impl AppState {
             repos: RwLock::new(Vec::new()),
             badge_poller,
             docker_poller,
+            docker_logs,
             badge_semaphore,
             fetch_semaphore: Arc::new(Semaphore::new(GIT_FETCH_SEMAPHORE_COUNT)),
             tray,

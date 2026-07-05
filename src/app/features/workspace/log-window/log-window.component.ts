@@ -28,6 +28,9 @@ import { ButtonComponent, IconComponent, LogViewerComponent } from '../../../ui'
 /** Detached windows can afford a deeper buffer than the in-card viewer. */
 const DETACHED_LINE_CAP = 5000;
 
+/** Prefix marking a docker live-log id (mirrors Rust `DOCKER_LOG_PREFIX`). */
+const DOCKER_LOG_PREFIX = 'docker::';
+
 @Component({
   selector: 'log-window',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -73,6 +76,8 @@ export class LogWindowComponent implements OnInit, OnDestroy {
   );
 
   private unlisten: (() => void) | null = null;
+  /** Non-empty while this window holds a docker `logs -f` follower open. */
+  private dockerId = '';
 
   async ngOnInit(): Promise<void> {
     const id = new URLSearchParams(window.location.search).get('log') ?? '';
@@ -89,6 +94,14 @@ export class LogWindowComponent implements OnInit, OnDestroy {
       const incoming = isGlobal ? e.lines.map((l) => `[${e.name}] ${l}`) : e.lines;
       this.append(incoming);
     });
+    // Docker logs are lazy: a detached window is a viewer, so it must keep the
+    // `logs -f` follower alive (ref-counted with the dialog panel) while open.
+    if (id.startsWith(DOCKER_LOG_PREFIX)) {
+      this.dockerId = id;
+      await this.commands.docker
+        .logStart(id)
+        .catch((err: unknown) => console.error('docker log start failed', err));
+    }
     try {
       const backlog = await this.commands.getLogBacklog(id);
       this.lines.update((live) => [...backlog, ...live]);
@@ -99,6 +112,11 @@ export class LogWindowComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.unlisten?.();
+    if (this.dockerId !== '') {
+      void this.commands.docker
+        .logStop(this.dockerId)
+        .catch((err: unknown) => console.error('docker log stop failed', err));
+    }
   }
 
   protected onCopy(): void {

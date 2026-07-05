@@ -104,6 +104,47 @@ pub(crate) async fn run_compose(
     run_raw(program, &full, cwd, timeout_secs).await
 }
 
+/// Build a `Command` for a LONG-LIVED streaming compose invocation (e.g.
+/// `logs -f`): `<compose> -f <basename> <args…>` with `cwd = dirname`,
+/// stdout+stderr piped and `kill_on_drop` so aborting the follower task kills
+/// the process. Unlike [`run_compose`] this does NOT run to completion — the
+/// caller reads the piped streams live (docker live-logs, design doc
+/// 2026-07-05).
+pub(crate) async fn compose_streaming_command(compose_file: &Path, args: &[&str]) -> Command {
+    let fname = compose_file
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| compose_file.display().to_string());
+
+    let mut full: Vec<&str> = Vec::with_capacity(args.len() + 4);
+    let program = match compose_flavor().await {
+        ComposeFlavor::DockerCompose2 => {
+            full.push("compose");
+            "docker"
+        }
+        ComposeFlavor::LegacyBinary => "docker-compose",
+    };
+    full.push("-f");
+    full.push(&fname);
+    full.extend_from_slice(args);
+
+    let mut cmd = Command::new(program);
+    cmd.args(&full)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .kill_on_drop(true);
+    if let Some(dir) = compose_file.parent() {
+        cmd.current_dir(dir);
+    }
+    #[cfg(windows)]
+    {
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    cmd
+}
+
 async fn run_raw(
     program: &str,
     args: &[&str],

@@ -16,6 +16,17 @@ export const DIALOG_REFRESH_MS = 5000;
 /** Default `docker compose logs` tail length for the bottom panel. */
 export const LOGS_TAIL = 200;
 
+/**
+ * Synthetic service id of a compose service's live log — the `?log=` value,
+ * `LogCache` key AND `docker_log_start` argument. MUST match the Rust parser
+ * (`docker/logs.rs` `parse_docker_log_id`): `docker::<file>::<service>`,
+ * self-describing so a detached window re-attaches from the id alone. Empty
+ * `service` means the whole stack.
+ */
+export function dockerLogId(composeFile: string, service: string): string {
+  return `docker::${composeFile}::${service}`;
+}
+
 /** Basename of a compose file path (the v1 window title `…- {basename}`). */
 export function composeBasename(path: string): string {
   const segments = path.split(/[\\/]/);

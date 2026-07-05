@@ -44,7 +44,12 @@ export interface DialogsApi {
   openMergeBranch(repoName: string): void;
   openStash(repoName: string): void;
   openBranches(repoName: string): void;
-  openDockerCompose(repoName: string, composeFile?: string): void;
+  /** `seed` carries the card's current selection for THIS file so the dialog checkboxes open pre-ticked. */
+  openDockerCompose(
+    repoName: string,
+    composeFile?: string,
+    seed?: { services?: readonly string[]; active?: boolean },
+  ): void;
   /** Per-repo saved environments / app configs manager. Resolves when the window closes. */
   openRepoConfigManager(repoName: string): Promise<unknown>;
   /** Per-repo start-command profiles manager. Resolves when the window closes. */

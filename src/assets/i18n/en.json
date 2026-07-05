@@ -703,6 +703,9 @@
     "btn_service_start": "Start",
     "btn_service_stop": "Stop",
     "btn_service_logs": "Logs",
+    "btn_full_logs": "Load full history",
+    "btn_live_logs": "Back to live",
+    "select_service": "Include this service in the profile",
     "compose_file_label": "Compose file:",
     "running_count": "{running}/{total} running",
     "window_title": "Docker Compose - {name}"

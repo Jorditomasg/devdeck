@@ -10,6 +10,7 @@ import { TauriBridge, type UnlistenFn } from './tauri-bridge';
 import type {
   AppConfig,
   DialogResolvedEvent,
+  DockerSelectionEvent,
   DockerStatusEvent,
   GitBadgeEvent,
   ScanProgressEvent,
@@ -34,6 +35,12 @@ export const EVT = {
   gitBadge: 'git://badge',
   /** events.rs `DOCKER_STATUS` (15 s poll loop) */
   dockerStatus: 'docker://status',
+  /**
+   * events.rs `DOCKER_SELECTION` — a docker service selection changed in the
+   * (isolated) docker-compose window; the main window's `WorkspaceStore` folds
+   * it into card state. Rust relay of `set_docker_selection`.
+   */
+  dockerSelection: 'docker://selection',
   /** events.rs `APP_SINGLE_INSTANCE` */
   appSingleInstance: 'app://single-instance',
   /**
@@ -97,6 +104,17 @@ export class IpcEvents {
     handler: (event: DockerStatusEvent) => void,
   ): Promise<UnlistenFn> {
     return this.bridge.listen(EVT.dockerStatus, handler);
+  }
+
+  /**
+   * A docker service selection changed in the docker-compose window (Rust relay
+   * of `set_docker_selection`). The main window's `WorkspaceStore` folds it into
+   * per-card `dockerActive` / `dockerServices`.
+   */
+  onDockerSelection(
+    handler: (event: DockerSelectionEvent) => void,
+  ): Promise<UnlistenFn> {
+    return this.bridge.listen(EVT.dockerSelection, handler);
   }
 
   /** A second app instance launched; payload carries its argv/cwd. */

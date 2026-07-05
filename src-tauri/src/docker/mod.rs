@@ -17,11 +17,13 @@
 //! `db_manager.py` operation surface), [`poll`] (status loop).
 
 mod exec;
+pub mod logs;
 pub mod ops;
 pub mod parse;
 pub mod poll;
 pub mod types;
 
+pub use logs::{DockerLogManager, DOCKER_LOG_PREFIX};
 pub use ops::{
     docker_compose_down, docker_compose_logs, docker_compose_up, find_compose_file,
     get_compose_service_status, get_running_containers, is_container_running,

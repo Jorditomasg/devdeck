@@ -319,6 +319,9 @@ pub fn run() {
             commands::docker::docker_compose_status,
             commands::docker::docker_compose_logs,
             commands::docker::docker_refresh_status,
+            commands::docker::docker_log_start,
+            commands::docker::docker_log_stop,
+            commands::docker::set_docker_selection,
             // §2.9 updates & about
             commands::updates::check_for_update,
             commands::updates::install_update,
@@ -392,6 +395,10 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     // their own windows — docs/migration/dialogs-as-windows.md Phase 3).
     config_store.set_emitter(emitter.clone());
 
+    // Live docker-log followers (docker_log_start/stop) — share THE emitter so
+    // their lines hit the same LogCache mirror as service logs.
+    let docker_logs = Arc::new(docker::DockerLogManager::new(emitter.clone()));
+
     let process = Arc::new(process::ProcessManager::new(emitter.clone()));
 
     // THE `git status` cap (3) — one semaphore shared by the badge poll
@@ -433,6 +440,7 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         repo_defs,
         badge_poller,
         docker_poller,
+        docker_logs,
         badge_semaphore,
         tray_status.clone(),
         log_cache,

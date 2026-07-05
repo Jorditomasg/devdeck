@@ -147,6 +147,18 @@ export interface DockerStatusEvent {
   readonly services: Readonly<Record<string, DockerServiceState>>;
 }
 
+/**
+ * Payload of `docker://selection` — a docker service selection changed in the
+ * docker-compose window (Rust relay of `set_docker_selection`). `file` is the
+ * compose file basename (the `dockerServices` / `dockerActive` key card-side).
+ */
+export interface DockerSelectionEvent {
+  readonly repoName: string;
+  readonly file: string;
+  readonly services: readonly string[];
+  readonly active: boolean;
+}
+
 /** Payload of `app://single-instance` (architecture-v2.md §7.6). */
 export interface SingleInstanceEvent {
   readonly argv: readonly string[];

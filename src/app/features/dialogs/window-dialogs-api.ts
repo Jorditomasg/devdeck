@@ -151,8 +151,17 @@ export class WindowDialogsApi implements DialogsApi {
   openBranches(repoName: string): void {
     this.openKind('branch', { repoName });
   }
-  openDockerCompose(repoName: string, composeFile?: string): void {
-    this.openKind('docker-compose', { repoName, composeFile: composeFile ?? '' });
+  openDockerCompose(
+    repoName: string,
+    composeFile?: string,
+    seed?: { services?: readonly string[]; active?: boolean },
+  ): void {
+    this.openKind('docker-compose', {
+      repoName,
+      composeFile: composeFile ?? '',
+      selectedServices: seed?.services ?? [],
+      active: seed?.active ?? false,
+    });
   }
   openRepoConfigManager(repoName: string): Promise<unknown> {
     return this.openKindForResult('repo-config-manager', { repoName }, null);

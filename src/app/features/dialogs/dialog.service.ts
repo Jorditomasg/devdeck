@@ -101,8 +101,17 @@ export class DialogService implements DialogsApi {
   }
 
   /** Docker Compose manager, locked to the picked compose file (§19). */
-  openDockerCompose(repoName: string, composeFile?: string): void {
-    this.openKind('docker-compose', { repoName, composeFile: composeFile ?? '' });
+  openDockerCompose(
+    repoName: string,
+    composeFile?: string,
+    seed?: { services?: readonly string[]; active?: boolean },
+  ): void {
+    this.openKind('docker-compose', {
+      repoName,
+      composeFile: composeFile ?? '',
+      selectedServices: seed?.services ?? [],
+      active: seed?.active ?? false,
+    });
   }
 
   /** Per-repo saved environments / app configs manager (§23). Resolves when the window closes. */

@@ -5,7 +5,7 @@ import { CMD, IpcCommands } from './commands';
 import { FakeTauriBridge } from './tauri-bridge.fake';
 
 describe('CMD registry', () => {
-  it('contains the 107 contract commands, all snake_case and unique', () => {
+  it('contains the 110 contract commands, all snake_case and unique', () => {
     // 86 prior + show_main_window / request_quit (tray quick-control panel)
     // + whats_new_on_startup / disable_whats_new (post-update popup)
     // + open_git_window / git_log / git_commit_files / git_commit_file_diff
@@ -16,8 +16,10 @@ describe('CMD registry', () => {
     // + git_changes_list / git_stage_file / git_unstage_file
     //   / git_discard_file / git_read_working_file / git_write_working_file
     //   (changes window, design doc 2026-07-03).
+    // + docker_log_start / docker_log_stop / set_docker_selection
+    //   (docker live logs + selection, design doc 2026-07-05).
     const names = Object.values(CMD);
-    expect(names.length).toBe(107);
+    expect(names.length).toBe(110);
     expect(new Set(names).size).toBe(names.length);
     for (const name of names) {
       expect(name).toMatch(/^[a-z][a-z0-9_]*$/);

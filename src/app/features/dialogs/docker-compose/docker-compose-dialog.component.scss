@@ -85,6 +85,14 @@
   border-radius: var(--geo-corner-panel);
 }
 
+// Profile-selection checkbox column (design doc 2026-07-05).
+.docker__pick {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  cursor: pointer;
+}
+
 .docker__svc {
   display: flex;
   flex: 1;
@@ -120,24 +128,8 @@
   }
 }
 
-.docker__log-header {
+// Live/full-history toggle above the shared dialog-log panel.
+.docker__log-actions {
   display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.docker__log-title {
-  @include mx.ellipsis;
-  min-width: 0;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-md);
-  font-weight: 700;
-}
-
-.docker__log {
-  @include c.mono-textarea;
-  height: 150px; // v1 log box height (§19)
-  margin: 0;
-  overflow-y: auto;
-  white-space: pre-wrap;
+  justify-content: flex-end;
 }

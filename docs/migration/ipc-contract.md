@@ -85,7 +85,7 @@ literal `root` (`config::ROOT_MODULE_KEY`).
 
 ## 2. Commands
 
-107 commands across 9 groups (55 core + the 2 app-lifecycle extensions in §2.1
+110 commands across 9 groups (55 core + the 2 app-lifecycle extensions in §2.1
 + the 2 review additions: `set_last_profile` #58 in §2.5, `is_installed` #59
 in §2.3, + the post-v1 extensions numbered 60+ in their sections — detached
 log/terminal/dialog windows, tray panel, updates §2.9, stash/branch
@@ -320,6 +320,9 @@ Compose operation logs flow through `service://log-line` with `stream: "docker"`
 | 52 | `docker_compose_status` | `{ composeFile: string, services: string[] }` | `Record<string, DockerServiceState>` | `docker::get_compose_service_status` (on-demand; 15 s poll also pushes `docker://status`) |
 | 53 | `docker_compose_logs` | `{ composeFile: string, service: string, tail: number }` | `string` | `docker::docker_compose_logs` |
 | 54 | `docker_refresh_status` | `{ repoName: string, composeFile: string, services: string[] }` | `void` | `docker::refresh_status` — forces one poll; result arrives as `docker://status` |
+| 109 | `docker_log_start` | `{ serviceId: string }` | `void` | `docker::DockerLogManager::attach` — ref-counted `logs -f` follower; `serviceId` is `docker::<file>::<service>`, lines arrive via `service://log-line` (design doc 2026-07-05) |
+| 110 | `docker_log_stop` | `{ serviceId: string }` | `void` | `docker::DockerLogManager::detach` — last detach kills the follower |
+| 111 | `set_docker_selection` | `{ repoName: string, file: string, services: string[], active: boolean }` | `void` | Rust relay re-emitting `docker://selection` so the main window folds the isolated dialog's selection into card state |
 
 Not exposed (no UI consumer in v1 — `start_mysql` / `stop_mysql` / `is_mysql_running` /
 `get_running_containers` stay library-internal until a feature needs them).
@@ -359,7 +362,7 @@ migration phases.
 
 ## 3. Events
 
-11 events. Only Rust emits; the frontend only listens (`core/ipc/events.ts`). Names and payload
+12 events. Only Rust emits; the frontend only listens (`core/ipc/events.ts`). Names and payload
 structs live in `src-tauri/src/events.rs`.
 
 | Event | Payload (TS mirror) | Cadence / source |
@@ -369,6 +372,7 @@ structs live in `src-tauri/src/events.rs`.
 | `repo://scan-progress` | `ScanProgressEvent { phase, detected, total }` | during `scan_workspace`; terminal phase is `"done"` |
 | `git://badge` | `GitBadgeEvent { name, path, branch, behind, staged, unstaged, conflicts }` | 30 s poll loop per repo (`git::BADGE_REFRESH`; semaphore 3) + forced via `git_refresh_badge`. `name` is the path basename (fallback); the frontend routes by `path` — repos with duplicate basenames across roots carry disambiguated `RepoInfo.name`s |
 | `docker://status` | `DockerStatusEvent { name, services: Record<string, "running"\|"stopped"> }` | 15 s poll loop per docker-capable repo (`docker::DOCKER_POLL`) + forced via `docker_refresh_status` |
+| `docker://selection` | `DockerSelectionEvent { repoName, file, services: string[], active }` | Rust relay of `set_docker_selection` — the isolated docker-compose window's selection reaches the main window's `WorkspaceStore` (design doc 2026-07-05) |
 | `app://single-instance` | `SingleInstanceEvent { argv, cwd }` | second launch (tauri-plugin-single-instance callback) |
 | `app://close-requested` | `{}` (empty object) | close/quit attempted while services run; Rust prevented the close — the frontend shows the confirm-running dialog and answers with `app_exit { force }` (§2.1 extensions) |
 | `update://progress` | `UpdateProgressEvent { downloaded, contentLength: number \| null }` | download progress while `install_update` runs (updater chunk callback) |

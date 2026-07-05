@@ -17,6 +17,7 @@ import { Injectable, Signal, computed, signal } from '@angular/core';
 import { IpcCommands } from '../../../core/ipc/commands';
 import { IpcEvents } from '../../../core/ipc/events';
 import type {
+  DockerSelectionEvent,
   DockerServiceState,
   DockerStatusEvent,
   ProfileDocument,
@@ -215,9 +216,33 @@ export class WorkspaceStore {
     private readonly profiles: ProfilesStore,
   ) {}
 
-  /** Subscribe docker status events. Called once by the workspace page. */
+  /** Subscribe docker status + selection events. Called once by the workspace page. */
   async init(): Promise<void> {
-    await this.events.onDockerStatus((e) => this.applyDockerStatus(e));
+    await Promise.all([
+      this.events.onDockerStatus((e) => this.applyDockerStatus(e)),
+      this.events.onDockerSelection((e) => this.applyDockerSelection(e)),
+    ]);
+  }
+
+  /**
+   * Fold a `docker://selection` relay into card state (the docker-compose
+   * window is an isolated webview and reaches the main-window store only this
+   * way — design doc 2026-07-05 §selection). Goes through `patchCard` so the
+   * normal 300 ms profile dirty-check fires, exactly like an in-app selection.
+   */
+  private applyDockerSelection(event: DockerSelectionEvent): void {
+    const current = this.card(event.repoName);
+    const services = [...event.services];
+    const active = new Set(current.dockerActive);
+    if (event.active) {
+      active.add(event.file);
+    } else {
+      active.delete(event.file);
+    }
+    this.patchCard(event.repoName, {
+      dockerServices: { ...current.dockerServices, [event.file]: services },
+      dockerActive: [...active],
+    });
   }
 
   // -- per-card state ---------------------------------------------------------
