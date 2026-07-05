@@ -126,22 +126,24 @@ const LANGUAGE_CODES: readonly LanguageCode[] = ['en', 'es'];
 
         <!-- 3. Behavior (§22 row 3) -->
         <ui-form-row icon="app-window" [label]="'dialog.settings.behavior_title' | t" labelWidth="155px">
-          <label class="settings__check">
-            <input
-              type="checkbox"
-              [checked]="minimizeToTray()"
-              (change)="minimizeToTray.set(!minimizeToTray())"
-            />
-            {{ 'dialog.settings.minimize_to_tray' | t }}
-          </label>
-          <label class="settings__check">
-            <input
-              type="checkbox"
-              [checked]="autostartDraft()"
-              (change)="autostartDraft.set(!autostartDraft())"
-            />
-            {{ 'dialog.settings.autostart' | t }}
-          </label>
+          <div class="settings__behavior">
+            <label class="settings__check">
+              <input
+                type="checkbox"
+                [checked]="minimizeToTray()"
+                (change)="minimizeToTray.set(!minimizeToTray())"
+              />
+              {{ 'dialog.settings.minimize_to_tray' | t }}
+            </label>
+            <label class="settings__check">
+              <input
+                type="checkbox"
+                [checked]="autostartDraft()"
+                (change)="autostartDraft.set(!autostartDraft())"
+              />
+              {{ 'dialog.settings.autostart' | t }}
+            </label>
+          </div>
         </ui-form-row>
         <div class="settings__divider"></div>
 

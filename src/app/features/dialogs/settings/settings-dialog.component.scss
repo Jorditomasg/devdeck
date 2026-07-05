@@ -25,6 +25,13 @@
   @include c.checkbox-row;
 }
 
+.settings__behavior {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
 .settings__terminal {
   display: flex;
   flex-direction: column;
