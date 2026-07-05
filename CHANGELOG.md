@@ -5,6 +5,16 @@ All notable changes to DevDeck are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.1] - 2026-07-06
+
+### Fixed
+
+- Switching environments now updates the profile selector correctly: it loads
+  that environment's last-used profile, or clears to "no profile" when none was
+  remembered, instead of leaving the previous environment's profile selected.
+- Switching environments in quick succession no longer risks ending up on the
+  wrong environment's repositories and profile.
+
 ## [3.2.0] - 2026-07-05
 
 ### Added
