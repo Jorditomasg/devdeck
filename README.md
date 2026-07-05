@@ -2,6 +2,11 @@
 
 **Your whole local dev environment, in one window.**
 
+[![Latest release](https://img.shields.io/github/v/release/Jorditomasg/devdeck)](https://github.com/Jorditomasg/devdeck/releases)
+[![Downloads](https://img.shields.io/github/downloads/Jorditomasg/devdeck/total)](https://github.com/Jorditomasg/devdeck/releases)
+![Platforms](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-lightgrey)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
 ![DevDeck — control panel showing detected repositories with start/stop, git and Docker controls](docs/screenshot.png)
 
 DevDeck is a desktop app that turns a folder full of repositories into a control panel. Point
@@ -12,43 +17,63 @@ more juggling a dozen terminals.
 
 ## What you get
 
+### Run your services
 - **Service supervision** — start, stop and restart dev services with a live status indicator.
   Each service runs in its own process group with reliable cleanup, so nothing is left
   dangling when you stop it.
+- **Command profiles per repo** — save several named launch configurations for a service
+  (different args, env or start commands) and switch between them on the fly.
 - **Detached log windows** — open a live log window per service and drag it to a second
   monitor.
+- **Interactive terminals** — open a real PTY terminal scoped to any repository. The terminal
+  button is a menu: launch a clean shell, or run any of the repo's saved command profiles
+  straight in a terminal.
+- **Docker Compose** — bring a repo's compose services up or down and watch their status.
+
+### Git, built in
 - **Git at a glance** — branch badges and status on every card; pull, merge (with revert
   points), stash and switch branches without leaving the app.
-- **Git history window** (v3) — a full commit graph per repository: colored branch lanes
+- **Git history window** — a full commit graph per repository: colored branch lanes
   with merges, branch names on every line and dot (hover to see them, click to filter),
   author avatars, and filters by branch, author, message, file path and date range. Open
   any commit to browse its files with syntax-highlighted diffs, view the whole file as of
   that commit, jump to a file's history, copy the SHA or open the commit on GitHub/GitLab/
   Bitbucket.
-- **Compare view** (v3) — pick any two branches (local or remote) and see the incoming
+- **Working-tree changes** — see your uncommitted changes with per-file diffs, right next to
+  the history.
+- **Compare view** — pick any two branches (local or remote) and see the incoming
   commits plus the full file-by-file diff between them.
-- **Stash file viewer** (v3) — every stash entry has a Files button that opens its changes
+- **Stash file viewer** — every stash entry has a Files button that opens its changes
   side by side with the diff viewer.
-- **Docker Compose** — bring a repo's compose services up or down and watch their status.
-- **Interactive terminals** — open a real PTY terminal scoped to any repository.
-- **Command profiles per repo** — save several named launch configurations for a service
-  (different args, env or start commands) and switch between them on the fly.
+
+### Organize your workspace
 - **Workspace profiles** — snapshot your whole setup (selected branches, env files, which
   services are running) and restore or share it later.
 - **Multiple environments** — group your repos into environments and switch between them; a
   banner warns you if services are still running in the one you left.
 - **Find and arrange** — a live search box filters the repository list by name, and you can
-  drag cards into a custom order that's remembered between sessions.
+  drag cards into a custom order that's remembered between sessions. Searchable dropdowns and
+  right-click context menus throughout.
+
+### Make it yours
 - **Theming** — pick a color palette (Indigo, Slate, Emerald, Crimson, Rose or Light) and a
   background pattern; the whole UI, including action buttons, adopts it instantly.
+- **Launch on login** — optionally start DevDeck automatically when you sign in
+  (Windows and Linux).
+- **Multi-monitor aware** — log, git and terminal windows open on the monitor under your
+  cursor.
 - **System tray** — close to tray and reopen from a quick-control panel (Windows/macOS) or a
   native tray menu (Linux).
+- **Bilingual UI** — English and Spanish.
+
+### Under the hood
 - **Config-driven detection** — repository types are described by YAML. Adding support for a
   new framework is a new YAML file, not a new build. Recognised out of the box:
   Spring Boot, Angular, React, Nx workspace, Maven library, Go, Rust, Python,
   Laravel, CodeIgniter, and Docker Compose infra.
 - **Cross-platform** — native builds for Windows and Linux.
-- **Bilingual UI** — English and Spanish.
+- **Self-updating** — new releases install from within the app (Windows installer and Linux
+  AppImage).
 
 ## Install
 
@@ -110,9 +135,3 @@ Windows installers will be signed with it. See the
 ## License
 
 DevDeck is released under the [MIT License](LICENSE).
-
----
-
-[![Latest release](https://img.shields.io/github/v/release/Jorditomasg/devdeck)](https://github.com/Jorditomasg/devdeck/releases)
-[![Downloads](https://img.shields.io/github/downloads/Jorditomasg/devdeck/total)](https://github.com/Jorditomasg/devdeck/releases)
-![Platforms](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-lightgrey)
