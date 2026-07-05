@@ -110,7 +110,7 @@
     "conflict_files": "Merge-conflict files. Click to list them in the log. Resolve manually and commit.",
     "expand": "Expand / Collapse options",
     "open_explorer": "Open in explorer",
-    "open_terminal": "Open a terminal in this repo",
+    "open_terminal": "Terminal / run a command",
     "open_repo": "Right-click: repository actions",
     "reload_repo": "Reload branch, branch list and git status (no network)",
     "branch_in_profile": "Include branch when saving / applying profiles.\nUnchecked: profiles will not modify this repo's branch.",
@@ -741,6 +741,7 @@
   "menu": {
     "open_folder": "Open in explorer",
     "open_terminal": "Open terminal here",
+    "add_command": "Add command…",
     "open_remote": "Open remote repository",
     "copy_path": "Copy path",
     "copy_name": "Copy name",
