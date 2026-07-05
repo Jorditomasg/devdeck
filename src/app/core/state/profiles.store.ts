@@ -50,6 +50,91 @@ export function repoProfileEquals(a: RepoProfile, b: RepoProfile): boolean {
 }
 
 /**
+ * Configurable per-repo fields, in display order — the ones a user tunes on a
+ * card and that a save overwrites. Repo identity (`git_url`/`type`) is compared
+ * for dirty detection but omitted here: it is not a "setting" worth warning
+ * about in the save-overwrite preview.
+ */
+export const OVERWRITE_FIELDS = [
+  'branch',
+  'profile',
+  'profile_tracked',
+  'command_profile',
+  'java_version',
+  'selected',
+  'docker_compose_active',
+  'docker_profile_services',
+] as const;
+
+export type OverwriteField = (typeof OVERWRITE_FIELDS)[number];
+
+/** One repo of a save-overwrite preview: which fields change (or repo-set delta). */
+export interface RepoOverwriteDiff {
+  readonly repo: string;
+  readonly status: 'changed' | 'added' | 'removed';
+  /** Changed field keys — empty for `added`/`removed`. */
+  readonly fields: readonly OverwriteField[];
+}
+
+/**
+ * Which configurable fields of two repo entries differ — same comparison basis
+ * as {@link repoProfileEquals}, minus repo identity. Empty ⇒ nothing overwritten.
+ */
+export function repoProfileFieldChanges(
+  a: RepoProfile,
+  b: RepoProfile,
+): readonly OverwriteField[] {
+  const changed: OverwriteField[] = [];
+  if ((a.branch ?? null) !== (b.branch ?? null)) changed.push('branch');
+  if ((a.profile ?? null) !== (b.profile ?? null)) changed.push('profile');
+  if (!sameArray(a.profile_tracked, b.profile_tracked)) changed.push('profile_tracked');
+  if ((a.command_profile ?? null) !== (b.command_profile ?? null))
+    changed.push('command_profile');
+  if (normalizeJavaVersion(a.java_version) !== normalizeJavaVersion(b.java_version))
+    changed.push('java_version');
+  if (a.selected !== b.selected) changed.push('selected');
+  if (!sameArray(a.docker_compose_active ?? [], b.docker_compose_active ?? []))
+    changed.push('docker_compose_active');
+  if (
+    !sameStringListRecord(
+      a.docker_profile_services ?? {},
+      b.docker_profile_services ?? {},
+    )
+  )
+    changed.push('docker_profile_services');
+  return changed;
+}
+
+/**
+ * Per-repo diff of a stored profile vs the live capture — powers the
+ * save-overwrite confirm ("these fields will be overwritten per repo"). Repos
+ * are sorted; `added`/`removed` capture the repo-set delta, `changed` lists the
+ * specific overwritten fields. Repos with no change are omitted.
+ */
+export function profileOverwriteDiff(
+  stored: ProfileDocument,
+  current: ProfileDocument,
+): readonly RepoOverwriteDiff[] {
+  const names = [
+    ...new Set([...Object.keys(stored.repos), ...Object.keys(current.repos)]),
+  ].sort((x, y) => x.localeCompare(y));
+  const out: RepoOverwriteDiff[] = [];
+  for (const repo of names) {
+    const a = stored.repos[repo];
+    const b = current.repos[repo];
+    if (a !== undefined && b === undefined) {
+      out.push({ repo, status: 'removed', fields: [] });
+    } else if (a === undefined && b !== undefined) {
+      out.push({ repo, status: 'added', fields: [] });
+    } else if (a !== undefined && b !== undefined) {
+      const fields = repoProfileFieldChanges(a, b);
+      if (fields.length > 0) out.push({ repo, status: 'changed', fields });
+    }
+  }
+  return out;
+}
+
+/**
  * Current-vs-snapshot comparison primitive for dirty detection. Compares the
  * `repos` maps only — `name`/`created` metadata and config-file snapshots are
  * ignored (the dirty check compares live card state, not file contents).

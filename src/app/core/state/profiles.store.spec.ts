@@ -8,8 +8,10 @@ import type { ProfileDocument, RepoProfile } from '../ipc/tauri.types';
 import {
   ProfilesStore,
   normalizeJavaVersion,
+  profileOverwriteDiff,
   profileReposEqual,
   repoProfileEquals,
+  repoProfileFieldChanges,
 } from './profiles.store';
 
 function repoProfile(extra?: Partial<RepoProfile>): RepoProfile {
@@ -82,6 +84,52 @@ describe('profileReposEqual (dirty-detection primitive)', () => {
   it('handles nulls (no snapshot)', () => {
     expect(profileReposEqual(null, doc({}))).toBe(false);
     expect(profileReposEqual(null, null)).toBe(true);
+  });
+});
+
+describe('repoProfileFieldChanges', () => {
+  it('lists only the configurable fields that differ (identity ignored)', () => {
+    expect(repoProfileFieldChanges(repoProfile(), repoProfile())).toEqual([]);
+    // git_url is identity — not reported even when it changes.
+    expect(
+      repoProfileFieldChanges(repoProfile(), repoProfile({ git_url: 'x' })),
+    ).toEqual([]);
+    expect(
+      repoProfileFieldChanges(
+        repoProfile(),
+        repoProfile({ branch: 'main', selected: false }),
+      ),
+    ).toEqual(['branch', 'selected']);
+  });
+
+  it('folds empty java against absent (no phantom change)', () => {
+    expect(
+      repoProfileFieldChanges(repoProfile({ java_version: '' }), repoProfile()),
+    ).toEqual([]);
+  });
+});
+
+describe('profileOverwriteDiff', () => {
+  it('reports changed fields, added and removed repos, sorted', () => {
+    const stored = doc({
+      api: repoProfile(),
+      gone: repoProfile(),
+    });
+    const current = doc({
+      api: repoProfile({ profile: 'h2' }),
+      web: repoProfile(),
+    });
+    expect(profileOverwriteDiff(stored, current)).toEqual([
+      { repo: 'api', status: 'changed', fields: ['profile'] },
+      { repo: 'gone', status: 'removed', fields: [] },
+      { repo: 'web', status: 'added', fields: [] },
+    ]);
+  });
+
+  it('is empty when nothing changed', () => {
+    expect(profileOverwriteDiff(doc({ api: repoProfile() }), doc({ api: repoProfile() }))).toEqual(
+      [],
+    );
   });
 });
 

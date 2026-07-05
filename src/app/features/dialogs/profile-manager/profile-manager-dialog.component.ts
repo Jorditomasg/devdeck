@@ -30,7 +30,12 @@ import { TPipe } from '../../../core/i18n/t.pipe';
 import { TranslationService } from '../../../core/i18n/translation.service';
 import { IpcCommands } from '../../../core/ipc/commands';
 import type { ProfileDocument } from '../../../core/ipc/tauri.types';
-import { ProfilesStore } from '../../../core/state/profiles.store';
+import {
+  ProfilesStore,
+  profileOverwriteDiff,
+  type OverwriteField,
+  type RepoOverwriteDiff,
+} from '../../../core/state/profiles.store';
 import { ReposStore } from '../../../core/state/repos.store';
 import { SettingsStore } from '../../../core/state/settings.store';
 import { RepoActionsService } from '../../workspace/state/repo-actions.service';
@@ -64,6 +69,21 @@ import {
 } from './profile-manager.logic';
 
 const JSON_FILTER = [{ name: 'JSON', extensions: ['json'] }] as const;
+
+/** i18n label key per overwrite-diff field (save-overwrite preview). */
+const FIELD_LABEL_KEYS: Record<OverwriteField, string> = {
+  branch: 'dialog.profile.field_branch',
+  profile: 'dialog.profile.field_profile',
+  profile_tracked: 'dialog.profile.field_profile_tracked',
+  command_profile: 'dialog.profile.field_command_profile',
+  java_version: 'dialog.profile.field_java_version',
+  selected: 'dialog.profile.field_selected',
+  docker_compose_active: 'dialog.profile.field_docker_active',
+  docker_profile_services: 'dialog.profile.field_docker_services',
+};
+
+/** Cap the per-repo overwrite list so a big workspace can't overflow the dialog. */
+const OVERWRITE_LIST_MAX = 15;
 
 @Component({
   selector: 'app-profile-manager-dialog',
@@ -283,7 +303,7 @@ export class ProfileManagerDialogComponent extends DialogBase {
     if (this.profileNames().includes(name)) {
       const overwrite = await this.dialogs.confirm(
         this.i18n.t('dialog.profile.overwrite_title'),
-        this.i18n.t('dialog.profile.overwrite_msg', { name }),
+        await this.overwriteMessage(name),
       );
       if (!overwrite) {
         return;
@@ -307,6 +327,49 @@ export class ProfileManagerDialogComponent extends DialogBase {
     } finally {
       this.busy.set(null);
     }
+  }
+
+  /**
+   * Overwrite-confirm text: lists, per repo, the fields the save will
+   * overwrite (branch/profile/java/docker/…), plus added/removed repos. Falls
+   * back to the plain question when the stored profile can't be read or is
+   * identical to the live capture.
+   */
+  private async overwriteMessage(name: string): Promise<string> {
+    const question = this.i18n.t('dialog.profile.overwrite_msg', { name });
+    const stored = await this.commands.profiles
+      .loadProfile(name, this.group())
+      .catch(() => null);
+    if (!stored) {
+      return question;
+    }
+    const diff = profileOverwriteDiff(stored, this.workspace.buildProfileDocument());
+    if (diff.length === 0) {
+      return question;
+    }
+    const lines = diff.slice(0, OVERWRITE_LIST_MAX).map((d) => this.overwriteLine(d));
+    if (diff.length > OVERWRITE_LIST_MAX) {
+      lines.push(
+        this.i18n.t('dialog.profile.overwrite_more', {
+          count: diff.length - OVERWRITE_LIST_MAX,
+        }),
+      );
+    }
+    return `${this.i18n.t('dialog.profile.overwrite_fields_intro')}\n\n${lines.join(
+      '\n',
+    )}\n\n${question}`;
+  }
+
+  /** One `repo — field, field` (or added/removed) line of the overwrite preview. */
+  private overwriteLine(d: RepoOverwriteDiff): string {
+    if (d.status === 'added') {
+      return `+ ${d.repo} (${this.i18n.t('dialog.profile.overwrite_added')})`;
+    }
+    if (d.status === 'removed') {
+      return `− ${d.repo} (${this.i18n.t('dialog.profile.overwrite_removed')})`;
+    }
+    const labels = d.fields.map((f) => this.i18n.t(FIELD_LABEL_KEYS[f]));
+    return `${d.repo} — ${labels.join(', ')}`;
   }
 
   // -- load (§21 :182-194 + change preview :220-278) -------------------------------
