@@ -519,6 +519,9 @@ export class ProfileManagerDialogComponent extends DialogBase {
       return; // cancelled — stay on the manager
     }
     await this.persistStaged(result.doc, stagedName);
+    // A newly-chosen download dir joins the active group (before the rescan,
+    // so its cloned repos are discovered).
+    await this.addGroupPath(result.cloneDir);
     if (result.didClone) {
       // Rescan picks up the cloned repos before the card-state apply (§21).
       const paths = this.settings.activeGroup()?.paths ?? [];
@@ -527,6 +530,24 @@ export class ProfileManagerDialogComponent extends DialogBase {
     await this.actions.applyProfile(result.doc, { sideEffects: true });
     await this.adoptBaseline(adoptName);
     this.closeSelf();
+  }
+
+  /**
+   * Register a newly-chosen clone dir on the active group so its repos surface
+   * on the next scan. No-ops when the dir is empty, already known, or the
+   * active group isn't among the persisted groups (synthesized Default).
+   */
+  private async addGroupPath(dir: string): Promise<void> {
+    const active = this.settings.activeGroup();
+    if (!active || dir === '' || active.paths.includes(dir)) {
+      return;
+    }
+    const updated = this.settings
+      .workspaceGroups()
+      .map((g) => (g.name === active.name ? { ...g, paths: [...g.paths, dir] } : g));
+    if (updated.some((g) => g.name === active.name)) {
+      await this.settings.saveWorkspaceGroups(updated).catch(() => undefined);
+    }
   }
 
   /** Adopt the named profile as the dirty baseline (load path, post-apply). */

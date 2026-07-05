@@ -335,9 +335,6 @@
       "cat_environment": "Environment selection",
       "cat_saved_envs": "Saved environments",
       "no_saved_envs": "This repo has no saved environments",
-      "dest_label": "Save to:",
-      "dest_placeholder": "Choose a destination file...",
-      "browse": "Browse...",
       "btn_export": "Export ({count})"
     },
     "confirm_close": {
@@ -380,6 +377,9 @@
       "btn_accept": "Accept and Apply",
       "missing_repos_title": "Missing repositories found:",
       "clone_missing": "Clone missing repos",
+      "download_dir_label": "Download repos to:",
+      "download_dir_placeholder": "Choose a destination folder...",
+      "browse": "Browse...",
       "overwrite_files": "Overwrite {count} config files (yml/ts)",
       "map_java_title": "Map local Java versions:",
       "java_needs": "Profile needs: {version} →",

@@ -76,20 +76,3 @@
     opacity: 0.45;
   }
 }
-
-.export__label {
-  margin: 4px 0 0;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-base);
-}
-
-.export__dest-row {
-  display: flex;
-  gap: 8px;
-}
-
-.export__input {
-  @include c.text-input;
-  flex: 1;
-  min-width: 0;
-}

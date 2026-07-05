@@ -335,9 +335,6 @@
       "cat_environment": "Selección del entorno",
       "cat_saved_envs": "Entornos guardados",
       "no_saved_envs": "Este repo no tiene entornos guardados",
-      "dest_label": "Guardar en:",
-      "dest_placeholder": "Elige un archivo de destino...",
-      "browse": "Examinar...",
       "btn_export": "Exportar ({count})"
     },
     "confirm_close": {
@@ -380,6 +377,9 @@
       "btn_accept": "Aceptar y Aplicar",
       "missing_repos_title": "Repositorios faltantes encontrados:",
       "clone_missing": "Clonar repos faltantes",
+      "download_dir_label": "Descargar repos en:",
+      "download_dir_placeholder": "Elige una carpeta de destino...",
+      "browse": "Examinar...",
       "overwrite_files": "Sobrescribir {count} archivos de config (yml/ts)",
       "map_java_title": "Asociar versiones de Java locales:",
       "java_needs": "Perfil pide: {version} →",

@@ -38,6 +38,23 @@
   @include c.checkbox-row;
 }
 
+.import__dest-label {
+  margin: 6px 0 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-base);
+}
+
+.import__dest-row {
+  display: flex;
+  gap: 8px;
+}
+
+.import__input {
+  @include c.text-input;
+  flex: 1;
+  min-width: 0;
+}
+
 .import__java-row {
   display: flex;
   align-items: center;

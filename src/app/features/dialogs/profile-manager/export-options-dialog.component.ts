@@ -4,8 +4,8 @@
  * A per-repo matrix: pick which repos to export and, per repo, which config
  * categories to include (start command / environment selection / saved
  * environments). `git_url`/`type`/`java_version` are always exported (repo
- * identity); `config_files` never is. The destination path is chosen inline
- * via the native save picker.
+ * identity); `config_files` never is. The destination path is chosen via the
+ * native save picker, opened directly when the user confirms.
  *
  * Promise-based: resolves {@link ExportOptionsResult} on confirm, `null` on
  * cancel. The PARENT (ProfileManager) owns the actual write + success dialog.
@@ -17,7 +17,6 @@ import {
   inject,
   input,
   linkedSignal,
-  signal,
 } from '@angular/core';
 
 import { TPipe } from '../../../core/i18n/t.pipe';
@@ -115,21 +114,6 @@ export interface ExportOptionsResult {
             </div>
           }
         </div>
-
-        <p class="export__label">{{ 'dialog.export.dest_label' | t }}</p>
-        <div class="export__dest-row">
-          <input
-            #destInput
-            class="export__input"
-            type="text"
-            [value]="dest()"
-            [placeholder]="'dialog.export.dest_placeholder' | t"
-            (input)="dest.set(destInput.value)"
-          />
-          <ui-button variant="neutral" (clicked)="browse()">
-            <ui-icon name="folder" [size]="14" /> {{ 'dialog.export.browse' | t }}
-          </ui-button>
-        </div>
       </div>
 
       <div uiDialogFooter>
@@ -161,8 +145,6 @@ export class ExportOptionsDialogComponent extends DialogBase {
   private readonly pickers = inject(NativePickers);
   private readonly i18n = inject(TranslationService);
 
-  protected readonly dest = signal('');
-
   /** Selection state, seeded from the document (all in; saved-envs if present). */
   protected readonly sel = linkedSignal<Record<string, RepoExportSelection>>(() => {
     const out: Record<string, RepoExportSelection> = {};
@@ -183,9 +165,7 @@ export class ExportOptionsDialogComponent extends DialogBase {
   protected readonly includedCount = computed(
     () => Object.values(this.sel()).filter((s) => s.included).length,
   );
-  protected readonly canExport = computed(
-    () => this.includedCount() > 0 && this.dest().trim() !== '',
-  );
+  protected readonly canExport = computed(() => this.includedCount() > 0);
 
   protected hasEnvs(name: string): boolean {
     return hasSavedEnvironments(this.doc().repos[name]);
@@ -213,24 +193,22 @@ export class ExportOptionsDialogComponent extends DialogBase {
     );
   }
 
-  protected async browse(): Promise<void> {
-    const picked = await this.pickers.pickSaveFile(
+  /** Pick a destination via the native save dialog, then resolve. */
+  protected async confirm(): Promise<void> {
+    if (!this.canExport()) {
+      return;
+    }
+    const dest = await this.pickers.pickSaveFile(
       this.i18n.t('dialog.profile.export_dialog_title'),
       `${this.defaultName()}.json`,
       JSON_FILTER,
     );
-    if (picked !== null) {
-      this.dest.set(picked);
-    }
-  }
-
-  protected confirm(): void {
-    if (!this.canExport()) {
-      return;
+    if (dest === null) {
+      return; // cancelled the save dialog — keep the options open
     }
     this.closeSelf({
       doc: filterProfileDocument(this.doc(), this.sel()),
-      dest: this.dest().trim(),
+      dest,
     });
   }
 }

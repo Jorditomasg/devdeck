@@ -23,6 +23,7 @@ import {
   computed,
   inject,
   input,
+  linkedSignal,
   signal,
   viewChild,
 } from '@angular/core';
@@ -40,6 +41,7 @@ import {
   SearchableSelectComponent,
 } from '../../../ui';
 import { DialogBase } from '../dialog-base';
+import { NativePickers } from '../shared/native-pickers';
 import {
   IMPORT_CLONE_CONCURRENCY,
   applyJavaMappings,
@@ -55,6 +57,8 @@ export interface ImportApplyResult {
   readonly doc: ProfileDocument;
   /** True when at least one repo was cloned (parent rescans, §21). */
   readonly didClone: boolean;
+  /** Directory repos were cloned into — parent adds it to the active group. */
+  readonly cloneDir: string;
 }
 
 @Component({
@@ -96,6 +100,25 @@ export interface ImportApplyResult {
                 />
                 {{ 'dialog.import.clone_missing' | t }}
               </label>
+
+              @if (cloneMissing()) {
+                <p class="import__dest-label">
+                  {{ 'dialog.import.download_dir_label' | t }}
+                </p>
+                <div class="import__dest-row">
+                  <input
+                    #destInput
+                    class="import__input"
+                    type="text"
+                    [value]="cloneDir()"
+                    [placeholder]="'dialog.import.download_dir_placeholder' | t"
+                    (input)="cloneDir.set(destInput.value)"
+                  />
+                  <ui-button variant="neutral" (clicked)="browse()">
+                    <ui-icon name="folder" [size]="14" /> {{ 'dialog.import.browse' | t }}
+                  </ui-button>
+                </div>
+              }
             </div>
           }
 
@@ -199,6 +222,7 @@ export class ImportOptionsDialogComponent extends DialogBase {
 
   private readonly commands = inject(IpcCommands);
   private readonly i18n = inject(TranslationService);
+  private readonly pickers = inject(NativePickers);
   private readonly shell = viewChild.required<DialogShellComponent>('shell');
 
   protected readonly step = signal<'options' | 'progress'>('options');
@@ -210,6 +234,8 @@ export class ImportOptionsDialogComponent extends DialogBase {
   protected readonly progress = signal(0);
   protected readonly progressLabel = signal('');
   protected readonly logLines = signal<readonly string[]>([]);
+  /** Clone destination, seeded from the active workspace path (user-editable). */
+  protected readonly cloneDir = linkedSignal(() => this.workspaceDir());
 
   private result: ImportApplyResult | null = null;
 
@@ -263,6 +289,16 @@ export class ImportOptionsDialogComponent extends DialogBase {
     this.javaMapping.update((m) => ({ ...m, [version]: value }));
   }
 
+  /** Pick the clone destination directory via the native folder chooser. */
+  protected async browse(): Promise<void> {
+    const picked = await this.pickers.pickDirectory(
+      this.i18n.t('dialog.import.download_dir_label'),
+    );
+    if (picked !== null) {
+      this.cloneDir.set(picked);
+    }
+  }
+
   // -- worker (§21 step 2) -------------------------------------------------------
 
   protected async accept(): Promise<void> {
@@ -281,6 +317,12 @@ export class ImportOptionsDialogComponent extends DialogBase {
 
       const cloneTargets =
         this.cloneMissing() && this.missing().length > 0 ? this.missing() : [];
+      // Repos download here (defaults to the active workspace path); env-apply
+      // targets the same dir so it finds the freshly-cloned repos.
+      const targetDir =
+        cloneTargets.length > 0
+          ? this.cloneDir().trim() || this.workspaceDir()
+          : this.workspaceDir();
       const totalTicks = cloneTargets.length + 1;
       let ticks = 0;
       const tick = (): void => {
@@ -300,7 +342,7 @@ export class ImportOptionsDialogComponent extends DialogBase {
             this.i18n.t('dialog.import.cloning_progress', { name: repo.name }),
           );
           this.log(this.i18n.t('log.import_cloning', { name: repo.name }));
-          const dest = `${this.workspaceDir()}/${repo.name}`;
+          const dest = `${targetDir}/${repo.name}`;
           const cloned = await this.commands.git.clone(repo.gitUrl, dest);
           if (!cloned.ok) {
             this.log(
@@ -326,7 +368,7 @@ export class ImportOptionsDialogComponent extends DialogBase {
       const envDoc = this.overwriteFiles() ? mapped : stripConfigFiles(mapped);
       const report = await this.commands.profiles.applyProfileEnvironments(
         envDoc,
-        this.workspaceDir(),
+        targetDir,
       );
       const renames = Object.entries(report.renames)
         .flatMap(([key, map]) =>
@@ -342,7 +384,7 @@ export class ImportOptionsDialogComponent extends DialogBase {
       // 4. Completion (§21 :748-763).
       this.progress.set(1);
       this.progressLabel.set(this.i18n.t('dialog.import.completed'));
-      this.result = { doc: mapped, didClone };
+      this.result = { doc: mapped, didClone, cloneDir: targetDir };
       this.working.set(false);
       await this.dialogs.info(
         this.i18n.t('dialog.import.done_title'),
