@@ -11,6 +11,7 @@ import {
   pathBasename,
   repoTypeLabel,
   serviceUrl,
+  terminalMenuEntries,
 } from './card-logic';
 
 describe('repoTypeLabel (§6 type badge)', () => {
@@ -188,5 +189,45 @@ describe('pathBasename', () => {
 
   it('returns the input when there is no separator', () => {
     expect(pathBasename('file.yml')).toBe('file.yml');
+  });
+});
+
+describe('terminalMenuEntries (terminal button menu, design 2026-07-05)', () => {
+  const text = { shell: 'Terminal', add: 'Add command…' };
+
+  it('offers the clean shell first and the add entry last (separated) when there are no commands', () => {
+    expect(terminalMenuEntries({}, text)).toEqual([
+      { id: 'shell', label: 'Terminal', icon: 'terminal' },
+      { id: 'add', label: 'Add command…', icon: 'plus', separator: true },
+    ]);
+  });
+
+  it('lists profiles sorted by name between the shell and the add entry', () => {
+    const entries = terminalMenuEntries({ b: 'cmd b', a: 'cmd a' }, text);
+    expect(entries.map((e) => e.id)).toEqual(['shell', 'profile:a', 'profile:b', 'add']);
+    expect(entries[2].hint).toBe('cmd b');
+  });
+
+  it('separates the first profile from the shell and the add entry from the commands', () => {
+    const entries = terminalMenuEntries({ a: 'cmd a' }, text);
+    expect(entries[1]).toEqual({
+      id: 'profile:a',
+      label: 'a',
+      icon: 'play',
+      separator: true,
+      hint: 'cmd a',
+    });
+    expect(entries[2]).toEqual({
+      id: 'add',
+      label: 'Add command…',
+      icon: 'plus',
+      separator: true,
+    });
+  });
+
+  it('truncates long profile commands in the hint to 40 chars with an ellipsis', () => {
+    const entries = terminalMenuEntries({ a: 'x'.repeat(60) }, text);
+    expect(entries[1].hint).toHaveLength(40);
+    expect(entries[1].hint!.endsWith('…')).toBe(true);
   });
 });

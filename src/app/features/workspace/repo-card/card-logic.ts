@@ -7,6 +7,7 @@
  * - docker compose button state/counter (§7 row 3.5, §11)
  * - detected service URL (§9 `_detect_port_from_log` consumer)
  */
+import type { MenuEntry } from '../../../ui';
 import type { ServiceStatus } from '../../../core/ipc/tauri.types';
 
 /** `"spring-boot"` → `"Spring Boot"` (§6 type badge: title-cased, `-`→space). */
@@ -170,4 +171,40 @@ export function serviceUrl(
 /** Path basename (both separators — v1 ran on Windows paths). */
 export function pathBasename(path: string): string {
   return path.replace(/\\/g, '/').split('/').pop() ?? path;
+}
+
+/** Right-aligned menu hint: the command itself, truncated so a long command
+ * line cannot stretch the menu. */
+function commandHint(command: string): string {
+  return command.length > 40 ? `${command.slice(0, 39)}…` : command;
+}
+
+/**
+ * Terminal-button menu (design doc 2026-07-05): "Terminal" (clean shell)
+ * first, then — separated — the repo's saved command profiles (sorted by
+ * name), each runnable fire & forget in a terminal; and last, separated at
+ * the bottom, an "add command" entry that opens the command-profile manager.
+ * Ids: `shell` | `profile:<name>` | `add`.
+ */
+export function terminalMenuEntries(
+  profiles: Readonly<Record<string, string>>,
+  text: { readonly shell: string; readonly add: string },
+): MenuEntry[] {
+  const commands: MenuEntry[] = [];
+  for (const name of Object.keys(profiles).sort((a, b) => a.localeCompare(b))) {
+    commands.push({
+      id: `profile:${name}`,
+      label: name,
+      icon: 'play',
+      hint: commandHint(profiles[name]),
+    });
+  }
+  if (commands.length > 0) {
+    commands[0] = { ...commands[0], separator: true };
+  }
+  return [
+    { id: 'shell', label: text.shell, icon: 'terminal' },
+    ...commands,
+    { id: 'add', label: text.add, icon: 'plus', separator: true },
+  ];
 }
