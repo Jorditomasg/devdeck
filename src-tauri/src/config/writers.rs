@@ -1,9 +1,11 @@
 //! Config-file readers/writers and env auto-import helpers.
 //!
 //! Port of the file-IO half of `core/config_manager.py`:
-//! - Spring YAML config IO (§8.4 backend): profile `default` ⇒
-//!   `application.yml`, otherwise `application-{profile}.yml` — always `.yml`
-//!   (v1 never wrote `.yaml`/`.properties`);
+//! - Spring config IO (§8.4 backend): `write_spring_config` targets
+//!   `application.yml` / `application-{profile}.yml` (the low-level per-profile
+//!   writer, still used for reads). NOTE: the ACTIVE-write path (`SpringWriter`)
+//!   now stamps the selected env into the BASE running file only — see its doc
+//!   (Model B, design doc 2026-07-05-env-drift-deselection);
 //! - raw config-file IO (§8.5): used by the `angular` and `raw`
 //!   `config_writer_type`s, which write the saved-environment content
 //!   verbatim into `main_config_filename` (inventory-config-ci.md §1.5);
@@ -18,7 +20,7 @@ use crate::domain::{DomainError, DomainResult};
 use regex::Regex;
 use std::collections::BTreeMap;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// Spring profile filename with an explicit extension: `default`/empty →
 /// `application.{ext}`, else `application-{p}.{ext}`.
@@ -84,6 +86,12 @@ pub fn write_config_file_raw(path: &Path, content: &str) -> DomainResult<()> {
 /// type's `config.writer` selects one of these by [`ConfigWriter::name`].
 pub trait ConfigWriter: Sync {
     fn name(&self) -> &'static str;
+    /// The file this writer actually writes (and reads back) for `profile` —
+    /// the "active" environment file. For `raw`/`angular` it is `target_file`;
+    /// for `spring` it is the profile file inside the resources dir. The
+    /// read-side counterpart of [`ConfigWriter::write_active`], used to detect
+    /// a user editing the file out of sync with the selected environment.
+    fn active_path(&self, target_file: &Path, profile: &str) -> DomainResult<PathBuf>;
     fn write_active(&self, target_file: &Path, profile: &str, content: &str) -> DomainResult<()>;
 }
 
@@ -93,6 +101,9 @@ struct RawWriter;
 impl ConfigWriter for RawWriter {
     fn name(&self) -> &'static str {
         "raw"
+    }
+    fn active_path(&self, target_file: &Path, _profile: &str) -> DomainResult<PathBuf> {
+        Ok(target_file.to_path_buf())
     }
     fn write_active(&self, target_file: &Path, _profile: &str, content: &str) -> DomainResult<()> {
         write_config_file_raw(target_file, content)
@@ -106,38 +117,69 @@ impl ConfigWriter for AngularWriter {
     fn name(&self) -> &'static str {
         "angular"
     }
+    fn active_path(&self, target_file: &Path, _profile: &str) -> DomainResult<PathBuf> {
+        Ok(target_file.to_path_buf())
+    }
     fn write_active(&self, target_file: &Path, _profile: &str, content: &str) -> DomainResult<()> {
         write_config_file_raw(target_file, content)
     }
 }
 
-/// `spring` — writes the profile file inside the resources dir (the parent
-/// of `target_file`), honoring the repo's config FORMAT: a `.properties`
-/// target writes `application[-profile].properties` verbatim (properties
-/// are NOT YAML — validating them as YAML broke petclinic-style repos, user
-/// report 2026-07-03); anything else keeps the v1 `.yml` convention with
-/// YAML validation.
+/// `spring` — stamps the selected environment into the BASE config file that
+/// actually runs (`application.{ext}`, NO profile suffix), inside the resources
+/// dir (the parent of `target_file`). This mirrors the `raw`/`angular` writers,
+/// which target their single running file: `mvn spring-boot:run` loads
+/// `application.properties`/`.yml` by default, so writing to
+/// `application-{profile}.*` had no runtime effect (design doc
+/// 2026-07-05-env-drift-deselection, Model B). The per-profile
+/// `application-{p}.*` files remain as preset SOURCES only.
+///
+/// The FORMAT is honored: a `.properties` base is written verbatim (properties
+/// are NOT YAML — validating them broke petclinic-style repos, user report
+/// 2026-07-03); a `.yml` base keeps the YAML validation.
 struct SpringWriter;
 impl ConfigWriter for SpringWriter {
     fn name(&self) -> &'static str {
         "spring"
     }
-    fn write_active(&self, target_file: &Path, profile: &str, content: &str) -> DomainResult<()> {
+    fn active_path(&self, target_file: &Path, _profile: &str) -> DomainResult<PathBuf> {
         let resources_dir = target_file.parent().ok_or_else(|| {
             DomainError::Configuration(format!(
                 "spring target '{}' has no parent dir",
                 target_file.display()
             ))
         })?;
-        let is_properties = target_file
+        let ext = if target_file
             .extension()
             .and_then(|e| e.to_str())
-            .is_some_and(|e| e.eq_ignore_ascii_case("properties"));
-        if is_properties {
-            let name = spring_profile_filename(profile, "properties");
-            return write_config_file_raw(&resources_dir.join(name), content);
+            .is_some_and(|e| e.eq_ignore_ascii_case("properties"))
+        {
+            "properties"
+        } else {
+            "yml"
+        };
+        // Model B: always the base file (`application.{ext}`), regardless of the
+        // selected profile — that is the file Spring runs by default.
+        Ok(resources_dir.join(spring_profile_filename("default", ext)))
+    }
+    fn write_active(&self, target_file: &Path, profile: &str, content: &str) -> DomainResult<()> {
+        let path = self.active_path(target_file, profile)?;
+        // `.properties` are NOT YAML — validating them broke petclinic-style
+        // repos (user report 2026-07-03); `.yml` keeps the YAML validation.
+        if path
+            .extension()
+            .and_then(|e| e.to_str())
+            .is_some_and(|e| e.eq_ignore_ascii_case("properties"))
+        {
+            return write_config_file_raw(&path, content);
         }
-        write_spring_config(resources_dir, profile, content)
+        serde_yaml_ng::from_str::<serde_yaml_ng::Value>(content).map_err(|e| {
+            DomainError::YamlParse {
+                path: path.display().to_string(),
+                message: e.to_string(),
+            }
+        })?;
+        write_config_file_raw(&path, content)
     }
 }
 
@@ -176,6 +218,30 @@ pub fn write_active_environment(
     content: &str,
 ) -> DomainResult<()> {
     writer_for(writer_type).write_active(target_file, profile, content)
+}
+
+/// Resolve the file that [`write_active_environment`] writes for `profile`
+/// (the single source of truth for that mapping). `spring` targets the profile
+/// file inside the resources dir; `angular`/`raw` (and unknown types) → the
+/// target file itself.
+pub fn resolve_active_file(
+    writer_type: &str,
+    target_file: &Path,
+    profile: &str,
+) -> DomainResult<PathBuf> {
+    writer_for(writer_type).active_path(target_file, profile)
+}
+
+/// Read the current content of the active environment file (the read-side
+/// counterpart of [`write_active_environment`]). Missing file → `Ok("")`.
+/// Used to detect that a user edited the file out of sync with the selected
+/// saved environment (drift → deselect).
+pub fn read_active_environment(
+    writer_type: &str,
+    target_file: &Path,
+    profile: &str,
+) -> DomainResult<String> {
+    read_config_file_raw(&resolve_active_file(writer_type, target_file, profile)?)
 }
 
 /// Derive a profile/environment name from a filename using the repo-type
@@ -315,9 +381,57 @@ mod tests {
 
         let resources = dir.join("src/main/resources");
         fs::create_dir_all(&resources).unwrap();
+        // Model B: stamps into the BASE file, NOT application-dev.yml.
         write_active_environment("spring", &resources.join("application.yml"), "dev", "a: 1")
             .unwrap();
-        assert!(resources.join("application-dev.yml").is_file());
+        assert!(resources.join("application.yml").is_file());
+        assert!(!resources.join("application-dev.yml").exists());
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn resolve_and_read_active_file() {
+        let dir = temp_dir("resolve");
+        // raw/angular: the active file IS the target.
+        let env = dir.join(".env");
+        assert_eq!(resolve_active_file("raw", &env, "local").unwrap(), env);
+        assert_eq!(resolve_active_file("angular", &env, "prod").unwrap(), env);
+        // unknown writer falls back to raw → target.
+        assert_eq!(resolve_active_file("toml", &env, "x").unwrap(), env);
+
+        // spring (Model B): ANY profile resolves to the BASE running file
+        // (application.{ext}), never the per-profile file. The ext follows the
+        // target file's extension.
+        let resources = dir.join("src/main/resources");
+        fs::create_dir_all(&resources).unwrap();
+        let yml_target = resources.join("application.yml");
+        assert_eq!(
+            resolve_active_file("spring", &yml_target, "dev").unwrap(),
+            resources.join("application.yml")
+        );
+        assert_eq!(
+            resolve_active_file("spring", &yml_target, "default").unwrap(),
+            resources.join("application.yml")
+        );
+        // A per-profile target still resolves to the base — .properties format.
+        let props_target = resources.join("application-mysql.properties");
+        assert_eq!(
+            resolve_active_file("spring", &props_target, "mysql").unwrap(),
+            resources.join("application.properties")
+        );
+
+        // read_active_environment returns the base file's content; missing → "".
+        write_active_environment("spring", &yml_target, "dev", "a: 1\n").unwrap();
+        assert_eq!(
+            read_active_environment("spring", &yml_target, "dev").unwrap(),
+            "a: 1\n"
+        );
+        // Same base file regardless of the profile queried.
+        assert_eq!(
+            read_active_environment("spring", &yml_target, "prod").unwrap(),
+            "a: 1\n"
+        );
+        assert_eq!(read_active_environment("raw", &env, "local").unwrap(), "");
         let _ = fs::remove_dir_all(dir);
     }
 
@@ -329,6 +443,9 @@ mod tests {
         // Real-world properties content that is NOT valid YAML (petclinic's
         // `#---` document separators broke the YAML validation, 2026-07-03).
         let content = "database=mysql\nspring.datasource.url=${MYSQL_URL:jdbc:mysql://x/y}\n#---\nspring.sql.init.mode=always\n";
+        // Model B: selecting "mysql" stamps into the BASE application.properties
+        // (the running file), verbatim, no YAML validation — NOT the per-profile
+        // application-mysql.properties.
         write_active_environment(
             "spring",
             &resources.join("application-mysql.properties"),
@@ -337,19 +454,14 @@ mod tests {
         )
         .unwrap();
         assert_eq!(
-            fs::read_to_string(resources.join("application-mysql.properties")).unwrap(),
+            fs::read_to_string(resources.join("application.properties")).unwrap(),
             content,
-            "verbatim, no YAML validation, .properties profile filename"
+            "verbatim into the base .properties file, no YAML validation"
         );
-        // Default profile → application.properties.
-        write_active_environment(
-            "spring",
-            &resources.join("application.properties"),
-            "default",
-            "a=1",
-        )
-        .unwrap();
-        assert!(resources.join("application.properties").is_file());
+        assert!(
+            !resources.join("application-mysql.properties").exists(),
+            "the per-profile file is not written on apply"
+        );
         let _ = fs::remove_dir_all(dir);
     }
 

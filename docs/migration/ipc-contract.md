@@ -85,13 +85,14 @@ literal `root` (`config::ROOT_MODULE_KEY`).
 
 ## 2. Commands
 
-110 commands across 9 groups (55 core + the 2 app-lifecycle extensions in §2.1
+111 commands across 9 groups (55 core + the 2 app-lifecycle extensions in §2.1
 + the 2 review additions: `set_last_profile` #58 in §2.5, `is_installed` #59
 in §2.3, + the post-v1 extensions numbered 60+ in their sections — detached
 log/terminal/dialog windows, tray panel, updates §2.9, stash/branch
 management, the git-history queries #91–#102 and the changes-window
-working-tree commands #103–#108 in §2.4). The authoritative count assertion
-lives in `src/app/core/ipc/commands.spec.ts`.
+working-tree commands #103–#108 in §2.4, and `read_active_environment` #111
+in §2.5). The authoritative count assertion lives in
+`src/app/core/ipc/commands.spec.ts`.
 
 ### 2.1 App lifecycle (`commands/app.rs`, wired in `lib.rs`)
 
@@ -280,6 +281,7 @@ Operation logs flow through `service://log-line` with `stream: "git"` and `name`
 | 33 | `read_config_file` | `{ path: string }` | `string` | `config::read_config_file_raw` |
 | 34 | `write_config_file` | `{ path: string, content: string }` | `void` | `config::write_config_file_raw` |
 | 35 | `apply_environment` | `{ writerType: string, targetFile: string, profile: string, content: string }` | `void` | `config::write_active_environment` (`spring` validates YAML + targets profile file; `angular`/`raw` write verbatim, inventory-config-ci.md §1.5) |
+| 111 | `read_active_environment` | `{ writerType: string, targetFile: string, profile: string }` | `string` | `config::read_active_environment` — current content of the file `apply_environment` writes for `profile` (`spring` reads the BASE `application.{ext}` — Model B; `angular`/`raw` read the target); missing → `""`. Drives env-file drift deselection (§10). |
 | 58 | `set_last_profile` | `{ group: string \| null, name: string \| null }` | `void` | `ConfigStore::update` — persists `last_profile_by_group[group or "Default"] = name`; `name: null` clears the entry (inventory-backend.md §8.3) |
 
 ### 2.6 Java (`java/`)

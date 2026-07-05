@@ -47,6 +47,42 @@
   }
 }
 
+// Drift banner — env selections auto-deselected because their file was edited
+// out of sync (§10). Mirrors the orphan banner; info-toned, dismissible.
+.page__drift {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 10px 0;
+  padding: 6px 10px;
+  border: var(--geo-border-width) solid var(--color-status-starting);
+  border-radius: var(--geo-corner-card);
+  background-color: color-mix(in srgb, var(--color-status-starting) 12%, transparent);
+  color: var(--color-text-warning-badge);
+  font-size: var(--font-size-md);
+}
+
+.page__drift-text {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.page__drift-dismiss {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  border: var(--geo-border-width) solid var(--color-status-starting);
+  border-radius: var(--geo-corner-btn);
+  background-color: transparent;
+  color: var(--color-text-warning-badge);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+
+  &:hover {
+    background-color: color-mix(in srgb, var(--color-status-starting) 22%, transparent);
+  }
+}
+
 // Repo-list toolbar — search + reorder encapsulated in one subtle bar so they
 // read as a single grouped control above the list.
 .page__toolbar {

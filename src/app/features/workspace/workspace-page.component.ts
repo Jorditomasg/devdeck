@@ -35,6 +35,7 @@ import { GlobalLogPanelComponent } from './statusbar/global-log-panel.component'
 import { TopbarComponent, profileGroupArg } from './topbar.component';
 import { RepoActionsService } from './state/repo-actions.service';
 import { WorkspaceStore } from './state/workspace.store';
+import { activeConfigsByRepo } from './workspace-logic';
 import {
   computeOrphans,
   effectiveOrder,
@@ -73,6 +74,17 @@ import {
         <span class="page__orphans-text">{{ orphanText() }}</span>
         <button type="button" class="page__orphans-stop" (click)="onStopOrphans()">
           {{ i18n.t('btn.stop_orphans') }}
+        </button>
+      </div>
+    }
+
+    <!-- §10 drift banner: env selections auto-deselected because their file
+         was edited out of sync with the selected saved environment. -->
+    @if (driftNotices().length > 0) {
+      <div class="page__drift" role="status">
+        <span class="page__drift-text">{{ driftText() }}</span>
+        <button type="button" class="page__drift-dismiss" (click)="onDismissDrift()">
+          {{ i18n.t('btn.dismiss') }}
         </button>
       </div>
     }
@@ -214,6 +226,20 @@ export class WorkspacePageComponent {
     return groups.length > 0 ? `${base} (${groups.join(', ')})` : base;
   });
 
+  /** Env selections auto-deselected because their file drifted (§10 banner). */
+  protected readonly driftNotices = computed(() => this.actions.driftNotices());
+
+  protected readonly driftText = computed(() => {
+    const list = this.driftNotices();
+    const repos = [...new Set(list.map((n) => n.repo))];
+    const base = this.i18n.t('label.env_drift_deselected', { count: list.length });
+    return repos.length > 0 ? `${base} (${repos.join(', ')})` : base;
+  });
+
+  protected onDismissDrift(): void {
+    this.actions.dismissDriftNotices();
+  }
+
   /** Identity of the active environment for rescans: its name + directories.
    *  A string so unrelated config writes (e.g. repo order) keep it equal and
    *  do NOT trigger a rescan — only a switch or a directory edit does. */
@@ -251,6 +277,18 @@ export class WorkspacePageComponent {
       untracked(() => void this.scanAndReload());
     });
 
+    // Second launch (single-instance): Rust forwards `app://single-instance`
+    // instead of showing a native OS dialog; we prompt with our own styled,
+    // detached confirm and restore the window on "Yes". The initial run (signal
+    // still null) is a no-op — only a real second launch triggers the prompt.
+    effect(() => {
+      const evt = this.settings.singleInstance();
+      if (!evt) {
+        return;
+      }
+      untracked(() => void this.onSecondInstance());
+    });
+
     let unlisten: UnlistenFn | undefined;
     void this.init().then((fn) => {
       unlisten = fn;
@@ -266,6 +304,14 @@ export class WorkspacePageComponent {
 
   protected onRescan(): void {
     void this.scanAndReload();
+  }
+
+  /** Styled "already running" prompt for a second launch; restore on confirm. */
+  private async onSecondInstance(): Promise<void> {
+    const open = await this.dialogs.confirmSecondInstance();
+    if (open) {
+      await this.commands.showMainWindow().catch(() => undefined);
+    }
   }
 
   // -- drag reorder (§order) ----------------------------------------------------
@@ -348,11 +394,22 @@ export class WorkspacePageComponent {
 
   private async init(): Promise<UnlistenFn | undefined> {
     await this.ws.init().catch(() => undefined);
-    const unlisten = await this.events
-      .onAppCloseRequested(() => void this.onCloseRequested())
-      .catch(() => undefined);
+    const [closeUnlisten, badgeUnlisten] = await Promise.all([
+      this.events
+        .onAppCloseRequested(() => void this.onCloseRequested())
+        .catch(() => undefined),
+      // §10 drift deselection: the 30 s badge poll (with its immediate kick
+      // after scan) is our "check for edited env files" tick — the first badge
+      // also covers files edited while the app was closed.
+      this.events
+        .onGitBadge((e) => void this.actions.checkEnvDrift(e.name))
+        .catch(() => undefined),
+    ]);
     await this.scanAndReload();
-    return unlisten;
+    return () => {
+      closeUnlisten?.();
+      badgeUnlisten?.();
+    };
   }
 
   /** §17 confirm-close: answer `app_exit { force }` either way. */
@@ -373,12 +430,14 @@ export class WorkspacePageComponent {
     if (paths.length === 0) {
       return;
     }
+    let detectedNames: readonly string[] = [];
     try {
       const detected = await this.repos.scan(paths);
-      this.ws.pruneCards(detected.map((r) => r.name));
+      detectedNames = detected.map((r) => r.name);
+      this.ws.pruneCards(detectedNames);
       // Tag this group's repos so a later switch can name where an orphan
       // (a service left running here) came from.
-      this.ws.tagServiceGroups(group?.name ?? '', detected.map((r) => r.name));
+      this.ws.tagServiceGroups(group?.name ?? '', detectedNames);
       const states = this.settings.repoStates();
       for (const repo of detected) {
         const persisted = states[repo.name];
@@ -410,6 +469,24 @@ export class WorkspacePageComponent {
       if (doc) {
         await this.actions.applyProfile(doc, { skipDirtyCheck: true });
       }
+    }
+
+    // Re-hydrate transient env selections from `active_configs` (§10). This
+    // runs AFTER the profile re-apply on purpose: `active_configs` is written
+    // on every env pick — including one made on top of a loaded profile and
+    // never saved — so it is the authoritative "last selected" and must win.
+    // `silent` matches the repo_state restore above (§26: no startup dirty).
+    const byRepo = activeConfigsByRepo(
+      this.settings.config()?.active_configs,
+      detectedNames,
+    );
+    for (const [repo, configValues] of byRepo) {
+      const current = this.ws.card(repo).configValues;
+      this.ws.patchCard(
+        repo,
+        { configValues: { ...current, ...configValues } },
+        { silent: true },
+      );
     }
   }
 }

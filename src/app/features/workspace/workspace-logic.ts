@@ -49,6 +49,70 @@ export function profileDropdownOptions(
   return activeName ? profiles : [noProfileLabel, ...profiles];
 }
 
+/** One module's env state for the drift check (§10 drift deselection). */
+export interface EnvDriftInput {
+  readonly moduleKey: string;
+  /** Selected saved-env name (`''` = no selection → never drifts). */
+  readonly selectedName: string;
+  /** Content stored for `selectedName` (`undefined` if the env was deleted). */
+  readonly savedContent: string | undefined;
+  /** Current on-disk content of the active file (`''` if missing). */
+  readonly currentContent: string;
+}
+
+/**
+ * Module keys whose on-disk env file no longer matches their selected saved
+ * environment (§10 drift deselection). A module drifts when it HAS a selection
+ * and either the saved env is gone (`savedContent === undefined`) or the file
+ * content differs byte-for-byte (writers write verbatim, so an exact compare
+ * has no false positives). Modules with no selection never drift.
+ */
+export function driftedModules(inputs: readonly EnvDriftInput[]): string[] {
+  return inputs
+    .filter(
+      (i) =>
+        i.selectedName !== '' &&
+        (i.savedContent === undefined || i.currentContent !== i.savedContent),
+    )
+    .map((i) => i.moduleKey);
+}
+
+/**
+ * Group `active_configs` (`"{repo}::{module}"` → env name, §10 / contract
+ * §1.5) into per-repo module maps, keeping only detected repos and non-empty
+ * selections. Used to re-hydrate the env dropdowns on startup: the selection
+ * is persisted on every pick but is otherwise never read back, so a transient
+ * env choice (not captured into a profile) was lost across restarts.
+ */
+export function activeConfigsByRepo(
+  activeConfigs: Readonly<Record<string, string>> | undefined,
+  detectedRepos: readonly string[],
+): ReadonlyMap<string, Record<string, string>> {
+  const byRepo = new Map<string, Record<string, string>>();
+  if (!activeConfigs) {
+    return byRepo;
+  }
+  const wanted = new Set(detectedRepos);
+  for (const [key, value] of Object.entries(activeConfigs)) {
+    if (!value) {
+      continue; // deselected (persisted null) → nothing to restore
+    }
+    const sep = key.indexOf('::');
+    if (sep < 0) {
+      continue;
+    }
+    const repo = key.slice(0, sep);
+    const moduleKey = key.slice(sep + 2);
+    if (!moduleKey || !wanted.has(repo)) {
+      continue; // orphan key for a repo no longer in this group
+    }
+    const entry = byRepo.get(repo) ?? {};
+    entry[moduleKey] = value;
+    byRepo.set(repo, entry);
+  }
+  return byRepo;
+}
+
 /**
  * Display name of a compose file button (§7 row 3.5): `docker-compose.yml` →
  * `docker-compose`; `docker-compose.<x>.yml` → `<x>`; anything else → its

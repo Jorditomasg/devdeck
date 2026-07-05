@@ -209,3 +209,21 @@ pub async fn apply_environment(
     config::write_active_environment(&writer_type, Path::new(&target_file), &profile, &content)?;
     Ok(())
 }
+
+/// #111 `read_active_environment { writerType, targetFile, profile }` → the
+/// current content of the file `apply_environment` writes for `profile`
+/// (`spring` reads `application-{profile}.{ext}`; `angular`/`raw` read the
+/// target). Missing file → `""`. Used to detect that a user edited the env
+/// file out of sync with the selected saved environment (drift → deselect).
+#[tauri::command]
+pub async fn read_active_environment(
+    writer_type: String,
+    target_file: String,
+    profile: String,
+) -> CmdResult<String> {
+    Ok(config::read_active_environment(
+        &writer_type,
+        Path::new(&target_file),
+        &profile,
+    )?)
+}

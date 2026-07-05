@@ -14,6 +14,7 @@
     "save_changes": "Save Changes",
     "cancel": "Cancel",
     "close": "Close",
+    "dismiss": "Dismiss",
     "apply_branch": "Apply",
     "clear_log": "Clear",
     "detach_log": "Detach",
@@ -93,7 +94,8 @@
     "statusbar_running": "{count} running",
     "no_repos": "No repositories detected in this workspace",
     "no_repos_match": "No repositories match your search",
-    "orphans_running": "{count} service(s) still running in another workspace"
+    "orphans_running": "{count} service(s) still running in another workspace",
+    "env_drift_deselected": "{count} environment selection(s) deselected — their file changed on disk"
   },
   "tooltip": {
     "drag_reorder": "Drag to reorder",
@@ -255,6 +257,10 @@
       "confirm_delete_title": "Delete environment",
       "confirm_delete_msg": "Delete the environment '{name}'?",
       "error_last_group": "Cannot delete the last remaining environment."
+    },
+    "single_instance": {
+      "title": "Already running",
+      "message": "DevDeck is already running. Open the window?"
     },
     "clone": {
       "title": "Clone Repository",

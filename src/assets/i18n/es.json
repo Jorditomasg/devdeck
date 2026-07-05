@@ -14,6 +14,7 @@
     "save_changes": "Guardar Cambios",
     "cancel": "Cancelar",
     "close": "Cerrar",
+    "dismiss": "Descartar",
     "apply_branch": "Aplicar",
     "clear_log": "Limpiar",
     "detach_log": "Desacoplar",
@@ -93,7 +94,8 @@
     "statusbar_running": "{count} en ejecución",
     "no_repos": "No se detectaron repositorios en este workspace",
     "no_repos_match": "Ningún repositorio coincide con la búsqueda",
-    "orphans_running": "{count} servicio(s) siguen activos en otro workspace"
+    "orphans_running": "{count} servicio(s) siguen activos en otro workspace",
+    "env_drift_deselected": "{count} selección(es) de entorno deseleccionada(s) — su fichero cambió en disco"
   },
   "tooltip": {
     "drag_reorder": "Arrastrar para reordenar",
@@ -255,6 +257,10 @@
       "confirm_delete_title": "Eliminar entorno",
       "confirm_delete_msg": "¿Eliminar el entorno '{name}'?",
       "error_last_group": "No se puede eliminar el último entorno."
+    },
+    "single_instance": {
+      "title": "Ya en ejecución",
+      "message": "DevDeck ya se está ejecutando. ¿Abrir la ventana?"
     },
     "clone": {
       "title": "Clonar Repositorio",

@@ -25,6 +25,7 @@ import {
   PULL_ERROR_MAX_FILES,
 } from '../workspace.constants';
 import { WorkspaceStore, configKeyFor } from './workspace.store';
+import { driftedModules, type EnvDriftInput } from '../workspace-logic';
 
 /** v1 gate for docker-managed cards (§12 step 1): the `docker_checkboxes` feature. */
 export function isDockerRepo(repo: RepoInfo): boolean {
@@ -44,6 +45,20 @@ export class RepoActionsService {
    */
   private readonly _pulling = signal<ReadonlySet<string>>(new Set());
   readonly pulling = this._pulling.asReadonly();
+
+  /**
+   * Env selections auto-deselected because their file drifted (§10). Feeds the
+   * workspace-page banner; `dismissDriftNotices` clears it. Deselected modules
+   * are skipped on the next check, so no entry re-appears once acknowledged.
+   */
+  private readonly _driftNotices = signal<
+    readonly { repo: string; moduleKey: string }[]
+  >([]);
+  readonly driftNotices = this._driftNotices.asReadonly();
+
+  dismissDriftNotices(): void {
+    this._driftNotices.set([]);
+  }
 
   constructor(
     private readonly commands: IpcCommands,
@@ -362,6 +377,81 @@ export class RepoActionsService {
           path: this.envTargetFile(repo, moduleKey) ?? key,
         })}\n\n${detail}`,
       );
+    }
+  }
+
+  /**
+   * Drift check (§10 drift deselection): for each module of `repoName` that
+   * HAS a selected env, compare the on-disk active file against the saved env
+   * content; a mismatch (or a deleted env) deselects that module and records a
+   * banner notice. Deselecting does NOT touch the file — the user's edit
+   * stays. The deselect is a non-silent patch so the profile dirty-check
+   * recomputes (the workspace no longer matches the saved profile).
+   *
+   * Hooked to the 30 s `git://badge` event (workspace-page); scoped to one
+   * repo per call and to modules with a selection, so the per-cycle cost is a
+   * handful of small reads.
+   */
+  async checkEnvDrift(repoName: string): Promise<void> {
+    const repo = this.repos.repoByName(repoName);
+    if (!repo) {
+      return;
+    }
+    const card = this.ws.card(repo.name);
+    const selected = repo.modules
+      .map((m) => ({ module: m, name: card.configValues[m.key] ?? '' }))
+      .filter((x) => x.name !== '');
+    if (selected.length === 0) {
+      return;
+    }
+
+    const inputs: EnvDriftInput[] = [];
+    for (const { module, name } of selected) {
+      const target = this.envTargetFile(repo, module.key);
+      if (!target) {
+        continue;
+      }
+      const key = configKeyFor(repo.name, module.key);
+      const [saved, current] = await Promise.all([
+        this.commands.config
+          .getSavedEnvironments(key)
+          .catch(() => ({}) as Record<string, string>),
+        this.commands.config
+          .readActiveEnvironment({
+            writerType: repo.envConfigWriterType,
+            targetFile: target,
+            profile: name,
+          })
+          .catch(() => ''),
+      ]);
+      inputs.push({
+        moduleKey: module.key,
+        selectedName: name,
+        savedContent: saved[name],
+        currentContent: current,
+      });
+    }
+
+    const drifted = driftedModules(inputs);
+    if (drifted.length === 0) {
+      return;
+    }
+    for (const moduleKey of drifted) {
+      this.ws.setConfigValue(repo.name, moduleKey, ''); // non-silent → dirty recompute
+      await this.commands.config
+        .setActiveConfig(configKeyFor(repo.name, moduleKey), null)
+        .catch(() => undefined);
+    }
+    // Append only notices not already shown (a module deselects once, then is
+    // skipped next cycle — this dedup guards a re-check racing the same tick).
+    const seen = new Set(
+      this._driftNotices().map((n) => `${n.repo}::${n.moduleKey}`),
+    );
+    const fresh = drifted
+      .filter((moduleKey) => !seen.has(`${repo.name}::${moduleKey}`))
+      .map((moduleKey) => ({ repo: repo.name, moduleKey }));
+    if (fresh.length > 0) {
+      this._driftNotices.set([...this._driftNotices(), ...fresh]);
     }
   }
 

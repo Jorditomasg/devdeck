@@ -28,6 +28,7 @@ pub use app_config::{
 pub use repo_types_loader::{load_repo_type_defs, sort_by_priority, user_repo_types_dir};
 pub use store::{ConfigStore, APP_CONFIG_DIR_NAME, CONFIG_FILE_NAME};
 pub use writers::{
-    auto_import_configs, profile_name_from_file, read_config_file_raw, read_spring_config,
-    spring_config_filename, write_active_environment, write_config_file_raw, write_spring_config,
+    auto_import_configs, profile_name_from_file, read_active_environment, read_config_file_raw,
+    read_spring_config, resolve_active_file, spring_config_filename, write_active_environment,
+    write_config_file_raw, write_spring_config,
 };

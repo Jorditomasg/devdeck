@@ -143,6 +143,7 @@ export const CMD = {
   readConfigFile: 'read_config_file',
   writeConfigFile: 'write_config_file',
   applyEnvironment: 'apply_environment',
+  readActiveEnvironment: 'read_active_environment',
   // java
   detectJdks: 'detect_jdks',
   saveJavaVersions: 'save_java_versions',
@@ -683,6 +684,18 @@ export class IpcCommands {
       profile: string;
       content: string;
     }): Promise<void> => this.bridge.invoke<void>(CMD.applyEnvironment, args),
+
+    /**
+     * Current content of the file `applyEnvironment` writes for `profile`
+     * (missing → `""`). The read-side counterpart used to detect env-file
+     * drift (file no longer matches the selected saved environment).
+     */
+    readActiveEnvironment: (args: {
+      writerType: string;
+      targetFile: string;
+      profile: string;
+    }): Promise<string> =>
+      this.bridge.invoke<string>(CMD.readActiveEnvironment, args),
   };
 
   // -- java (§2.6) ------------------------------------------------------------
