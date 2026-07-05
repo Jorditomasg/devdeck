@@ -81,7 +81,10 @@ export interface CardHeaderText {
         {{ name() }}
       </span>
 
-      <!-- §6 item 5: badges -->
+      <!-- §6 item 5: badges. Three semantic color groups (not "all yellow"):
+           git working state (pull + changes, accent — go hand in hand),
+           git blocker (conflicts, error red), and environment/setup warnings
+           (danger + deps, warning — the highlight color, joined by "|"). -->
       @if (behind() > 0) {
         <ui-badge
           tone="accent"
@@ -94,7 +97,7 @@ export interface CardHeaderText {
       }
       @if (changes() > 0) {
         <ui-badge
-          tone="warning"
+          tone="accent"
           [interactive]="true"
           [uiTooltip]="text().changesTip"
           (click)="onBadgeClick($event, 'changes')"
@@ -116,6 +119,9 @@ export interface CardHeaderText {
         <ui-badge tone="warning" [uiTooltip]="text().dangerTip">
           {{ text().dangerLabel }}
         </ui-badge>
+      }
+      @if (danger() && depsWarning()) {
+        <span class="header__badge-sep" aria-hidden="true">|</span>
       }
       @if (depsWarning()) {
         <ui-badge tone="warning" [mono]="true" [uiTooltip]="text().depsWarnTip">

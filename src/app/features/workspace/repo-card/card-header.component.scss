@@ -44,6 +44,13 @@
   font-weight: 700;
 }
 
+// "|" between the danger and deps badges (same warning highlight color).
+.header__badge-sep {
+  color: var(--color-text-warning-badge);
+  font-weight: 600;
+  opacity: 0.6;
+}
+
 // Grey hint fragments (⎇ branch  ⚙ profile  $ cmd) — fills remaining space.
 .header__hint {
   @include mx.ellipsis;

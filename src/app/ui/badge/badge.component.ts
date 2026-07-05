@@ -2,8 +2,8 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 
 /**
  * Badge tones, mapped to the v1 header hint colors (inventory-gui §6, §33):
- * - `accent`  → 📥 pull-behind count (text accent)
- * - `warning` → 📝 changes count / danger-env / deps-missing (warning yellow)
+ * - `accent`  → 📥 pull-behind count + 📝 changes count (git working state)
+ * - `warning` → danger-env / deps-missing (warning yellow highlight)
  * - `error`   → ⚠️ merge-conflict count (status error red)
  * - `muted`   → grey hint fragments (⎇ branch / ⚙ profile / $ cmd)
  * - `solid`   → repo type pill: white bold text on a custom bg color
