@@ -825,10 +825,16 @@ export class IpcCommands {
     /**
      * Open a detached PTY terminal window for a repo (`cwd` = repo path).
      * Returns the new terminal id (`<repoId>::term::<n>`); the window's webview
-     * then calls `attach` with that id.
+     * then calls `attach` with that id. A non-empty `command` is typed-ahead
+     * into the shell right after spawn (design doc 2026-07-05).
      */
-    openWindow: (repoId: string, cwd: string, title: string): Promise<string> =>
-      this.bridge.invoke<string>(CMD.openTerminalWindow, { repoId, cwd, title }),
+    openWindow: (
+      repoId: string,
+      cwd: string,
+      title: string,
+      command?: string,
+    ): Promise<string> =>
+      this.bridge.invoke<string>(CMD.openTerminalWindow, { repoId, cwd, title, command }),
 
     /**
      * Bind this window's output channel: `onData` receives raw PTY bytes
