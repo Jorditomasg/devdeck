@@ -81,28 +81,21 @@ export interface CardHeaderText {
         {{ name() }}
       </span>
 
-      <!-- §6 item 5: badges. Three semantic color groups (not "all yellow"):
-           git working state (pull + changes, accent — go hand in hand),
-           git blocker (conflicts, error red), and environment/setup warnings
-           (danger + deps, warning — the highlight color, joined by "|"). -->
-      @if (behind() > 0) {
-        <ui-badge
-          tone="accent"
-          [interactive]="true"
-          [uiTooltip]="text().pullTip"
-          (click)="onBadgeClick($event, 'pull')"
-        >
-          <ui-icon name="download" [size]="12" /> {{ behind() }}
+      <!-- §6 item 5: badges. Order: environment/setup warnings first
+           (danger + deps, warning highlight, joined by "|"), then the git
+           blocker (conflicts, error red), then git working state
+           (pull + changes, accent — framed for legibility). -->
+      @if (danger()) {
+        <ui-badge tone="warning" [uiTooltip]="text().dangerTip">
+          {{ text().dangerLabel }}
         </ui-badge>
       }
-      @if (changes() > 0) {
-        <ui-badge
-          tone="accent"
-          [interactive]="true"
-          [uiTooltip]="text().changesTip"
-          (click)="onBadgeClick($event, 'changes')"
-        >
-          <ui-icon name="file-text" [size]="12" /> {{ changes() }}
+      @if (danger() && depsWarning()) {
+        <span class="header__badge-sep" aria-hidden="true">|</span>
+      }
+      @if (depsWarning()) {
+        <ui-badge tone="warning" [mono]="true" [uiTooltip]="text().depsWarnTip">
+          {{ text().depsWarnLabel }}
         </ui-badge>
       }
       @if (conflicts() > 0) {
@@ -115,17 +108,26 @@ export interface CardHeaderText {
           <ui-icon name="alert-triangle" [size]="12" /> {{ conflicts() }}
         </ui-badge>
       }
-      @if (danger()) {
-        <ui-badge tone="warning" [uiTooltip]="text().dangerTip">
-          {{ text().dangerLabel }}
+      @if (behind() > 0) {
+        <ui-badge
+          class="header__git-badge"
+          tone="accent"
+          [interactive]="true"
+          [uiTooltip]="text().pullTip"
+          (click)="onBadgeClick($event, 'pull')"
+        >
+          <ui-icon name="download" [size]="12" /> {{ behind() }}
         </ui-badge>
       }
-      @if (danger() && depsWarning()) {
-        <span class="header__badge-sep" aria-hidden="true">|</span>
-      }
-      @if (depsWarning()) {
-        <ui-badge tone="warning" [mono]="true" [uiTooltip]="text().depsWarnTip">
-          {{ text().depsWarnLabel }}
+      @if (changes() > 0) {
+        <ui-badge
+          class="header__git-badge"
+          tone="accent"
+          [interactive]="true"
+          [uiTooltip]="text().changesTip"
+          (click)="onBadgeClick($event, 'changes')"
+        >
+          <ui-icon name="file-text" [size]="12" /> {{ changes() }}
         </ui-badge>
       }
 

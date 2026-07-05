@@ -44,6 +44,15 @@
   font-weight: 700;
 }
 
+// Pull / changes badges — frame them (border + faint accent fill) so the
+// clickable git-state counts read as buttons, not loose text.
+.header__git-badge {
+  padding: 1px 6px;
+  border: 1px solid color-mix(in srgb, var(--color-text-accent) 40%, transparent);
+  border-radius: var(--geo-corner-badge, 4px);
+  background: color-mix(in srgb, var(--color-text-accent) 12%, transparent);
+}
+
 // "|" between the danger and deps badges (same warning highlight color).
 .header__badge-sep {
   color: var(--color-text-warning-badge);
