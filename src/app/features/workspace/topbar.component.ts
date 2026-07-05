@@ -17,7 +17,9 @@ import {
 } from '@angular/core';
 
 import { TranslationService } from '../../core/i18n/translation.service';
-import { ProfilesStore } from '../../core/state/profiles.store';
+import { IpcCommands } from '../../core/ipc/commands';
+import { ProfilesStore, profileOverwriteDiff } from '../../core/state/profiles.store';
+import { overwriteMessage } from '../dialogs/profile-manager/profile-manager.logic';
 import { SettingsStore } from '../../core/state/settings.store';
 import { UpdatesStore } from '../../core/state/updates.store';
 import {
@@ -195,6 +197,7 @@ export class TopbarComponent {
     protected readonly dialogs: DialogService,
     private readonly settings: SettingsStore,
     private readonly updates: UpdatesStore,
+    private readonly commands: IpcCommands,
     private readonly profiles: ProfilesStore,
     private readonly ws: WorkspaceStore,
     private readonly actions: RepoActionsService,
@@ -237,19 +240,29 @@ export class TopbarComponent {
     void this.settings.setLastProfile(group ?? null, value).catch(() => undefined);
   }
 
-  /** §26 quick save: overwrite the active profile, or open the manager. */
+  /**
+   * §26 quick save: overwrite the active profile, or open the manager. Before
+   * overwriting, show the per-repo diff (branch/profile/java/docker/…) in a
+   * confirm so the save is never silent — same preview the manager uses.
+   */
   protected async onQuickSave(): Promise<void> {
     const active = this.activeName();
     if (!active) {
       this.dialogs.openProfileManager();
       return;
     }
-    await this.profiles.save({
-      name: active,
-      group: profileGroupArg(this.settings.activeGroup()?.name),
-      doc: this.ws.buildProfileDocument(),
-      includeConfigFiles: true,
-    });
+    const group = profileGroupArg(this.settings.activeGroup()?.name);
+    const doc = this.ws.buildProfileDocument();
+    const stored = await this.commands.profiles.loadProfile(active, group).catch(() => null);
+    const diff = stored ? profileOverwriteDiff(stored, doc) : [];
+    const confirmed = await this.dialogs.confirm(
+      this.i18n.t('dialog.profile.overwrite_title'),
+      overwriteMessage(diff, active, (k, p) => this.i18n.t(k, p)),
+    );
+    if (!confirmed) {
+      return;
+    }
+    await this.profiles.save({ name: active, group, doc, includeConfigFiles: true });
     this.ws.scheduleDirtyCheck();
   }
 }

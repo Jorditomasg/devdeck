@@ -5,8 +5,66 @@
  * version mapping of the options wizard, and a small bounded-concurrency
  * runner for the clone pool (v1 5-worker ThreadPoolExecutor).
  */
+import type { TranslateParams } from '../../../core/i18n/translation.service';
 import type { ProfileDocument, RepoProfile } from '../../../core/ipc/tauri.types';
-import { normalizeJavaVersion } from '../../../core/state/profiles.store';
+import {
+  normalizeJavaVersion,
+  type OverwriteField,
+  type RepoOverwriteDiff,
+} from '../../../core/state/profiles.store';
+
+/** Minimal translator signature so this pure module stays UI-framework free. */
+type Translate = (key: string, params?: TranslateParams) => string;
+
+/** i18n label key per overwrite-diff field (save-overwrite preview). */
+export const FIELD_LABEL_KEYS: Record<OverwriteField, string> = {
+  branch: 'dialog.profile.field_branch',
+  profile: 'dialog.profile.field_profile',
+  profile_tracked: 'dialog.profile.field_profile_tracked',
+  command_profile: 'dialog.profile.field_command_profile',
+  java_version: 'dialog.profile.field_java_version',
+  selected: 'dialog.profile.field_selected',
+  docker_compose_active: 'dialog.profile.field_docker_active',
+  docker_profile_services: 'dialog.profile.field_docker_services',
+};
+
+/** Cap the per-repo overwrite list so a big workspace can't overflow the dialog. */
+export const OVERWRITE_LIST_MAX = 15;
+
+/** One `repo — field, field` (or added/removed) line of the overwrite preview. */
+export function overwriteLine(d: RepoOverwriteDiff, t: Translate): string {
+  if (d.status === 'added') {
+    return `+ ${d.repo} (${t('dialog.profile.overwrite_added')})`;
+  }
+  if (d.status === 'removed') {
+    return `− ${d.repo} (${t('dialog.profile.overwrite_removed')})`;
+  }
+  const labels = d.fields.map((f) => t(FIELD_LABEL_KEYS[f]));
+  return `${d.repo} — ${labels.join(', ')}`;
+}
+
+/**
+ * Overwrite-confirm body: an intro plus one capped line per changed repo, then
+ * the plain overwrite question. An empty diff collapses to the question alone
+ * (nothing to preview). Shared by the manager's save and the topbar quick-save.
+ */
+export function overwriteMessage(
+  diff: readonly RepoOverwriteDiff[],
+  name: string,
+  t: Translate,
+): string {
+  const question = t('dialog.profile.overwrite_msg', { name });
+  if (diff.length === 0) {
+    return question;
+  }
+  const lines = diff.slice(0, OVERWRITE_LIST_MAX).map((d) => overwriteLine(d, t));
+  if (diff.length > OVERWRITE_LIST_MAX) {
+    lines.push(
+      t('dialog.profile.overwrite_more', { count: diff.length - OVERWRITE_LIST_MAX }),
+    );
+  }
+  return `${t('dialog.profile.overwrite_fields_intro')}\n\n${lines.join('\n')}\n\n${question}`;
+}
 
 /** v1 clone pool width (§21 step 2: "5-worker ThreadPoolExecutor"). */
 export const IMPORT_CLONE_CONCURRENCY = 5;
