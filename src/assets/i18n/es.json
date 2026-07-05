@@ -314,6 +314,20 @@
       "col_profile": "Configuración",
       "col_actions": "Acciones"
     },
+    "export": {
+      "title": "Exportar '{name}'",
+      "repos_title": "Repos a exportar",
+      "select_all": "Todos",
+      "select_none": "Ninguno",
+      "cat_starts": "Comandos de arranque",
+      "cat_environment": "Selección del entorno",
+      "cat_saved_envs": "Entornos guardados",
+      "no_saved_envs": "Este repo no tiene entornos guardados",
+      "dest_label": "Guardar en:",
+      "dest_placeholder": "Elige un archivo de destino...",
+      "browse": "Examinar...",
+      "btn_export": "Exportar ({count})"
+    },
     "confirm_close": {
       "title": "Servicios en ejecución",
       "message_one": "Hay 1 servicio corriendo.\n¿Querés cerrar la aplicación igualmente?",

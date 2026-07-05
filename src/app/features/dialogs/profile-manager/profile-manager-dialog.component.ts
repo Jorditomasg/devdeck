@@ -48,6 +48,10 @@ import {
 import { DialogBase } from '../dialog-base';
 import { NativePickers } from '../shared/native-pickers';
 import {
+  ExportOptionsDialogComponent,
+  type ExportOptionsResult,
+} from './export-options-dialog.component';
+import {
   ImportOptionsDialogComponent,
   type ImportApplyResult,
 } from './import-options-dialog.component';
@@ -376,18 +380,18 @@ export class ProfileManagerDialogComponent extends DialogBase {
         );
         return;
       }
-      const dest = await this.pickers.pickSaveFile(
-        this.i18n.t('dialog.profile.export_dialog_title'),
-        `${name}.json`,
-        JSON_FILTER,
+      const result = await this.dialogs.openForResult<ExportOptionsResult | null>(
+        ExportOptionsDialogComponent,
+        { doc, defaultName: name },
+        null,
       );
-      if (dest === null) {
-        return;
+      if (result === null) {
+        return; // cancelled
       }
-      await this.profiles.exportToFile(doc, dest);
+      await this.profiles.exportToFile(result.doc, result.dest);
       await this.dialogs.info(
         this.i18n.t('dialog.profile.exported_title'),
-        this.i18n.t('dialog.profile.exported_msg', { path: dest }),
+        this.i18n.t('dialog.profile.exported_msg', { path: result.dest }),
       );
     } catch {
       await this.dialogs.error(

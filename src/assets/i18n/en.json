@@ -314,6 +314,20 @@
       "col_profile": "Configuration",
       "col_actions": "Actions"
     },
+    "export": {
+      "title": "Export '{name}'",
+      "repos_title": "Repos to export",
+      "select_all": "All",
+      "select_none": "None",
+      "cat_starts": "Start commands",
+      "cat_environment": "Environment selection",
+      "cat_saved_envs": "Saved environments",
+      "no_saved_envs": "This repo has no saved environments",
+      "dest_label": "Save to:",
+      "dest_placeholder": "Choose a destination file...",
+      "browse": "Browse...",
+      "btn_export": "Export ({count})"
+    },
     "confirm_close": {
       "title": "Services running",
       "message_one": "There is 1 service running.\nDo you want to close the application anyway?",

@@ -1,0 +1,95 @@
+// Export options dialog — per-repo selective export matrix.
+@use '../shared/controls' as c;
+
+.export {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.export__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.export__toolbar-title {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-md);
+  font-weight: 700;
+}
+
+.export__toolbar-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.export__list {
+  @include c.list-surface;
+  display: flex;
+  flex-direction: column;
+  max-height: 320px;
+  padding: 4px;
+}
+
+.export__repo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 7px 8px;
+  border-radius: var(--geo-corner-btn);
+
+  & + & {
+    border-top: var(--geo-border-width) solid var(--color-border-subtle);
+  }
+
+  &--off {
+    opacity: 0.5;
+  }
+}
+
+.export__repo-head {
+  @include c.checkbox-row;
+  font-weight: 700;
+}
+
+.export__repo-name {
+  @include c.checkbox-row;
+  overflow: hidden;
+  color: var(--color-text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.export__cats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  padding-left: 26px;
+}
+
+.export__cat {
+  @include c.checkbox-row;
+
+  &--na {
+    opacity: 0.45;
+  }
+}
+
+.export__label {
+  margin: 4px 0 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-base);
+}
+
+.export__dest-row {
+  display: flex;
+  gap: 8px;
+}
+
+.export__input {
+  @include c.text-input;
+  flex: 1;
+  min-width: 0;
+}

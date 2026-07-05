@@ -69,4 +69,8 @@ export const DIALOG_WINDOW_COMPONENTS: Readonly<Record<string, DialogComponentLo
     import('./profile-manager/import-options-dialog.component').then(
       (m) => m.ImportOptionsDialogComponent,
     ),
+  'export-options': () =>
+    import('./profile-manager/export-options-dialog.component').then(
+      (m) => m.ExportOptionsDialogComponent,
+    ),
 };

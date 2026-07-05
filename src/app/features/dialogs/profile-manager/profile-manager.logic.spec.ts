@@ -6,13 +6,16 @@ import {
   applyJavaMappings,
   buildChangePlan,
   countConfigFiles,
+  filterProfileDocument,
   hasChanges,
+  hasSavedEnvironments,
   javaMappingsNeeded,
   profilesEquivalent,
   runLimited,
   stableStringify,
   stripConfigFiles,
   uniqueImportedName,
+  type RepoExportSelection,
 } from './profile-manager.logic';
 
 function repo(partial: Partial<RepoProfile> = {}): RepoProfile {
@@ -157,6 +160,74 @@ describe('stripConfigFiles', () => {
     const result = stripConfigFiles(d);
     expect(result.repos['api']?.config_files).toBeUndefined();
     expect(result.repos['api']?.saved_environments).toEqual({ 'a.yml': { dev: 'x' } });
+  });
+});
+
+describe('filterProfileDocument', () => {
+  const full = repo({
+    branch: 'develop',
+    profile: 'dev',
+    profile_tracked: ['a.yml'],
+    command_profile: 'run-fast',
+    java_version: 'Java 17',
+    docker_compose_active: ['docker-compose.yml'],
+    docker_profile_services: { 'docker-compose.yml': ['db'] },
+    config_files: { root: { 'a.yml': 'x' } },
+    saved_environments: { 'a.yml': { dev: 'x' } },
+  });
+  const sel = (p: Partial<RepoExportSelection>): RepoExportSelection => ({
+    included: true,
+    starts: true,
+    environment: true,
+    savedEnvs: true,
+    ...p,
+  });
+
+  it('drops repos that are not included and never exports config_files', () => {
+    const d = doc({ api: full, web: repo() });
+    const out = filterProfileDocument(d, {
+      api: sel({}),
+      web: sel({ included: false }),
+    });
+    expect(Object.keys(out.repos)).toEqual(['api']);
+    expect(out.repos['api']?.config_files).toBeUndefined();
+  });
+
+  it('always keeps identity (git_url/type/java_version), gates the rest', () => {
+    const out = filterProfileDocument(doc({ api: full }), {
+      api: sel({ starts: false, environment: false, savedEnvs: false }),
+    });
+    const r = out.repos['api'];
+    expect(r?.git_url).toBe('git@host:r.git');
+    expect(r?.type).toBe('spring-boot');
+    expect(r?.java_version).toBe('Java 17');
+    // gated off → defaults, docker + saved_environments omitted
+    expect(r?.command_profile).toBeNull();
+    expect(r?.branch).toBeNull();
+    expect(r?.selected).toBe(false);
+    expect(r?.docker_compose_active).toBeUndefined();
+    expect(r?.saved_environments).toBeUndefined();
+  });
+
+  it('includes only the selected categories', () => {
+    const out = filterProfileDocument(doc({ api: full }), {
+      api: sel({ starts: true, environment: false, savedEnvs: true }),
+    });
+    const r = out.repos['api'];
+    expect(r?.command_profile).toBe('run-fast');
+    expect(r?.branch).toBeNull(); // environment off
+    expect(r?.docker_compose_active).toBeUndefined();
+    expect(r?.saved_environments).toEqual({ 'a.yml': { dev: 'x' } });
+  });
+});
+
+describe('hasSavedEnvironments', () => {
+  it('is true only when at least one saved environment exists', () => {
+    expect(hasSavedEnvironments(repo())).toBe(false);
+    expect(hasSavedEnvironments(repo({ saved_environments: {} }))).toBe(false);
+    expect(
+      hasSavedEnvironments(repo({ saved_environments: { 'a.yml': { dev: 'x' } } })),
+    ).toBe(true);
   });
 });
 

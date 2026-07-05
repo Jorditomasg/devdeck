@@ -194,6 +194,69 @@ export function stripConfigFiles(doc: ProfileDocument): ProfileDocument {
   return { ...doc, repos };
 }
 
+/** Per-repo export selection — which categories of a repo entry to include. */
+export interface RepoExportSelection {
+  /** Include this repo at all. */
+  readonly included: boolean;
+  /** Start command (`command_profile`). */
+  readonly starts: boolean;
+  /** Environment selection: branch, env, docker, card selection. */
+  readonly environment: boolean;
+  /** Saved environments (`saved_environments`). */
+  readonly savedEnvs: boolean;
+}
+
+/** `true` when the repo carries at least one saved environment. */
+export function hasSavedEnvironments(rp: RepoProfile): boolean {
+  return Object.keys(rp.saved_environments ?? {}).length > 0;
+}
+
+/**
+ * Build a filtered profile document for a selective export. Only included
+ * repos are kept; per repo `git_url`/`type`/`java_version` are always exported
+ * (repo identity), the rest gated by the category flags. `config_files` is
+ * never exported (redundant with the repo — see export-options design).
+ * Omitted fields import cleanly thanks to Rust's `#[serde(default)]`.
+ */
+export function filterProfileDocument(
+  doc: ProfileDocument,
+  selection: Readonly<Record<string, RepoExportSelection>>,
+): ProfileDocument {
+  const repos: Record<string, RepoProfile> = {};
+  for (const [name, rp] of Object.entries(doc.repos)) {
+    const sel = selection[name];
+    if (!sel?.included) {
+      continue;
+    }
+    let out: RepoProfile = {
+      // Intrinsic repo identity — always exported.
+      git_url: rp.git_url,
+      type: rp.type,
+      // Environment selection (branch / env / docker / card selection).
+      branch: sel.environment ? rp.branch : null,
+      profile: sel.environment ? rp.profile : null,
+      profile_tracked: sel.environment ? rp.profile_tracked : [],
+      selected: sel.environment ? rp.selected : false,
+      // Start command.
+      command_profile: sel.starts ? rp.command_profile : null,
+    };
+    if (rp.java_version !== undefined) {
+      out = { ...out, java_version: rp.java_version };
+    }
+    if (sel.environment && rp.docker_compose_active !== undefined) {
+      out = { ...out, docker_compose_active: rp.docker_compose_active };
+    }
+    if (sel.environment && rp.docker_profile_services !== undefined) {
+      out = { ...out, docker_profile_services: rp.docker_profile_services };
+    }
+    if (sel.savedEnvs && rp.saved_environments !== undefined) {
+      out = { ...out, saved_environments: rp.saved_environments };
+    }
+    repos[name] = out;
+  }
+  return { ...doc, repos };
+}
+
 /**
  * Run `task` over `items` with at most `limit` in flight (the v1 clone pool).
  * Rejections do not abort the batch — the task must fold its own errors.
