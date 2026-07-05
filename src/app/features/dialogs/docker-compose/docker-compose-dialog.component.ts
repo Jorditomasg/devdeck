@@ -205,7 +205,7 @@ const FULL_TAIL = 100_000;
           }
         </div>
 
-        <!-- Log panel — live `logs -f` stream (§19 + design doc 2026-07-05) -->
+        <!-- Log panel — live "logs -f" stream (§19 + design doc 2026-07-05) -->
         @if (logService() !== '') {
           <div class="docker__log-actions">
             <ui-button
