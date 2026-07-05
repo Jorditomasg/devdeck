@@ -20,6 +20,7 @@ import { Injectable, inject, type Type } from '@angular/core';
 import { TranslationService } from '../../core/i18n/translation.service';
 import { IpcCommands } from '../../core/ipc/commands';
 import { IpcEvents } from '../../core/ipc/events';
+import type { RepoOverwriteDiff } from '../../core/state/profiles.store';
 import { type DialogsApi } from './dialog-stack';
 import { openDialogWindowForResult } from './dialog-window.bridge';
 import { type MessageboxKind } from './messagebox/messagebox.component';
@@ -167,6 +168,11 @@ export class DialogService implements DialogsApi {
   /** Themed `ask_yes_no` replacement — `true` on Yes. */
   confirm(title: string, message: string): Promise<boolean> {
     return this.messagebox('confirm', title, message);
+  }
+
+  /** Rich save-overwrite confirm (per-repo before→after diff). `true` on confirm. */
+  confirmOverwrite(name: string, diff: readonly RepoOverwriteDiff[]): Promise<boolean> {
+    return this.openKindForResult<boolean>('overwrite-confirm', { name, diff }, false);
   }
 
   /**

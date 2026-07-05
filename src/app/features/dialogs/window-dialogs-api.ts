@@ -16,6 +16,7 @@ import type { Type } from '@angular/core';
 
 import { IpcCommands } from '../../core/ipc/commands';
 import { IpcEvents } from '../../core/ipc/events';
+import type { RepoOverwriteDiff } from '../../core/state/profiles.store';
 import type { DialogsApi } from './dialog-stack';
 import { openDialogWindowForResult } from './dialog-window.bridge';
 
@@ -103,6 +104,10 @@ export class WindowDialogsApi implements DialogsApi {
 
   confirm(title: string, message: string): Promise<boolean> {
     return this.box('confirm', title, message);
+  }
+
+  confirmOverwrite(name: string, diff: readonly RepoOverwriteDiff[]): Promise<boolean> {
+    return this.openKindForResult<boolean>('overwrite-confirm', { name, diff }, false);
   }
 
   prompt(

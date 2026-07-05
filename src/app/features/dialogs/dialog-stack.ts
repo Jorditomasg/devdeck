@@ -5,6 +5,8 @@
  */
 import { InjectionToken, type Type } from '@angular/core';
 
+import type { RepoOverwriteDiff } from '../../core/state/profiles.store';
+
 /**
  * Injection token for the dialog orchestrator, typed by {@link DialogsApi}.
  *
@@ -62,6 +64,11 @@ export interface DialogsApi {
   warning(title: string, message: string): Promise<void>;
   error(title: string, message: string): Promise<void>;
   confirm(title: string, message: string): Promise<boolean>;
+  /**
+   * Rich save-overwrite confirm: renders the per-repo diff (badges +
+   * before→after field values) instead of a plain text blob. `true` on confirm.
+   */
+  confirmOverwrite(name: string, diff: readonly RepoOverwriteDiff[]): Promise<boolean>;
   prompt(
     title: string,
     message: string,

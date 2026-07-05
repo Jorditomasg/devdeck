@@ -10,7 +10,6 @@ import {
   hasChanges,
   hasSavedEnvironments,
   javaMappingsNeeded,
-  overwriteMessage,
   profilesEquivalent,
   runLimited,
   stableStringify,
@@ -18,7 +17,6 @@ import {
   uniqueImportedName,
   type RepoExportSelection,
 } from './profile-manager.logic';
-import type { RepoOverwriteDiff } from '../../../core/state/profiles.store';
 
 function repo(partial: Partial<RepoProfile> = {}): RepoProfile {
   return {
@@ -258,34 +256,5 @@ describe('runLimited', () => {
       seen.push(n);
     });
     expect(seen).toEqual([1, 3]);
-  });
-});
-
-describe('overwriteMessage', () => {
-  // Echo the key (and count param) so assertions can read the structure.
-  const t = (k: string, p?: Record<string, string | number>): string =>
-    p && 'count' in p ? `${k}:${p.count}` : k;
-  const changed = (repo: string): RepoOverwriteDiff => ({
-    repo,
-    status: 'changed',
-    fields: ['branch'],
-  });
-
-  it('collapses to the plain question when nothing changed', () => {
-    expect(overwriteMessage([], 'dev', t)).toBe('dialog.profile.overwrite_msg');
-  });
-
-  it('lists a line per changed repo above the question', () => {
-    const msg = overwriteMessage([changed('api'), changed('web')], 'dev', t);
-    expect(msg).toContain('api — dialog.profile.field_branch');
-    expect(msg).toContain('web — dialog.profile.field_branch');
-    expect(msg.trim().endsWith('dialog.profile.overwrite_msg')).toBe(true);
-  });
-
-  it('caps the list and appends an overflow line', () => {
-    const diff = Array.from({ length: 20 }, (_, i) => changed(`r${i}`));
-    const msg = overwriteMessage(diff, 'dev', t);
-    expect(msg).toContain('dialog.profile.overwrite_more:5');
-    expect(msg).not.toContain('r15 —');
   });
 });

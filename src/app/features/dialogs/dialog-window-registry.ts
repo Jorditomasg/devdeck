@@ -65,6 +65,10 @@ export const DIALOG_WINDOW_COMPONENTS: Readonly<Record<string, DialogComponentLo
     import('./profile-manager/profile-manager-dialog.component').then(
       (m) => m.ProfileManagerDialogComponent,
     ),
+  'overwrite-confirm': () =>
+    import('./profile-manager/overwrite-confirm-dialog.component').then(
+      (m) => m.OverwriteConfirmDialogComponent,
+    ),
   'import-options': () =>
     import('./profile-manager/import-options-dialog.component').then(
       (m) => m.ImportOptionsDialogComponent,

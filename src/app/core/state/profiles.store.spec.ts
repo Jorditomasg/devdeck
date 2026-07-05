@@ -8,6 +8,7 @@ import type { ProfileDocument, RepoProfile } from '../ipc/tauri.types';
 import {
   ProfilesStore,
   normalizeJavaVersion,
+  overwriteFieldValue,
   profileOverwriteDiff,
   profileReposEqual,
   repoProfileEquals,
@@ -87,8 +88,35 @@ describe('profileReposEqual (dirty-detection primitive)', () => {
   });
 });
 
+describe('overwriteFieldValue (display formatting)', () => {
+  it('folds empty scalars/lists to null and joins collections', () => {
+    expect(overwriteFieldValue('branch', repoProfile({ branch: null }))).toBeNull();
+    expect(overwriteFieldValue('branch', repoProfile({ branch: 'main' }))).toBe('main');
+    expect(overwriteFieldValue('profile_tracked', repoProfile({ profile_tracked: [] }))).toBeNull();
+    expect(
+      overwriteFieldValue('profile_tracked', repoProfile({ profile_tracked: ['a.yml', 'b.yml'] })),
+    ).toBe('a.yml, b.yml');
+    // Empty java label folds to system-default → null (not the empty string).
+    expect(overwriteFieldValue('java_version', repoProfile({ java_version: '' }))).toBeNull();
+  });
+
+  it('marks selection with a neutral glyph and formats the docker service map', () => {
+    expect(overwriteFieldValue('selected', repoProfile({ selected: true }))).toBe('✓');
+    expect(overwriteFieldValue('selected', repoProfile({ selected: false }))).toBeNull();
+    expect(
+      overwriteFieldValue(
+        'docker_profile_services',
+        repoProfile({ docker_profile_services: { 'docker-compose.yml': ['db', 'web'] } }),
+      ),
+    ).toBe('docker-compose.yml: db, web');
+    expect(
+      overwriteFieldValue('docker_profile_services', repoProfile({ docker_profile_services: {} })),
+    ).toBeNull();
+  });
+});
+
 describe('repoProfileFieldChanges', () => {
-  it('lists only the configurable fields that differ (identity ignored)', () => {
+  it('lists only the configurable fields that differ, each with before→after', () => {
     expect(repoProfileFieldChanges(repoProfile(), repoProfile())).toEqual([]);
     // git_url is identity — not reported even when it changes.
     expect(
@@ -99,7 +127,10 @@ describe('repoProfileFieldChanges', () => {
         repoProfile(),
         repoProfile({ branch: 'main', selected: false }),
       ),
-    ).toEqual(['branch', 'selected']);
+    ).toEqual([
+      { field: 'branch', from: 'develop', to: 'main' },
+      { field: 'selected', from: '✓', to: null },
+    ]);
   });
 
   it('folds empty java against absent (no phantom change)', () => {
@@ -120,7 +151,7 @@ describe('profileOverwriteDiff', () => {
       web: repoProfile(),
     });
     expect(profileOverwriteDiff(stored, current)).toEqual([
-      { repo: 'api', status: 'changed', fields: ['profile'] },
+      { repo: 'api', status: 'changed', fields: [{ field: 'profile', from: 'mysql', to: 'h2' }] },
       { repo: 'gone', status: 'removed', fields: [] },
       { repo: 'web', status: 'added', fields: [] },
     ]);

@@ -19,7 +19,6 @@ import {
 import { TranslationService } from '../../core/i18n/translation.service';
 import { IpcCommands } from '../../core/ipc/commands';
 import { ProfilesStore, profileOverwriteDiff } from '../../core/state/profiles.store';
-import { overwriteMessage } from '../dialogs/profile-manager/profile-manager.logic';
 import { SettingsStore } from '../../core/state/settings.store';
 import { UpdatesStore } from '../../core/state/updates.store';
 import {
@@ -255,10 +254,7 @@ export class TopbarComponent {
     const doc = this.ws.buildProfileDocument();
     const stored = await this.commands.profiles.loadProfile(active, group).catch(() => null);
     const diff = stored ? profileOverwriteDiff(stored, doc) : [];
-    const confirmed = await this.dialogs.confirm(
-      this.i18n.t('dialog.profile.overwrite_title'),
-      overwriteMessage(diff, active, (k, p) => this.i18n.t(k, p)),
-    );
+    const confirmed = await this.dialogs.confirmOverwrite(active, diff);
     if (!confirmed) {
       return;
     }

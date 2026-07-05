@@ -68,40 +68,99 @@ export const OVERWRITE_FIELDS = [
 
 export type OverwriteField = (typeof OVERWRITE_FIELDS)[number];
 
+/** One overwritten field with its stored→current values (formatted for display). */
+export interface OverwriteFieldChange {
+  readonly field: OverwriteField;
+  /** Stored (before) value, formatted; `null` = empty/unset. */
+  readonly from: string | null;
+  /** Current (after) value, formatted; `null` = empty/unset. */
+  readonly to: string | null;
+}
+
 /** One repo of a save-overwrite preview: which fields change (or repo-set delta). */
 export interface RepoOverwriteDiff {
   readonly repo: string;
   readonly status: 'changed' | 'added' | 'removed';
-  /** Changed field keys — empty for `added`/`removed`. */
-  readonly fields: readonly OverwriteField[];
+  /** Changed fields with before→after values — empty for `added`/`removed`. */
+  readonly fields: readonly OverwriteFieldChange[];
 }
 
 /**
- * Which configurable fields of two repo entries differ — same comparison basis
- * as {@link repoProfileEquals}, minus repo identity. Empty ⇒ nothing overwritten.
+ * Display value of one overwrite field (`null` = empty/unset). Language-neutral
+ * on purpose — this store stays i18n-free; the dialog renders `null` as a dash.
+ */
+export function overwriteFieldValue(
+  field: OverwriteField,
+  rp: RepoProfile,
+): string | null {
+  switch (field) {
+    case 'branch':
+      return rp.branch || null;
+    case 'profile':
+      return rp.profile || null;
+    case 'command_profile':
+      return rp.command_profile || null;
+    case 'java_version':
+      return normalizeJavaVersion(rp.java_version) ?? null;
+    case 'profile_tracked':
+      return joinList(rp.profile_tracked);
+    case 'docker_compose_active':
+      return joinList(rp.docker_compose_active ?? []);
+    case 'docker_profile_services':
+      return formatServiceMap(rp.docker_profile_services ?? {});
+    case 'selected':
+      return rp.selected ? '✓' : null;
+  }
+}
+
+function joinList(list: readonly string[]): string | null {
+  return list.length > 0 ? list.join(', ') : null;
+}
+
+/** `file: svc-a, svc-b; other: svc-c` — empty maps collapse to `null`. */
+function formatServiceMap(
+  rec: Readonly<Record<string, readonly string[]>>,
+): string | null {
+  const parts = Object.entries(rec)
+    .filter(([, services]) => services.length > 0)
+    .map(([file, services]) => `${file}: ${services.join(', ')}`);
+  return parts.length > 0 ? parts.join('; ') : null;
+}
+
+/**
+ * Which configurable fields of two repo entries differ, each with its
+ * before→after value — same comparison basis as {@link repoProfileEquals},
+ * minus repo identity. Empty ⇒ nothing overwritten. `a` is the stored profile
+ * (before), `b` the live capture (after the save).
  */
 export function repoProfileFieldChanges(
   a: RepoProfile,
   b: RepoProfile,
-): readonly OverwriteField[] {
-  const changed: OverwriteField[] = [];
-  if ((a.branch ?? null) !== (b.branch ?? null)) changed.push('branch');
-  if ((a.profile ?? null) !== (b.profile ?? null)) changed.push('profile');
-  if (!sameArray(a.profile_tracked, b.profile_tracked)) changed.push('profile_tracked');
-  if ((a.command_profile ?? null) !== (b.command_profile ?? null))
-    changed.push('command_profile');
+): readonly OverwriteFieldChange[] {
+  const changed: OverwriteFieldChange[] = [];
+  const push = (field: OverwriteField): void => {
+    changed.push({
+      field,
+      from: overwriteFieldValue(field, a),
+      to: overwriteFieldValue(field, b),
+    });
+  };
+  if ((a.branch ?? null) !== (b.branch ?? null)) push('branch');
+  if ((a.profile ?? null) !== (b.profile ?? null)) push('profile');
+  if (!sameArray(a.profile_tracked, b.profile_tracked)) push('profile_tracked');
+  if ((a.command_profile ?? null) !== (b.command_profile ?? null)) push('command_profile');
   if (normalizeJavaVersion(a.java_version) !== normalizeJavaVersion(b.java_version))
-    changed.push('java_version');
-  if (a.selected !== b.selected) changed.push('selected');
+    push('java_version');
+  if (a.selected !== b.selected) push('selected');
   if (!sameArray(a.docker_compose_active ?? [], b.docker_compose_active ?? []))
-    changed.push('docker_compose_active');
+    push('docker_compose_active');
   if (
     !sameStringListRecord(
       a.docker_profile_services ?? {},
       b.docker_profile_services ?? {},
     )
   )
-    changed.push('docker_profile_services');
+    push('docker_profile_services');
   return changed;
 }
 

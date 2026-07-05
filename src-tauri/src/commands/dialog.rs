@@ -40,6 +40,9 @@ fn dialog_size(kind: &str) -> (f64, f64) {
         "repo-config-manager" => (680.0, 560.0),
         "workspace-groups" => (560.0, 520.0),
         "profile-manager" => (680.0, 600.0),
+        // Structured per-repo change list (badges + before→after values) scrolls
+        // inside the body, so a roomier footprint than the old text messagebox.
+        "overwrite-confirm" => (640.0, 620.0),
         "command-profile-manager" => (680.0, 600.0),
         "import-options" => (760.0, 720.0),
         _ => (560.0, 480.0),

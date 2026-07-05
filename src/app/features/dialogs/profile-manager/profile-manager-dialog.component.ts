@@ -58,7 +58,6 @@ import {
 import {
   buildChangePlan,
   hasChanges,
-  overwriteMessage,
   profilesEquivalent,
   uniqueImportedName,
   type ChangePlan,
@@ -282,10 +281,13 @@ export class ProfileManagerDialogComponent extends DialogBase {
     }
     this.inlineError.set('');
     if (this.profileNames().includes(name)) {
-      const overwrite = await this.dialogs.confirm(
-        this.i18n.t('dialog.profile.overwrite_title'),
-        await this.overwriteMessage(name),
-      );
+      const stored = await this.commands.profiles
+        .loadProfile(name, this.group())
+        .catch(() => null);
+      const diff = stored
+        ? profileOverwriteDiff(stored, this.workspace.buildProfileDocument())
+        : [];
+      const overwrite = await this.dialogs.confirmOverwrite(name, diff);
       if (!overwrite) {
         return;
       }
@@ -308,22 +310,6 @@ export class ProfileManagerDialogComponent extends DialogBase {
     } finally {
       this.busy.set(null);
     }
-  }
-
-  /**
-   * Overwrite-confirm text: lists, per repo, the fields the save will
-   * overwrite (branch/profile/java/docker/…), plus added/removed repos. Falls
-   * back to the plain question when the stored profile can't be read or is
-   * identical to the live capture.
-   */
-  private async overwriteMessage(name: string): Promise<string> {
-    const stored = await this.commands.profiles
-      .loadProfile(name, this.group())
-      .catch(() => null);
-    const diff = stored
-      ? profileOverwriteDiff(stored, this.workspace.buildProfileDocument())
-      : [];
-    return overwriteMessage(diff, name, (k, p) => this.i18n.t(k, p));
   }
 
   // -- load (§21 :182-194 + change preview :220-278) -------------------------------
