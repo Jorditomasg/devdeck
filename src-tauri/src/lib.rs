@@ -66,14 +66,30 @@ pub fn run() {
     #[cfg(desktop)]
     {
         builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
-            if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
-                show_window(&window);
-            }
             // Forward the second launch's argv so the running instance can
             // switch/open the requested workspace group (events.rs).
             match serde_json::to_value(events::SingleInstancePayload { argv, cwd }) {
                 Ok(payload) => EventEmitter::emit(app, events::APP_SINGLE_INSTANCE, payload),
                 Err(err) => log::error!("failed to serialize single-instance payload: {err}"),
+            }
+            // A second launch does NOT auto-focus: ask first with a native
+            // (Windows + Linux) dialog. "Open" focuses the running window;
+            // "Cancel" leaves it untouched.
+            if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
+                use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
+                let (message, open_label, cancel_label) = already_running_strings(app);
+                app.dialog()
+                    .message(message)
+                    .title("DevDeck")
+                    .buttons(MessageDialogButtons::OkCancelCustom(
+                        open_label.into(),
+                        cancel_label.into(),
+                    ))
+                    .show(move |open| {
+                        if open {
+                            show_window(&window);
+                        }
+                    });
             }
         }));
     }
@@ -534,6 +550,25 @@ pub(crate) fn refresh_tray(app: &tauri::AppHandle, tray: &TrayStatus) {
     };
     if let Err(err) = tray_icon.set_tooltip(Some(tray.tooltip())) {
         log::warn!("failed to refresh tray tooltip after language change: {err}");
+    }
+}
+
+/// Native "already running" dialog strings, localized from the saved config
+/// language (`es_ES` default, `en_EN`). Native dialogs can't use the frontend
+/// `t()` runtime, so the two supported locales are inlined here.
+/// Returns `(message, open_label, cancel_label)`.
+fn already_running_strings(app: &tauri::AppHandle) -> (&'static str, &'static str, &'static str) {
+    let english = app
+        .state::<AppState>()
+        .config
+        .load()
+        .ok()
+        .and_then(|c| c.language)
+        .is_some_and(|l| l.starts_with("en"));
+    if english {
+        ("DevDeck is already running.", "Open", "Cancel")
+    } else {
+        ("DevDeck ya se está ejecutando.", "Abrir", "Cancelar")
     }
 }
 
