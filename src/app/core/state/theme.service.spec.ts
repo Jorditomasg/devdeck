@@ -9,9 +9,9 @@ describe('theme coercion', () => {
   });
 
   it('falls back to the default palette for unknown/absent values', () => {
-    expect(coercePalette('neon')).toBe('indigo');
-    expect(coercePalette(null)).toBe('indigo');
-    expect(coercePalette('')).toBe('indigo');
+    expect(coercePalette('neon')).toBe('slate');
+    expect(coercePalette(null)).toBe('slate');
+    expect(coercePalette('')).toBe('slate');
   });
 
   it('keeps known patterns', () => {
@@ -22,8 +22,8 @@ describe('theme coercion', () => {
   });
 
   it('falls back to the default pattern for unknown/absent/removed values', () => {
-    expect(coercePattern('zigzag')).toBe('cubes');
-    expect(coercePattern('triangular')).toBe('cubes'); // removed pattern
-    expect(coercePattern(null)).toBe('cubes');
+    expect(coercePattern('zigzag')).toBe('none');
+    expect(coercePattern('triangular')).toBe('none'); // removed pattern
+    expect(coercePattern(null)).toBe('none');
   });
 });

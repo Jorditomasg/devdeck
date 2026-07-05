@@ -71,12 +71,11 @@
   font-size: var(--font-size-base);
 }
 
-// Profile dropdown — profile-accent border; dirty = warning text + orange
-// border on a dark-amber field (§26 "Dirty styling").
+// Profile dropdown — default theme border (matches the env selectors); dirty =
+// warning text + orange border on a dark-amber field (§26 "Dirty styling").
 .topbar__profile {
   width: 180px;
   flex-shrink: 0;
-  --color-border-default: var(--color-status-installing); // profile accent
 
   &--dirty {
     --color-border-default: var(--color-status-logging);

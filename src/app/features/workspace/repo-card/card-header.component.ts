@@ -177,7 +177,7 @@ export interface CardHeaderText {
             (clicked)="openTerminal.emit($event)"
           ><ui-icon name="terminal" /></ui-icon-button>
           <ui-icon-button
-            variant="toggle-expand"
+            variant="neutral"
             [uiTooltip]="text().expandTip"
             (clicked)="toggleExpand.emit()"
           >@if (expanded()) {

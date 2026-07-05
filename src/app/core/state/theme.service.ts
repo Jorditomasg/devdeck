@@ -20,8 +20,8 @@ import { Injectable, signal } from '@angular/core';
 
 /** Color palettes (kebab values = the `[data-palette]` attribute). */
 export const PALETTES = [
-  'indigo',
   'slate',
+  'indigo',
   'emerald',
   'crimson',
   'rose',
@@ -30,8 +30,8 @@ export const PALETTES = [
 
 /** Background patterns (kebab values = the `[data-pattern]` attribute). */
 export const PATTERNS = [
-  'cubes',
   'none',
+  'cubes',
   'grid',
   'dots',
   'arcs',
@@ -43,8 +43,8 @@ export const PATTERNS = [
 export type Palette = (typeof PALETTES)[number];
 export type Pattern = (typeof PATTERNS)[number];
 
-const DEFAULT_PALETTE: Palette = 'indigo';
-const DEFAULT_PATTERN: Pattern = 'cubes';
+const DEFAULT_PALETTE: Palette = 'slate';
+const DEFAULT_PATTERN: Pattern = 'none';
 const PALETTE_KEY = 'devdeck.palette';
 const PATTERN_KEY = 'devdeck.pattern';
 
