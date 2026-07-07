@@ -46,6 +46,7 @@ import type { MenuEntry } from './context-menu.types';
         [class.menu__item--danger]="item.danger"
         [class.menu__item--active]="i === activeIndex()"
         [disabled]="item.disabled"
+        [attr.title]="item.title || null"
         (mouseenter)="activeIndex.set(i)"
         (click)="pick(item)"
       >

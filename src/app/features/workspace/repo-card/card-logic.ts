@@ -173,12 +173,6 @@ export function pathBasename(path: string): string {
   return path.replace(/\\/g, '/').split('/').pop() ?? path;
 }
 
-/** Right-aligned menu hint: the command itself, truncated so a long command
- * line cannot stretch the menu. */
-function commandHint(command: string): string {
-  return command.length > 40 ? `${command.slice(0, 39)}…` : command;
-}
-
 /**
  * Terminal-button menu (design doc 2026-07-05): "Terminal" (clean shell)
  * first, then — separated — the repo's saved command profiles (sorted by
@@ -196,7 +190,7 @@ export function terminalMenuEntries(
       id: `profile:${name}`,
       label: name,
       icon: 'play',
-      hint: commandHint(profiles[name]),
+      title: profiles[name],
     });
   }
   if (commands.length > 0) {

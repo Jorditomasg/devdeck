@@ -18,4 +18,6 @@ export interface MenuEntry {
   readonly separator?: boolean;
   /** Optional right-aligned hint (e.g. a keyboard shortcut or a value). */
   readonly hint?: string;
+  /** Optional native hover tooltip (full value when the label is a short name). */
+  readonly title?: string;
 }

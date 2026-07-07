@@ -205,7 +205,7 @@ describe('terminalMenuEntries (terminal button menu, design 2026-07-05)', () => 
   it('lists profiles sorted by name between the shell and the add entry', () => {
     const entries = terminalMenuEntries({ b: 'cmd b', a: 'cmd a' }, text);
     expect(entries.map((e) => e.id)).toEqual(['shell', 'profile:a', 'profile:b', 'add']);
-    expect(entries[2].hint).toBe('cmd b');
+    expect(entries[2].title).toBe('cmd b');
   });
 
   it('separates the first profile from the shell and the add entry from the commands', () => {
@@ -215,7 +215,7 @@ describe('terminalMenuEntries (terminal button menu, design 2026-07-05)', () => 
       label: 'a',
       icon: 'play',
       separator: true,
-      hint: 'cmd a',
+      title: 'cmd a',
     });
     expect(entries[2]).toEqual({
       id: 'add',
@@ -225,9 +225,9 @@ describe('terminalMenuEntries (terminal button menu, design 2026-07-05)', () => 
     });
   });
 
-  it('truncates long profile commands in the hint to 40 chars with an ellipsis', () => {
+  it('exposes the full command as the native title tooltip (untruncated)', () => {
     const entries = terminalMenuEntries({ a: 'x'.repeat(60) }, text);
-    expect(entries[1].hint).toHaveLength(40);
-    expect(entries[1].hint!.endsWith('…')).toBe(true);
+    expect(entries[1].title).toBe('x'.repeat(60));
+    expect(entries[1].hint).toBeUndefined();
   });
 });
