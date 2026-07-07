@@ -22,12 +22,12 @@ Move from `git/exec.rs` (with their unit tests): `WslPath { distro, linux_path }
 On Windows, when `wsl_path_for(cwd)` is `Some`, `build_command` produces:
 
 ```
-wsl.exe -d <distro> --cd <linux_path> --exec setsid bash -ilc '<script>'
+wsl.exe -d <distro> --cd <linux_path> --exec setsid -w bash -ilc '<script>'
 ```
 
 with `<script>` = `export 'K=V'; export 'K2=V2'; echo "__DEVDECK_PID__$$"; <command>`:
 
-- `setsid` → bash becomes its own Linux session/group leader — the mirror of the `process_group(0)` the Unix build already uses. `$$` is both PID and PGID, and every child the command spawns stays in that group, so one number identifies the whole tree. The command is deliberately NOT `exec`-prefixed: `exec a && b` breaks compound commands, and bash exiting with the command's code preserves exit semantics.
+- `setsid -w` → bash becomes its own Linux session/group leader — the mirror of the `process_group(0)` the Unix build already uses. `$$` is both PID and PGID, and every child the command spawns stays in that group, so one number identifies the whole tree. `-w` (`--wait`) is MANDATORY: without it `setsid` forks bash and exits 0 immediately, so the `wsl.exe` bridge would return at once (the service reported as instantly exited, code 0) while it ran orphaned. `-w` makes setsid wait for bash and propagate its exit code, so the bridge lives for the service's lifetime and dies naturally when bash exits (which the graceful-stop path depends on). The command is deliberately NOT `exec`-prefixed: `exec a && b` breaks compound commands, and bash exiting with the command's code preserves exit semantics.
 - Profile env overrides become inline `export` entries (single-quote-escaped). Env set on the Windows `wsl.exe` process does NOT cross into Linux, so `.envs()` alone is insufficient (it stays for the bridge process; the exports are the ones that matter).
 - `echo "__DEVDECK_PID__$$"` → emitted before the command starts; the reader captures the first line whose ENTIRE content matches the marker (stdout and stderr interleave in the merged channel, so "first line" is not guaranteed), stores it as the run's `linux_pgid` and drops it (never logged, never fed to the ready-pattern analyzer).
 - The Windows PID of `wsl.exe` (the bridge) is still supervised exactly as today: bridge exit = service exit, stream EOF semantics unchanged.
@@ -43,7 +43,7 @@ Same escalation plan, same §21.5 timeouts — only the executor changes for WSL
 
 | Step | Windows today | WSL run |
 |---|---|---|
-| StopCmd (60 s) | `cmd /C` in repo | `wsl.exe ... --exec setsid bash -ilc '<stop_cmd>'` |
+| StopCmd (60 s) | `cmd /C` in repo | `wsl.exe ... --exec setsid -w bash -ilc '<stop_cmd>'` |
 | Terminate (wait 10 s) | `taskkill /F /T` | `wsl.exe -d <distro> --exec /bin/sh -c 'kill -TERM -- -<pgid>'` |
 | ForceKill (wait 5 s) | `taskkill /F /T` | same with `-KILL` |
 

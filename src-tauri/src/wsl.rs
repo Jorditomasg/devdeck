@@ -113,7 +113,14 @@ pub fn kill_group_script(pgid: u32, force: bool) -> String {
 /// required, not optional.
 pub fn exec_in_distro(wsl: &WslPath, script: &str) -> Command {
     let mut cmd = base_command(&wsl.distro);
-    cmd.args(["--cd", &wsl.linux_path, "--exec", "setsid", "bash", "-ilc", script]);
+    // `setsid -w`: WITHOUT -w, setsid forks bash into the new session and
+    // exits 0 immediately — the wsl.exe bridge would return at once
+    // (`[sys] … process exited (code 0)`) while the service ran orphaned.
+    // -w makes setsid wait for bash and propagate its exit status, so the
+    // bridge lives for the service's lifetime and dies naturally when bash
+    // exits (which the graceful-stop path relies on). The child is still a
+    // new session/group leader, so `$$` == pgid and `kill -- -<pgid>` holds.
+    cmd.args(["--cd", &wsl.linux_path, "--exec", "setsid", "-w", "bash", "-ilc", script]);
     cmd
 }
 
@@ -270,7 +277,7 @@ mod tests {
         assert_eq!(cmd.as_std().get_program().to_string_lossy(), "wsl.exe");
         assert_eq!(
             args_of(&cmd),
-            ["-d", "Ubuntu", "--cd", "/home/j/app", "--exec", "setsid", "bash", "-ilc", "echo hi"]
+            ["-d", "Ubuntu", "--cd", "/home/j/app", "--exec", "setsid", "-w", "bash", "-ilc", "echo hi"]
         );
     }
 

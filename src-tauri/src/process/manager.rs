@@ -964,8 +964,8 @@ mod tests {
             assert_eq!(cmd.as_std().get_program().to_string_lossy(), "wsl.exe");
             let args: Vec<String> = cmd.as_std().get_args()
                 .map(|a| a.to_string_lossy().into_owned()).collect();
-            assert_eq!(args[..7], ["-d", "Ubuntu", "--cd", "/home/j/boa2-frontend",
-                                   "--exec", "setsid", "bash"]);
+            assert_eq!(args[..8], ["-d", "Ubuntu", "--cd", "/home/j/boa2-frontend",
+                                   "--exec", "setsid", "-w", "bash"]);
             assert!(args.last().unwrap().contains("__DEVDECK_PID__"));
             assert!(args.last().unwrap().ends_with("npm start"));
         } else {
