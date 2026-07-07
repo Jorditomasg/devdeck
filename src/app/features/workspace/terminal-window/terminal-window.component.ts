@@ -77,6 +77,24 @@ export class TerminalWindowComponent implements OnInit, OnDestroy {
     this.term = term;
     this.fit = fit;
 
+    // Ctrl+C copies when there's a selection, otherwise falls through to the
+    // PTY as SIGINT (Windows Terminal behaviour). Returning false stops xterm
+    // from emitting the keystroke to onData.
+    term.attachCustomKeyEventHandler((e) => {
+      if (
+        e.type === 'keydown' &&
+        e.ctrlKey &&
+        !e.shiftKey &&
+        !e.altKey &&
+        e.key === 'c' &&
+        term.hasSelection()
+      ) {
+        void navigator.clipboard.writeText(term.getSelection());
+        return false;
+      }
+      return true;
+    });
+
     // Keystrokes / pasted text → PTY stdin.
     term.onData((data) => void this.commands.terminal.write(this.id, data));
 
