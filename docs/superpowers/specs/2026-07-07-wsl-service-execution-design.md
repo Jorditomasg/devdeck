@@ -25,11 +25,11 @@ On Windows, when `wsl_path_for(cwd)` is `Some`, `build_command` produces:
 wsl.exe -d <distro> --cd <linux_path> --exec setsid bash -ilc '<script>'
 ```
 
-with `<script>` = `export 'K=V' 'K2=V2'; echo __DEVDECK_PID__$$; exec <command>`:
+with `<script>` = `export 'K=V'; export 'K2=V2'; echo "__DEVDECK_PID__$$"; <command>`:
 
-- `setsid` → bash becomes its own Linux session/group leader — the mirror of the `process_group(0)` the Unix build already uses. `$$` is both PID and PGID; `exec` preserves it, so one number identifies the whole tree.
+- `setsid` → bash becomes its own Linux session/group leader — the mirror of the `process_group(0)` the Unix build already uses. `$$` is both PID and PGID, and every child the command spawns stays in that group, so one number identifies the whole tree. The command is deliberately NOT `exec`-prefixed: `exec a && b` breaks compound commands, and bash exiting with the command's code preserves exit semantics.
 - Profile env overrides become inline `export` entries (single-quote-escaped). Env set on the Windows `wsl.exe` process does NOT cross into Linux, so `.envs()` alone is insufficient (it stays for the bridge process; the exports are the ones that matter).
-- `echo __DEVDECK_PID__$$` → first stdout line; the reader parses it into the run's `linux_pgid` and drops it (never logged, never fed to the ready-pattern analyzer).
+- `echo "__DEVDECK_PID__$$"` → emitted before the command starts; the reader captures the first line whose ENTIRE content matches the marker (stdout and stderr interleave in the merged channel, so "first line" is not guaranteed), stores it as the run's `linux_pgid` and drops it (never logged, never fed to the ready-pattern analyzer).
 - The Windows PID of `wsl.exe` (the bridge) is still supervised exactly as today: bridge exit = service exit, stream EOF semantics unchanged.
 - Non-WSL Windows spawns and the entire Unix build are byte-for-byte unchanged.
 
@@ -70,8 +70,8 @@ Same escalation plan, same §21.5 timeouts — only the executor changes for WSL
 Pure, cross-platform unit tests (string builders — no spawning):
 
 - `wsl.rs`: `parse_wsl_path` suite moves as-is.
-- Script builder: export escaping (values with `'`, spaces), PID marker present, `exec` prefix, command with `&&` survives.
-- PID-line parser: match, non-match, mid-stream line NOT treated as PID (first line only).
+- Script builder: export escaping (values with `'`, spaces), PID marker present, command with `&&` survives.
+- PID-line parser: anchored match (whole line = marker + digits), non-match, capture stops after the first hit.
 - Noise filter: exactly the two bash lines dropped, everything else passes.
 - Kill command builder: `-TERM`/`-KILL`, `--`, negative PGID, distro name forwarded.
 - Escalation: WSL variant preserves plan order and timeouts (pin like `plan_timeouts_match_the_v1_contract`).
