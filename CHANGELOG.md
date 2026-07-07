@@ -5,6 +5,22 @@ All notable changes to DevDeck are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.0] - 2026-07-07
+
+### Added
+
+- Run services from repositories that live inside WSL: when a repo is opened
+  from a `\\wsl.localhost\...` path, DevDeck now starts, installs, stops and
+  runs its Docker Compose commands directly inside the Linux distribution,
+  using the distro's own toolchain — and stops reliably kill the whole Linux
+  process tree.
+- Copy the current terminal selection with Ctrl+C.
+
+### Changed
+
+- The repository card's terminal menu now shows just the profile name, with the
+  full command available as a tooltip.
+
 ## [3.2.1] - 2026-07-06
 
 ### Fixed
