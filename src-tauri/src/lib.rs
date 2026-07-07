@@ -36,6 +36,7 @@ pub mod process;
 pub mod profiles;
 pub mod state;
 pub mod terminal;
+pub mod wsl;
 
 use std::sync::Arc;
 

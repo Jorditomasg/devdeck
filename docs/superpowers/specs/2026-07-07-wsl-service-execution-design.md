@@ -49,8 +49,8 @@ Same escalation plan, same §21.5 timeouts — only the executor changes for WSL
 
 - `kill` reporting "no such process" = success (tree already dead) — the ESRCH equivalence the Unix path already implements.
 - Each in-distro kill invocation is bounded by `TASKKILL_TIMEOUT` (15 s), like taskkill today.
-- After the in-distro escalation, ALWAYS `taskkill /F /T` the `wsl.exe` bridge PID: final safety net + reaps the Windows child.
-- **Race — stop before the PID line arrived:** fall back to taskkill on the bridge and emit a `[sys]` warning log line. Documented limitation: in that window the Linux tree may briefly survive; the next Terminate on a captured PID cannot exist by definition (no PID), so the bridge kill is the best available action.
+- The `wsl.exe` bridge is taskkilled ONLY on the forced (SIGKILL) step — final safety net + reaps the Windows child. On the graceful (SIGTERM) step the bridge must exit NATURALLY when bash exits; killing it early would EOF the pipes and collapse the supervised state to terminal before SIGTERM had its grace window and before the ForceKill escalation could run on a SIGTERM-ignoring tree.
+- **Race — stop before the PID line arrived:** nothing can be signalled in-distro yet; the graceful step emits a `[sys]` warning and waits, and the forced step's bridge kill remains the fallback. Documented limitation: in that window the Linux tree may briefly survive; a Terminate on a not-yet-captured PID cannot exist by definition, so the forced-step bridge kill is the best available action.
 - `shutdown_all` uses these same paths, still bounded by `SHUTDOWN_ALL_CAP`.
 
 ## 4. Install and docker

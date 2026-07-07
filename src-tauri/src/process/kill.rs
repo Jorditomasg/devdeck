@@ -108,6 +108,69 @@ pub async fn force_kill_tree(pid: u32) -> Result<(), ProcessError> {
     }
 }
 
+/// Signal the LINUX process group of a WSL run from Windows: the in-distro
+/// equivalent of the Unix `signal_group`, executed as
+/// `wsl.exe -d <distro> --exec /bin/sh -c 'kill -<SIG> -- -<pgid>'`
+/// (design doc 2026-07-07-wsl-service-execution §3). "No such process"
+/// counts as success — the ESRCH equivalence. Bounded by
+/// [`super::constants::TASKKILL_TIMEOUT`] like taskkill.
+pub async fn signal_group_wsl(distro: &str, pgid: u32, force: bool) -> Result<(), ProcessError> {
+    if pgid == 0 {
+        return Err(ProcessError::Kill {
+            pid: pgid,
+            message: "refusing to signal pgid 0 (distro-wide)".into(),
+        });
+    }
+    #[cfg(windows)]
+    {
+        use super::constants::{CREATE_NO_WINDOW, TASKKILL_TIMEOUT};
+
+        let script = crate::wsl::kill_group_script(pgid, force);
+        let mut cmd = crate::wsl::base_command(distro);
+        cmd.args(["--exec", "/bin/sh", "-c", &script])
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .kill_on_drop(true);
+        cmd.creation_flags(CREATE_NO_WINDOW);
+
+        let output = tokio::time::timeout(TASKKILL_TIMEOUT, cmd.output())
+            .await
+            .map_err(|_| ProcessError::Kill {
+                pid: pgid,
+                message: format!(
+                    "in-distro kill timed out after {}s",
+                    TASKKILL_TIMEOUT.as_secs()
+                ),
+            })?
+            .map_err(|e| ProcessError::Kill {
+                pid: pgid,
+                message: format!("failed to spawn wsl.exe for kill: {e}"),
+            })?;
+
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        if output.status.success() || stderr.contains("No such process") {
+            return Ok(()); // killed, or tree already dead — mission done
+        }
+        Err(ProcessError::Kill {
+            pid: pgid,
+            message: format!(
+                "in-distro kill exited with {:?}: {}",
+                output.status.code(),
+                stderr.trim()
+            ),
+        })
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = (distro, force);
+        Err(ProcessError::Kill {
+            pid: pgid,
+            message: "WSL in-distro kill is Windows-only".into(),
+        })
+    }
+}
+
 /// Signal the process GROUP whose id equals `pid` (guaranteed by
 /// `process_group(0)` at spawn). `ESRCH` ⇒ already dead ⇒ `Ok`.
 #[cfg(unix)]
@@ -234,5 +297,19 @@ mod tests {
         // which means "already dead" and must be treated as success.
         assert!(terminate_tree(99_999_999).await.is_ok());
         assert!(force_kill_tree(99_999_999).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn wsl_kill_refuses_pgid_zero() {
+        // pgid 0 would signal the distro's own group at large — same guard as
+        // terminate_tree/force_kill_tree.
+        assert!(signal_group_wsl("Ubuntu", 0, false).await.is_err());
+        assert!(signal_group_wsl("Ubuntu", 0, true).await.is_err());
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn wsl_kill_is_windows_only() {
+        assert!(signal_group_wsl("Ubuntu", 4242, false).await.is_err());
     }
 }

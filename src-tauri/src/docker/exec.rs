@@ -89,8 +89,17 @@ pub(crate) async fn run_compose(
         .unwrap_or_else(|| compose_file.display().to_string());
     let cwd = compose_file.parent();
 
+    // ponytail: inside a distro assume compose v2 (`docker compose`) —
+    // docker-ce has shipped the plugin for years; per-distro probing if a
+    // legacy-only distro ever shows up.
+    let flavor = if cwd.is_some_and(|d| crate::wsl::wsl_path_for(d).is_some()) {
+        ComposeFlavor::DockerCompose2
+    } else {
+        compose_flavor().await
+    };
+
     let mut full: Vec<&str> = Vec::with_capacity(args.len() + 4);
-    let program = match compose_flavor().await {
+    let program = match flavor {
         ComposeFlavor::DockerCompose2 => {
             full.push("compose");
             "docker"
@@ -116,8 +125,20 @@ pub(crate) async fn compose_streaming_command(compose_file: &Path, args: &[&str]
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_else(|| compose_file.display().to_string());
 
+    // ponytail: inside a distro assume compose v2 (`docker compose`) —
+    // docker-ce has shipped the plugin for years; per-distro probing if a
+    // legacy-only distro ever shows up.
+    let flavor = if compose_file
+        .parent()
+        .is_some_and(|d| crate::wsl::wsl_path_for(d).is_some())
+    {
+        ComposeFlavor::DockerCompose2
+    } else {
+        compose_flavor().await
+    };
+
     let mut full: Vec<&str> = Vec::with_capacity(args.len() + 4);
-    let program = match compose_flavor().await {
+    let program = match flavor {
         ComposeFlavor::DockerCompose2 => {
             full.push("compose");
             "docker"
@@ -128,15 +149,25 @@ pub(crate) async fn compose_streaming_command(compose_file: &Path, args: &[&str]
     full.push(&fname);
     full.extend_from_slice(args);
 
-    let mut cmd = Command::new(program);
-    cmd.args(&full)
-        .stdin(Stdio::null())
+    let mut cmd = match compose_file.parent().and_then(crate::wsl::wsl_path_for) {
+        Some(w) => {
+            let mut cmd = crate::wsl::exec_plain(&w, program);
+            cmd.args(&full);
+            cmd
+        }
+        None => {
+            let mut cmd = Command::new(program);
+            cmd.args(&full);
+            if let Some(dir) = compose_file.parent() {
+                cmd.current_dir(dir);
+            }
+            cmd
+        }
+    };
+    cmd.stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .kill_on_drop(true);
-    if let Some(dir) = compose_file.parent() {
-        cmd.current_dir(dir);
-    }
     #[cfg(windows)]
     {
         const CREATE_NO_WINDOW: u32 = 0x0800_0000;
@@ -151,15 +182,29 @@ async fn run_raw(
     cwd: Option<&Path>,
     timeout_secs: u64,
 ) -> Result<DockerOutput, DockerError> {
-    let mut cmd = Command::new(program);
-    cmd.args(args)
-        .stdin(Stdio::null())
+    let mut cmd = match cwd.and_then(crate::wsl::wsl_path_for) {
+        // Compose dir inside a WSL distro ⇒ run docker IN the distro
+        // (native docker installs, not only Docker Desktop — design doc
+        // 2026-07-07-wsl-service-execution §4). PATH note: --exec uses the
+        // default WSL env (/usr/bin), where apt/docker-ce installs live.
+        Some(w) => {
+            let mut cmd = crate::wsl::exec_plain(&w, program);
+            cmd.args(args);
+            cmd
+        }
+        None => {
+            let mut cmd = Command::new(program);
+            cmd.args(args);
+            if let Some(dir) = cwd {
+                cmd.current_dir(dir);
+            }
+            cmd
+        }
+    };
+    cmd.stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .kill_on_drop(true);
-    if let Some(dir) = cwd {
-        cmd.current_dir(dir);
-    }
     // CREATE_NO_WINDOW — every v1 subprocess uses it (inventory §21.5).
     #[cfg(windows)]
     {

@@ -30,7 +30,7 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
 use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader};
@@ -75,21 +75,53 @@ pub fn is_installed(repo_path: &Path, check_dirs: &[String]) -> bool {
     check_dirs.iter().all(|d| repo_path.join(d).is_dir())
 }
 
+/// A run executing inside a WSL distro: the kill path needs the distro name
+/// and the Linux PGID captured from the `__DEVDECK_PID__` marker line
+/// (design doc 2026-07-07-wsl-service-execution §2–3).
+#[derive(Clone)]
+struct WslRun {
+    distro: String,
+    /// Set once by the supervision reader when the marker line arrives.
+    pgid: Arc<OnceLock<u32>>,
+}
+
 /// Build the platform shell command for a run: merged-output piping, env
 /// overrides on the inherited environment, own process group on Unix
 /// (§22.1 fix), `CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP` on Windows
-/// (§21.5).
-fn build_command(command: &str, cwd: &Path, env: &HashMap<String, String>) -> Command {
-    let (program, flag) = shell_invocation(cfg!(windows));
-    let mut cmd = Command::new(program);
-    cmd.arg(flag)
-        .arg(command)
-        .current_dir(cwd)
-        .stdin(std::process::Stdio::null())
+/// (§21.5). A cwd on a WSL UNC share runs INSIDE the distro instead
+/// (design doc 2026-07-07-wsl-service-execution): cmd.exe rejects UNC
+/// working dirs, and the Windows toolchain must not touch Linux-built
+/// node_modules. `emit_pid` adds the Linux-PGID marker (services/installs
+/// need it for the kill path; captured-output stop_cmds must NOT log it).
+fn build_command(
+    command: &str,
+    cwd: &Path,
+    env: &HashMap<String, String>,
+    emit_pid: bool,
+) -> (Command, Option<WslRun>) {
+    let (mut cmd, wsl) = match crate::wsl::wsl_path_for(cwd) {
+        Some(w) => {
+            let script = crate::wsl::shell_script(command, env, emit_pid);
+            let run = WslRun {
+                distro: w.distro.clone(),
+                pgid: Arc::new(OnceLock::new()),
+            };
+            // No .current_dir(): --cd positions us inside the distro; no
+            // .envs(): Windows-side env does not cross into Linux — the
+            // script's exports carry it.
+            (crate::wsl::exec_in_distro(&w, &script), Some(run))
+        }
+        None => {
+            let (program, flag) = shell_invocation(cfg!(windows));
+            let mut cmd = Command::new(program);
+            cmd.arg(flag).arg(command).current_dir(cwd).envs(env);
+            (cmd, None)
+        }
+    };
+    cmd.stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
-        .kill_on_drop(true)
-        .envs(env);
+        .kill_on_drop(true);
     #[cfg(unix)]
     {
         // Own process group ⇒ killpg(child_pid) can never touch the app
@@ -101,7 +133,7 @@ fn build_command(command: &str, cwd: &Path, env: &HashMap<String, String>) -> Co
         use super::constants::{CREATE_NEW_PROCESS_GROUP, CREATE_NO_WINDOW};
         cmd.creation_flags(CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP);
     }
-    cmd
+    (cmd, wsl)
 }
 
 // ---------------------------------------------------------------------------
@@ -197,6 +229,7 @@ struct Entry {
     manually_stopped: Arc<AtomicBool>,
     state_tx: Arc<watch::Sender<RuntimeState>>,
     state_rx: watch::Receiver<RuntimeState>,
+    wsl: Option<WslRun>,
 }
 
 struct Inner {
@@ -375,7 +408,8 @@ impl ProcessManager {
             }
         }
 
-        let mut child = build_command(&command, &cwd, &env)
+        let (mut command_builder, wsl) = build_command(&command, &cwd, &env, true);
+        let mut child = command_builder
             .spawn()
             .map_err(|source| ProcessError::Spawn {
                 id: id.clone(),
@@ -402,6 +436,7 @@ impl ProcessManager {
                 manually_stopped: manually_stopped.clone(),
                 state_tx: state_tx.clone(),
                 state_rx,
+                wsl: wsl.clone(),
             },
         );
         drop(services);
@@ -450,6 +485,7 @@ impl ProcessManager {
             analyzer,
             state_tx,
             manually_stopped,
+            wsl,
         ));
 
         Ok(pid)
@@ -474,11 +510,12 @@ impl ProcessManager {
                     e.manually_stopped.clone(),
                     e.state_tx.clone(),
                     e.state_rx.clone(),
+                    e.wsl.clone(),
                 )
             })
         };
         let emitter = self.inner.emitter.as_ref();
-        let Some((pid, stop_cmd, manually_stopped, state_tx, state_rx)) = entry else {
+        let Some((pid, stop_cmd, manually_stopped, state_tx, state_rx, wsl)) = entry else {
             // v1: `[svc] <name> is not running`, return False (§17.2).
             emit_lines_now(
                 emitter,
@@ -509,6 +546,18 @@ impl ProcessManager {
             LogStream::Service,
             vec![format!("[svc] Stopping {id}...")],
         );
+        if let Some(w) = &wsl {
+            if w.pgid.get().is_none() {
+                emit_lines_now(
+                    emitter,
+                    id,
+                    LogStream::Service,
+                    vec![format!(
+                        "[sys] {id}: Linux pid not captured yet; stop may only reach the WSL bridge"
+                    )],
+                );
+            }
+        }
 
         for step in kill::escalation_plan(stop_cmd.is_some()) {
             match step {
@@ -521,9 +570,7 @@ impl ProcessManager {
                     }
                 }
                 EscalationStep::Terminate { wait } => {
-                    if let Err(err) = kill::terminate_tree(pid).await {
-                        log::warn!("graceful termination of '{id}' (pid {pid}) failed: {err}");
-                    }
+                    kill_run_tree(id, pid, wsl.as_ref(), false).await;
                     if wait_terminal(state_rx.clone(), wait).await {
                         return Ok(StopOutcome::Stopped);
                     }
@@ -536,9 +583,7 @@ impl ProcessManager {
                         LogStream::Service,
                         vec![format!("[svc] {id} force-stopped: graceful stop timed out")],
                     );
-                    if let Err(err) = kill::force_kill_tree(pid).await {
-                        log::warn!("force kill of '{id}' (pid {pid}) failed: {err}");
-                    }
+                    kill_run_tree(id, pid, wsl.as_ref(), true).await;
                     let _ = wait_terminal(state_rx.clone(), wait).await;
                 }
             }
@@ -575,18 +620,16 @@ impl ProcessManager {
         let drain = async move { while set.join_next().await.is_some() {} };
         if tokio::time::timeout(SHUTDOWN_ALL_CAP, drain).await.is_err() {
             // Cap exceeded (e.g. a slow stop_cmd) — force-kill survivors.
-            let leftovers: Vec<u32> = self
+            let leftovers: Vec<(String, u32, Option<WslRun>)> = self
                 .inner
                 .services
                 .lock()
                 .await
-                .values()
-                .map(|e| e.pid)
+                .iter()
+                .map(|(id, e)| (id.clone(), e.pid, e.wsl.clone()))
                 .collect();
-            for pid in leftovers {
-                if let Err(err) = kill::force_kill_tree(pid).await {
-                    log::warn!("shutdown_all: force-kill of pid {pid} failed: {err}");
-                }
+            for (id, pid, wsl) in leftovers {
+                kill_run_tree(&id, pid, wsl.as_ref(), true).await;
             }
         }
     }
@@ -611,6 +654,49 @@ async fn wait_terminal(mut rx: watch::Receiver<RuntimeState>, cap: Duration) -> 
     })
     .await
     .is_ok()
+}
+
+/// Kill a run's whole tree. WSL runs get the in-distro group kill (the
+/// Linux tree is unreachable from taskkill); the wsl.exe bridge is
+/// taskkilled ONLY on the forced step — on the graceful step the bridge
+/// must exit NATURALLY when bash exits, so `wait_terminal` observes real
+/// tree death and the ForceKill escalation still runs when the tree
+/// ignores SIGTERM (final-review fix, design doc
+/// 2026-07-07-wsl-service-execution-design §3).
+async fn kill_run_tree(id: &str, pid: u32, wsl: Option<&WslRun>, force: bool) {
+    if let Some(w) = wsl {
+        match w.pgid.get() {
+            Some(&pgid) => {
+                if let Err(err) = kill::signal_group_wsl(&w.distro, pgid, force).await {
+                    log::warn!(
+                        "in-distro kill (force={force}) of '{id}' (distro {}, pgid {pgid}) failed: {err}",
+                        w.distro
+                    );
+                }
+            }
+            // Stop raced the marker line: nothing to signal in-distro yet;
+            // on the forced step the bridge kill below still runs.
+            None => log::warn!("'{id}': Linux pgid not captured; cannot signal the in-distro tree"),
+        }
+        // Final safety net + bridge reap — forced step ONLY. Killing the
+        // bridge on the graceful step would EOF the pipes and finalize the
+        // run before SIGTERM had its grace window / before ForceKill could
+        // escalate on a SIGTERM-ignoring tree.
+        if force {
+            if let Err(err) = kill::force_kill_tree(pid).await {
+                log::warn!("bridge kill (force) of '{id}' (pid {pid}) failed: {err}");
+            }
+        }
+        return;
+    }
+    let result = if force {
+        kill::force_kill_tree(pid).await
+    } else {
+        kill::terminate_tree(pid).await
+    };
+    if let Err(err) = result {
+        log::warn!("tree kill (force={force}) of '{id}' (pid {pid}) failed: {err}");
+    }
 }
 
 /// Pump one output pipe into the shared line channel: lossy UTF-8 decode
@@ -653,6 +739,7 @@ async fn supervise(
     mut analyzer: LineAnalyzer,
     state_tx: Arc<watch::Sender<RuntimeState>>,
     manually_stopped: Arc<AtomicBool>,
+    wsl: Option<WslRun>,
 ) {
     let emitter = inner.emitter.as_ref();
     let stream = match kind {
@@ -668,6 +755,20 @@ async fn supervise(
         tokio::select! {
             maybe_line = line_rx.recv() => match maybe_line {
                 Some(line) => {
+                    if let Some(w) = &wsl {
+                        // WSL runs only: swallow bash's no-tty noise and
+                        // capture the Linux PGID marker (never logged,
+                        // never fed to the ready-pattern analyzer).
+                        if crate::wsl::is_bash_noise(&line) {
+                            continue;
+                        }
+                        if w.pgid.get().is_none() {
+                            if let Some(pgid) = crate::wsl::parse_pid_line(&line) {
+                                let _ = w.pgid.set(pgid);
+                                continue;
+                            }
+                        }
+                    }
                     let effects = analyzer.analyze(&line);
                     if effects.status_changed.is_some() || effects.port_detected.is_some() {
                         let _ = state_tx.send(RuntimeState {
@@ -716,9 +817,7 @@ async fn supervise(
                     )],
                 );
             }
-            if let Err(err) = kill::force_kill_tree(pid).await {
-                log::warn!("post-EOF kill of '{id}' (pid {pid}) failed: {err}");
-            }
+            kill_run_tree(&id, pid, wsl.as_ref(), true).await;
             match tokio::time::timeout(kill_grace, child.wait()).await {
                 Ok(Ok(status)) => status.code(),
                 _ => None, // kill_on_drop reaps the direct child as last resort
@@ -792,7 +891,11 @@ async fn run_stop_cmd(emitter: &dyn EventEmitter, id: &str, sc: &StopCommand, ti
         LogStream::Service,
         vec![format!("[svc] Running stop command for {id}: {}", sc.command)],
     );
-    let mut cmd = build_command(&sc.command, &sc.cwd, &sc.env);
+    // ponytail: a WSL stop_cmd that HANGS leaks its in-distro (setsid'd)
+    // process — kill_on_drop only reaches the wsl.exe bridge. Stop commands
+    // are short (compose down); revisit with a tracked in-distro kill if a
+    // long-running stop_cmd ever ships.
+    let (mut cmd, _) = build_command(&sc.command, &sc.cwd, &sc.env, false);
     match tokio::time::timeout(timeout, cmd.output()).await {
         Ok(Ok(output)) => {
             let text = format!(
@@ -804,6 +907,8 @@ async fn run_stop_cmd(emitter: &dyn EventEmitter, id: &str, sc: &StopCommand, ti
                 .lines()
                 .map(|l| strip_ansi(l).trim().to_owned())
                 .filter(|l| !l.is_empty())
+                // WSL stop_cmds run via bash -ilc — drop its no-tty noise (design doc §2)
+                .filter(|l| !crate::wsl::is_bash_noise(l))
                 .collect();
             emit_lines_now(emitter, id, LogStream::Service, lines);
         }
@@ -845,6 +950,30 @@ mod tests {
     #[test]
     fn shell_invocation_unix_uses_sh_dash_c() {
         assert_eq!(shell_invocation(false), ("/bin/sh", "-c"));
+    }
+
+    #[test]
+    fn build_command_routes_unc_paths_to_wsl_only_on_windows() {
+        let env = HashMap::new();
+        let unc = Path::new(r"\\wsl.localhost\Ubuntu\home\j\boa2-frontend");
+        let (cmd, wsl) = build_command("npm start", unc, &env, true);
+        if cfg!(windows) {
+            let w = wsl.expect("UNC path must produce a WSL run on Windows");
+            assert_eq!(w.distro, "Ubuntu");
+            assert!(w.pgid.get().is_none(), "pgid is captured later, from the marker line");
+            assert_eq!(cmd.as_std().get_program().to_string_lossy(), "wsl.exe");
+            let args: Vec<String> = cmd.as_std().get_args()
+                .map(|a| a.to_string_lossy().into_owned()).collect();
+            assert_eq!(args[..7], ["-d", "Ubuntu", "--cd", "/home/j/boa2-frontend",
+                                   "--exec", "setsid", "bash"]);
+            assert!(args.last().unwrap().contains("__DEVDECK_PID__"));
+            assert!(args.last().unwrap().ends_with("npm start"));
+        } else {
+            assert!(wsl.is_none(), "non-Windows never routes");
+        }
+        // Drive-letter / Unix paths never route, any platform.
+        let (_, wsl) = build_command("npm start", Path::new(r"C:\repos\app"), &env, true);
+        assert!(wsl.is_none());
     }
 
     // -- pure: install check_dirs semantics (§22.17) -------------------------
