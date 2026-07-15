@@ -171,17 +171,15 @@ export class GraphCellComponent {
   }
 
   /**
-   * toBottom edges. The dot's OWN outgoing line — its first-parent
-   * continuation, OR the elbow where it early-converges into a lower lane —
-   * keeps the DOT's color: that segment belongs to the flowing line, not to
-   * the lane it lands in (user 2026-07-15: convergence elbows adopted the
-   * target branch's color, splitting a single branch into two colors). Merge
-   * fan-outs to OTHER lanes take that lane's own branch color.
+   * toBottom edges take the TARGET lane's color: a fork connector wears the
+   * SOURCE branch's color — "this line was cut from THAT branch" — and flows
+   * into the child dot, where the new branch's color takes over (user
+   * 2026-07-15: la costura debe ser naranja y desembocar en el punto verde).
+   * Continuations and merge fan-outs read the same way: the lane below is
+   * named (backfilled when the merge subject can't name it), so every color
+   * change happens AT a dot, never mid-line.
    */
   protected edgeColor(lane: number): string {
-    if (lane === this.row().firstParentLane) {
-      return this.colorFor(this.row().label, this.row().lane);
-    }
     return this.colorFor(this.row().labels[lane] ?? this.row().label, lane);
   }
 
@@ -254,6 +252,13 @@ export class GraphCellComponent {
     }
     const r = this.radius(xd, x);
     const dir = x > xd ? 1 : -1;
+    if (this.row().through.includes(k)) {
+      // Junction into a lane that already flows through this row: stop at
+      // the curve — the through line owns the vertical below. Extending the
+      // tail overdrew that line in THIS edge's color, then snapped back at
+      // the next row's seam (user 2026-07-15: green tail on the orange line).
+      return `M ${xd} ${this.mid} L ${x - dir * r} ${this.mid} Q ${x} ${this.mid} ${x} ${this.mid + r}`;
+    }
     return `M ${xd} ${this.mid} L ${x - dir * r} ${this.mid} Q ${x} ${this.mid} ${x} ${this.mid + r} L ${x} ${h}`;
   }
 }

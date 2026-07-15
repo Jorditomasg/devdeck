@@ -205,34 +205,49 @@ describe('linear mode (fragmented filters)', () => {
   });
 });
 
-describe('firstParentLane (convergence-elbow color ownership)', () => {
-  it('points the elbow at the dot line so a converging branch keeps its color', () => {
-    // feature (lane 1) early-converges into main (lane 0). The elbow belongs
-    // to the feature line, so edgeColor must follow the DOT (feature), not the
-    // target lane (main) — the bug from the user report (2026-07-15).
+describe('unnamed merge-lane backfill', () => {
+  it('names the merged lane after the tip commit when the subject has no branch', () => {
+    // Azure DevOps merges say "Merged PR 9469: <title>" — no branch name to
+    // parse, so the fan-out lane opened at the merge stayed unlabeled and
+    // rendered in the MERGE's color until the tip (user 2026-07-15, image:
+    // orange segment on top of the green feature branch).
     const rows = computeGraph([
-      { sha: 'm', parents: ['b', 'f'], refs: ['HEAD -> main'], subject: "Merge branch 'feature'" },
-      { sha: 'f', parents: ['b'] }, // early convergence into lane 0
+      {
+        sha: 'm',
+        parents: ['c', 'x'],
+        refs: ['releases/22-c'],
+        subject: 'Merged PR 9469: KPI cards',
+      },
+      { sha: 'x', parents: ['b'], refs: ['feature/boa'] }, // names the lane — one row too late
+      { sha: 'c', parents: ['b'], },
       { sha: 'b', parents: [] },
     ]);
-    expect(rows[1].lane).toBe(1);
-    expect(rows[1].toBottom).toEqual([0]); // converges into main
-    expect(rows[1].firstParentLane).toBe(0); // …but the elbow is the feature line
+    expect(rows[0].labels[1]).toBe('feature/boa'); // fan-out elbow = branch color
+    expect(rows[0].labelsLive[1]).toBe(true); // real ref: lane click filters
+    expect(rows[1].topLabels[1]).toBe('feature/boa'); // edge into the tip dot
+    expect(rows[0].labels[0]).toBe('releases/22-c'); // main line untouched
   });
 
-  it('is the dot lane for a straight continuation and undefined at a root', () => {
+  it('backfills every through-row between the merge and the naming tip', () => {
     const rows = computeGraph([
-      { sha: 'b', parents: ['a'] },
-      { sha: 'a', parents: [] },
+      { sha: 'm', parents: ['c', 'x'], subject: 'Merged PR 1: t' },
+      { sha: 'c', parents: ['b'] }, // lane 1 passes THROUGH this row unnamed
+      { sha: 'x', parents: ['b'], refs: ['feat'] },
+      { sha: 'b', parents: [] },
     ]);
-    expect(rows[0].firstParentLane).toBe(0);
-    expect(rows[1].firstParentLane).toBeUndefined(); // root: line ends
+    expect(rows[0].labels[1]).toBe('feat');
+    expect(rows[1].labels[1]).toBe('feat'); // through segment
+    expect(rows[1].topLabels[1]).toBe('feat');
+    expect(rows[2].topLabels[1]).toBe('feat');
   });
 
-  it('is the dot lane for a dangling first parent (fading stub is the line)', () => {
-    const rows = computeGraph([{ sha: 'b', parents: ['skipped'] }, { sha: 'a', parents: [] }]);
-    expect(rows[0].dangling).toEqual([0]);
-    expect(rows[0].firstParentLane).toBe(0);
+  it('leaves lanes already named by the merge subject alone', () => {
+    const rows = computeGraph([
+      { sha: 'm', parents: ['c', 'x'], refs: ['main'], subject: "Merge branch 'gone'" },
+      { sha: 'x', parents: ['c'], refs: ['renamed'] }, // ref differs from subject name
+      { sha: 'c', parents: [] },
+    ]);
+    expect(rows[0].labels[1]).toBe('gone'); // subject name wins: run was never unnamed
   });
 });
 

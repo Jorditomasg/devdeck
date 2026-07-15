@@ -62,14 +62,6 @@ export interface GraphRow {
    * filtered views don't drift rightward (user report 2026-07-03).
    */
   readonly dangling: readonly number[];
-  /**
-   * Lane the dot's OWN line flows into via its first parent — the
-   * continuation lane, or the lower lane it early-converges into. That edge
-   * belongs to THIS line, so it must keep the dot's color, not the color of
-   * the lane it merges into (user 2026-07-15: convergence elbows adopted the
-   * target branch's color). `undefined` at a root commit (line ends).
-   */
-  readonly firstParentLane?: number;
 }
 
 /** Best branch-ish name out of `%D` decorations: local branch > remote > tag. */
@@ -182,7 +174,6 @@ export function computeGraph(
 
     const toBottom: number[] = [];
     const dangling: number[] = [];
-    let firstParentLane: number | undefined;
     const [first, ...rest] = commit.parents;
     if (first === undefined) {
       lanes[lane] = null; // root commit ends the line
@@ -193,7 +184,6 @@ export function computeGraph(
       lanes[lane] = null;
       toBottom.push(lane);
       dangling.push(lane);
-      firstParentLane = lane;
     } else {
       // First parent: converge into a LOWER lane that already expects it
       // (join the main line as early as possible — keeps the graph narrow);
@@ -203,11 +193,9 @@ export function computeGraph(
       if (existing !== -1) {
         toBottom.push(existing);
         lanes[lane] = null;
-        firstParentLane = existing;
       } else {
         lanes[lane] = { sha: first, label, live: labelLive };
         toBottom.push(lane);
-        firstParentLane = lane;
       }
     }
     if (first !== undefined) {
@@ -281,10 +269,45 @@ export function computeGraph(
       labelsLive: lanes.map((slot) => slot?.live),
       topLabels,
       dangling,
-      firstParentLane,
     });
   }
+  backfillUnnamedLanes(rows);
   return rows;
+}
+
+/**
+ * Name merge-opened lanes AFTER the fact. Azure DevOps merge subjects
+ * ("Merged PR 9469: <title>") carry no branch name, so the fan-out lane
+ * stays unlabeled until the tip commit's refs/%S name it — one row too late
+ * for the edges above, which fell back to the MERGE's color (user
+ * 2026-07-15: orange segment on top of the green feature branch). Walk
+ * bottom-up: when a dot's incoming own-lane run is unnamed, push the dot's
+ * label up to the row that opened the lane.
+ */
+function backfillUnnamedLanes(rows: GraphRow[]): void {
+  for (let t = rows.length - 1; t >= 0; t--) {
+    const tip = rows[t];
+    const lane = tip.lane;
+    if (tip.label === undefined || !tip.fromTop.includes(lane)) {
+      continue;
+    }
+    if (tip.topLabels[lane] !== undefined) {
+      continue; // run already named (subject parse or inheritance)
+    }
+    (tip.topLabels as (string | undefined)[])[lane] = tip.label;
+    for (let r = t - 1; r >= 0; r--) {
+      const row = rows[r];
+      if (row.labels[lane] !== undefined) {
+        break; // different, named run — never ours
+      }
+      (row.labels as (string | undefined)[])[lane] = tip.label;
+      (row.labelsLive as (boolean | undefined)[])[lane] = tip.labelLive;
+      if (row.toBottom.includes(lane) && !row.through.includes(lane)) {
+        break; // the row that OPENED the lane (merge fan-out) — done
+      }
+      (row.topLabels as (string | undefined)[])[lane] = tip.label;
+    }
+  }
 }
 
 /** Single-column timeline for filter-fragmented views (see computeGraph). */
@@ -321,7 +344,6 @@ function computeLinear(commits: readonly GraphInput[]): GraphRow[] {
       labelsLive: [hasParents ? labelLive : undefined],
       topLabels: prevSolid ? [prevLabel] : [],
       dangling: hasParents && !solidDown ? [0] : [],
-      firstParentLane: hasParents ? 0 : undefined,
     });
 
     prevSolid = solidDown;
