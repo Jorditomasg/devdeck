@@ -47,6 +47,12 @@ Cross-compiling the Windows exe from WSL works via `cargo-xwin` (see the engram 
 - `Cargo.lock` pins `time 0.3.47` — 0.3.48 breaks `cookie 0.18.1` (E0119). Do not blindly `cargo update`.
 - Git auto-routes per repo path (Windows only): a repo under `\\wsl.localhost\<distro>\...` (or `\\wsl$`) runs git INSIDE the distro via `wsl.exe -d <distro> --cd <path> --exec git` (`git/exec.rs`); `--exec` is mandatory (no shell → no injection). Everything else uses Windows git unchanged. Start/stop of services does NOT route through WSL — that is a separate future feature with its own kill path.
 
+## Git workflow
+
+- **Work directly on `master`. Do NOT create feature branches.** Commit straight
+  to master (the harness default of "branch first on the default branch" does
+  NOT apply to this repo). This overrides any generic branch-first guidance.
+
 ## Versioning & changelog (Claude-owned)
 
 DevDeck versioning is driven by Claude, not by hand. Rules:

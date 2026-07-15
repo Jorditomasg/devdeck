@@ -5,6 +5,30 @@ All notable changes to DevDeck are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.0] - 2026-07-15
+
+### Added
+
+- Log windows now have a jump-to-bottom button to quickly return to the latest
+  lines after scrolling, plus a per-window "always on top" toggle so you can
+  keep a specific log window pinned above other apps.
+- Bulk stash and branch management in the git window: multi-select stashes or
+  branches and delete them in a single action.
+- Filter files within a commit's detail view, pre-filled from the active path
+  filter.
+
+### Changed
+
+- Faster git status and badge reads for repositories inside WSL, using a
+  persistent per-distro shell session for near-native speed.
+
+### Fixed
+
+- Branch lines in the git graph that converge into a shared commit now keep
+  their own distinct colors instead of blending together.
+- The repo card branch badge now updates when the branch is switched outside
+  DevDeck.
+
 ## [3.3.1] - 2026-07-07
 
 ### Fixed
