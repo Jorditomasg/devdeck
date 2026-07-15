@@ -53,6 +53,13 @@ describe('buildPanelServices', () => {
     expect(rows[1]).toMatchObject({ status: 'stopped', url: null });
   });
 
+  it('orders rows like the main window: persisted order first, alphabetical baseline', () => {
+    // web dragged to the top (order -1); api/unknown keep alphabetical rank.
+    const selection: SelectionMap = { web: { order: -1 }, infra: { selected: false } };
+    const rows = buildPanelServices([...repos, repo('unknown')], selection, status, port);
+    expect(rows.map((r) => r.id)).toEqual(['web', 'api', 'unknown']);
+  });
+
   it('splits start-all (stopped) and stop-all (running) targets', () => {
     const rows = buildPanelServices(repos, SELECTION, status, port);
     expect(runningIds(rows)).toEqual(['api']);

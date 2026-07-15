@@ -7,9 +7,12 @@
  */
 import type { RepoInfo, ServiceStatus } from '../../../core/ipc/tauri.types';
 import { serviceUrl } from '../repo-card/card-logic';
+import { orderedRepos } from '../workspace-list.logic';
 
 /** Minimal selection shape read from `SettingsStore.repoStates()`. */
-export type SelectionMap = Readonly<Record<string, { readonly selected?: boolean }>>;
+export type SelectionMap = Readonly<
+  Record<string, { readonly selected?: boolean; readonly order?: number }>
+>;
 
 /** One row in the tray panel — a selected repo with its live runtime view. */
 export interface PanelService {
@@ -45,14 +48,19 @@ export function selectedRepos(
   return repos.filter((r) => selection[r.name]?.selected !== false);
 }
 
-/** Build the panel rows from repos + selection + the live runtime lookups. */
+/**
+ * Build the panel rows from repos + selection + the live runtime lookups.
+ * Rows follow the main window's display order (persisted `repo_state.order`
+ * over the FULL repo list, alphabetical baseline), then drop deselected repos.
+ */
 export function buildPanelServices(
   repos: readonly RepoInfo[],
   selection: SelectionMap,
   statusFor: (id: string) => ServiceStatus,
   portFor: (id: string) => number | undefined,
 ): readonly PanelService[] {
-  return selectedRepos(repos, selection).map((repo) => {
+  const ordered = orderedRepos(repos, (name) => selection[name]?.order);
+  return selectedRepos(ordered, selection).map((repo) => {
     const status = statusFor(repo.name);
     const port = portFor(repo.name);
     return {
