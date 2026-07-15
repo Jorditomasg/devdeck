@@ -39,6 +39,7 @@ import { SectionHeaderComponent } from '../section-header/section-header.compone
       [startIndex]="startIndex()"
       [maxLines]="maxLines()"
       [emptyText]="emptyText()"
+      [jumpToBottomLabel]="jumpText()"
     />
   `,
 })
@@ -57,6 +58,8 @@ export class DialogLogComponent {
   readonly detachText = input('');
   /** Clear button label (already translated). */
   readonly clearText = input('');
+  /** Jump-to-bottom button aria-label/tooltip (already translated). */
+  readonly jumpText = input('');
   /** Hide Detach when the log has no backing service id. */
   readonly canDetach = input(true);
 

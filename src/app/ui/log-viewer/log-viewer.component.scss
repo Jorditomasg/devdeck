@@ -1,6 +1,7 @@
 // ui-log-viewer — theme.log_textbox_style(): mono sm, app bg, card border (§29).
 :host {
   display: block;
+  position: relative; // anchor for the floating jump-to-bottom button
   min-height: 0;
 }
 
@@ -34,4 +35,30 @@
 .log__empty {
   color: var(--color-text-faint);
   font-style: italic;
+}
+
+// Floating "jump to newest line" affordance — only rendered while the user has
+// scrolled up off the bottom (see log-viewer.component template).
+.log__jump {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: var(--geo-border-width) solid var(--color-border-card);
+  border-radius: 50%;
+  background-color: var(--color-text-accent);
+  color: var(--color-text-on-accent, #fff);
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 35%);
+  opacity: 0.92;
+
+  &:hover {
+    opacity: 1;
+    background-color: var(--color-text-accent-bright);
+  }
 }

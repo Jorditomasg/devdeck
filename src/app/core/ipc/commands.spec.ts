@@ -21,7 +21,7 @@ describe('CMD registry', () => {
     // + read_active_environment (env-file drift deselection, design doc
     //   2026-07-05).
     const names = Object.values(CMD);
-    expect(names.length).toBe(111);
+    expect(names.length).toBe(112);
     expect(new Set(names).size).toBe(names.length);
     for (const name of names) {
       expect(name).toMatch(/^[a-z][a-z0-9_]*$/);

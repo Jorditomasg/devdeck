@@ -96,6 +96,7 @@ import { defaultFolderName, foldCloneProgress, isValidGitUrl } from './clone.log
           [emptyText]="'label.log_empty' | t"
           [detachText]="'btn.detach_log' | t"
           [clearText]="'btn.clear_log' | t"
+          [jumpText]="'log.jump_to_bottom' | t"
           [canDetach]="logName() !== ''"
           (detach)="detachLog()"
           (clear)="clearLog()"

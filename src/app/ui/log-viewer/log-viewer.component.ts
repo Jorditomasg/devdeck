@@ -8,6 +8,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { IconComponent } from '../icon/icon.component';
 import { DEFAULT_MAX_LINES, capLines, isNearBottom } from './log-viewer.logic';
 
 /**
@@ -42,6 +43,7 @@ import { DEFAULT_MAX_LINES, capLines, isNearBottom } from './log-viewer.logic';
   selector: 'ui-log-viewer',
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './log-viewer.component.scss',
+  imports: [IconComponent],
   template: `
     <div #scroller class="log" (scroll)="onScroll()">
       @for (line of view().lines; track base() + $index) {
@@ -50,6 +52,17 @@ import { DEFAULT_MAX_LINES, capLines, isNearBottom } from './log-viewer.logic';
         <div class="log__empty">{{ emptyText() }}</div>
       }
     </div>
+    @if (!stick()) {
+      <button
+        type="button"
+        class="log__jump"
+        [attr.aria-label]="jumpToBottomLabel()"
+        [attr.title]="jumpToBottomLabel()"
+        (click)="scrollToBottom()"
+      >
+        <ui-icon name="arrow-down-to-line" [size]="16" />
+      </button>
+    }
   `,
 })
 export class LogViewerComponent {
@@ -69,14 +82,22 @@ export class LogViewerComponent {
   readonly autoScroll = input(true);
   /** Placeholder when there are no lines yet (already translated). */
   readonly emptyText = input('');
+  /**
+   * Aria-label/tooltip for the jump-to-bottom button (already translated).
+   * The button surfaces only while the user has scrolled up off the bottom.
+   */
+  readonly jumpToBottomLabel = input('');
 
   protected readonly view = computed(() => capLines(this.lines(), this.maxLines()));
   /** First rendered line's absolute number — the stable track-key base. */
   protected readonly base = computed(() => this.startIndex() + this.view().dropped);
 
   private readonly scroller = viewChild.required<ElementRef<HTMLElement>>('scroller');
-  /** True while the user is at (or near) the bottom — autoscroll engaged. */
-  private readonly stick = signal(true);
+  /**
+   * True while the user is at (or near) the bottom — autoscroll engaged.
+   * When false the jump-to-bottom button appears (there is content below).
+   */
+  protected readonly stick = signal(true);
 
   constructor() {
     // Re-pin to the bottom after every render while stickiness is engaged.
@@ -94,5 +115,12 @@ export class LogViewerComponent {
   protected onScroll(): void {
     const el = this.scroller().nativeElement;
     this.stick.set(isNearBottom(el.scrollTop, el.clientHeight, el.scrollHeight));
+  }
+
+  /** Jump to the newest line and re-engage autoscroll. */
+  protected scrollToBottom(): void {
+    const el = this.scroller().nativeElement;
+    el.scrollTop = el.scrollHeight;
+    this.stick.set(true);
   }
 }

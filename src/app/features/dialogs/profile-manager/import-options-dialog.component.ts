@@ -176,6 +176,7 @@ export interface ImportApplyResult {
             [lines]="logLines()"
             [emptyText]="'label.log_empty' | t"
             [clearText]="'btn.clear_log' | t"
+            [jumpText]="'log.jump_to_bottom' | t"
             [canDetach]="false"
             (clear)="logLines.set([])"
           />

@@ -56,6 +56,7 @@ export const CMD = {
   requestQuit: 'request_quit',
   openLogWindow: 'open_log_window',
   getLogBacklog: 'get_log_backlog',
+  setWindowAlwaysOnTop: 'set_window_always_on_top',
   // interactive terminals (design doc 2026-06-14)
   openTerminalWindow: 'open_terminal_window',
   attachTerminal: 'attach_terminal',
@@ -238,6 +239,15 @@ export class IpcCommands {
   /** Recent log lines for a service from the Rust-side cache (window seed). */
   getLogBacklog(serviceId: string): Promise<string[]> {
     return this.bridge.invoke<string[]>(CMD.getLogBacklog, { serviceId });
+  }
+
+  /**
+   * Pin/unpin the CALLING window (detached log/terminal windows) so it stays
+   * above other windows. Per-window and not persisted — Rust-side because the
+   * webview holds no `core:window` permissions.
+   */
+  setWindowAlwaysOnTop(onTop: boolean): Promise<void> {
+    return this.bridge.invoke<void>(CMD.setWindowAlwaysOnTop, { onTop });
   }
 
   // -- native dialog windows (docs/migration/dialogs-as-windows.md) ----------

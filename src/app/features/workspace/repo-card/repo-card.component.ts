@@ -268,10 +268,8 @@ export class RepoCardComponent {
           count: this.dockerRunningCount(),
         });
       }
-      const port = this.port();
-      return port
-        ? this.i18n.t('label.status.running_port', { port })
-        : this.i18n.t('label.status.running');
+      // Port shown by the dedicated header__port badge — don't repeat it here.
+      return this.i18n.t('label.status.running');
     }
     return this.i18n.t(`label.status.${status}`);
   });
@@ -340,6 +338,7 @@ export class RepoCardComponent {
     detachText: this.i18n.t('btn.detach_log'),
     urlTip: this.i18n.t('tooltip.open_port'),
     emptyText: this.i18n.t('label.log_empty'),
+    jumpText: this.i18n.t('log.jump_to_bottom'),
   }));
 
   // -- expand panel view model (§7) ----------------------------------------------

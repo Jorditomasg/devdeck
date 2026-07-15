@@ -31,6 +31,7 @@ export interface CardLogText {
   readonly detachText: string;
   readonly urlTip: string;
   readonly emptyText: string;
+  readonly jumpText: string;
 }
 
 @Component({
@@ -73,6 +74,7 @@ export interface CardLogText {
       [lines]="lines()"
       [startIndex]="startIndex()"
       [emptyText]="text().emptyText"
+      [jumpToBottomLabel]="text().jumpText"
     />
   `,
 })

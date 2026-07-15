@@ -157,6 +157,7 @@ const PAGE_SIZE = 15;
           [emptyText]="'label.log_empty' | t"
           [detachText]="'btn.detach_log' | t"
           [clearText]="'btn.clear_log' | t"
+          [jumpText]="'log.jump_to_bottom' | t"
           (detach)="detachLog()"
           (clear)="clearLog()"
         />

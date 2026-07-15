@@ -53,6 +53,13 @@ const FULL_TAIL = 100_000;
           {{ i18n.t(showingFull() ? 'docker.btn_live_logs' : 'docker.btn_full_logs') }}
         </ui-button>
       }
+      <ui-button
+        [variant]="pinned() ? 'blue-active' : 'log-action'"
+        size="sm"
+        (clicked)="togglePinned()"
+      >
+        <ui-icon name="pin" [size]="13" /> {{ i18n.t('log.always_on_top') }}
+      </ui-button>
       <ui-button variant="log-action" size="sm" (clicked)="onCopy()">
         <ui-icon name="copy" [size]="13" /> {{ i18n.t('btn.copy_log') }}
       </ui-button>
@@ -66,6 +73,7 @@ const FULL_TAIL = 100_000;
       [startIndex]="showingFull() ? 0 : dropped()"
       [maxLines]="showingFull() ? viewLines().length : cap"
       [emptyText]="i18n.t('label.log_empty')"
+      [jumpToBottomLabel]="i18n.t('log.jump_to_bottom')"
     />
   `,
 })
@@ -78,6 +86,8 @@ export class LogWindowComponent implements OnInit, OnDestroy {
   readonly serviceId = signal('');
 
   protected readonly cap = DETACHED_LINE_CAP;
+  /** Whether this window is pinned above others (per-window, not persisted). */
+  protected readonly pinned = signal(false);
   protected readonly lines = signal<readonly string[]>([]);
   /** Lines trimmed from the head — keeps log-viewer track keys stable. */
   protected readonly dropped = signal(0);
@@ -144,6 +154,15 @@ export class LogWindowComponent implements OnInit, OnDestroy {
         .logStop(this.dockerId)
         .catch((err: unknown) => console.error('docker log stop failed', err));
     }
+  }
+
+  /** Toggle "always on top" for this window (Rust owns the window state). */
+  protected togglePinned(): void {
+    const next = !this.pinned();
+    this.pinned.set(next);
+    void this.commands
+      .setWindowAlwaysOnTop(next)
+      .catch((err: unknown) => console.error('set always on top failed', err));
   }
 
   protected onCopy(): void {

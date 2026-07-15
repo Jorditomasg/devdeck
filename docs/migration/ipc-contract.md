@@ -85,13 +85,14 @@ literal `root` (`config::ROOT_MODULE_KEY`).
 
 ## 2. Commands
 
-111 commands across 9 groups (55 core + the 2 app-lifecycle extensions in §2.1
+112 commands across 9 groups (55 core + the 2 app-lifecycle extensions in §2.1
 + the 2 review additions: `set_last_profile` #58 in §2.5, `is_installed` #59
 in §2.3, + the post-v1 extensions numbered 60+ in their sections — detached
 log/terminal/dialog windows, tray panel, updates §2.9, stash/branch
 management, the git-history queries #91–#102 and the changes-window
-working-tree commands #103–#108 in §2.4, and `read_active_environment` #111
-in §2.5). The authoritative count assertion lives in
+working-tree commands #103–#108 in §2.4, `read_active_environment` #111
+in §2.5, and `set_window_always_on_top` #112 in §2.1). The authoritative count
+assertion lives in
 `src/app/core/ipc/commands.spec.ts`.
 
 ### 2.1 App lifecycle (`commands/app.rs`, wired in `lib.rs`)
@@ -110,6 +111,7 @@ in §2.5). The authoritative count assertion lives in
 | 57b | `request_quit` | — | `void` | tray-panel "Close DevDeck": same confirm-running flow as the tray Quit menu — with active services it restores the main window + emits `app://close-requested`, else `app.exit(0)` |
 | 60 | `open_log_window` | `{ serviceId: string, title: string }` | `void` | opens (or focuses, when already open) the detached log window for a service — the v1 detached log Toplevel (inventory-gui.md §5/§8) as a real OS window. Loads the SPA with `?log=<serviceId>`; `serviceId` may be the `__global__` aggregate. Window label: `log-<sanitized id>` (capability `windows: ["main", "log-*"]`) |
 | 61 | `get_log_backlog` | `{ serviceId: string }` | `string[]` | recent lines from the Rust-side `LogCache` (500/service, 1000 for `__global__` with `[name] ` prefixes) — seeds detached log windows, which then follow live `service://log-line` events |
+| 112 | `set_window_always_on_top` | `{ onTop: boolean }` | `void` | pins/unpins the CALLING window (detached log `log-*` and terminal `term-*` windows) so it stays above other windows. Runs Rust-side because the webview holds no `core:window:*` permissions (all window manipulation lives Rust-side, capabilities/default.json). Per-window and NOT persisted — reopening a window starts unpinned |
 
 #### Interactive terminals (design doc `docs/superpowers/specs/2026-06-14-terminales-pty-design.md`)
 

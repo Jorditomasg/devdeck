@@ -61,8 +61,9 @@ pub fn base_command(distro: &str) -> Command {
     cmd
 }
 
-/// POSIX single-quote escaping: `'` → `'\''`.
-fn sq_escape(s: &str) -> String {
+/// POSIX single-quote escaping: `'` → `'\''`. `pub(crate)` — also used by
+/// `git::session`'s framed command line (2026-07-15-wsl-git-persistent-shell).
+pub(crate) fn sq_escape(s: &str) -> String {
     s.replace('\'', r"'\''")
 }
 

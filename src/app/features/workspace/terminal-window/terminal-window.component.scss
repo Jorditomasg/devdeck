@@ -14,3 +14,51 @@
   padding: 8px;
   box-sizing: border-box;
 }
+
+// Shared floating-control look for the pin + jump-to-bottom buttons.
+.term__pin,
+.term__jump {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: var(--geo-border-width) solid var(--color-border-card);
+  border-radius: 50%;
+  background-color: var(--color-panel, var(--color-app));
+  color: var(--color-text-primary);
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 35%);
+  opacity: 0.85;
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
+// Pin lives top-right; highlights when active.
+.term__pin {
+  top: 12px;
+  right: 12px;
+
+  &--on {
+    background-color: var(--color-text-accent);
+    color: var(--color-text-on-accent, #fff);
+    opacity: 1;
+  }
+}
+
+// Jump-to-bottom lives bottom-right (accent, like the log viewer's).
+.term__jump {
+  right: 12px;
+  bottom: 12px;
+  background-color: var(--color-text-accent);
+  color: var(--color-text-on-accent, #fff);
+  opacity: 0.92;
+
+  &:hover {
+    background-color: var(--color-text-accent-bright);
+  }
+}

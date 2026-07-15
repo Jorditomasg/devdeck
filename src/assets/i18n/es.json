@@ -69,7 +69,6 @@
       "starting": "Iniciando...",
       "error": "Error",
       "installing": "Instalando...",
-      "running_port": "Ejecutando :{port}",
       "stopping": "Deteniendo..."
     },
     "loading": "cargando...",
@@ -633,6 +632,8 @@
     }
   },
   "log": {
+    "jump_to_bottom": "Ir a lo más reciente",
+    "always_on_top": "Siempre al frente",
     "scanning": "Escaneando workspace...",
     "repos_detected": "Detectados {count} repos: {names}",
     "config_applied": "[config] Configuración aplicada a todos los repos",

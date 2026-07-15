@@ -132,6 +132,26 @@ pub async fn open_log_window(
     Ok(())
 }
 
+/// `set_window_always_on_top { onTop }` — pin/unpin the CALLING window so it
+/// stays above other windows. Used by the detached log (`log-*`) and terminal
+/// (`term-*`) windows' "always on top" toggle. Runs Rust-side because the
+/// webview holds NO `core:window:*` permissions (capabilities/default.json):
+/// all window manipulation lives here. State is per-window and not persisted —
+/// reopening a window starts unpinned.
+#[tauri::command]
+pub async fn set_window_always_on_top(
+    window: tauri::WebviewWindow,
+    on_top: bool,
+) -> CmdResult<()> {
+    window
+        .set_always_on_top(on_top)
+        .map_err(|err| super::error::AppError {
+            kind: "io".into(),
+            message: format!("set always on top: {err}"),
+        })?;
+    Ok(())
+}
+
 /// `open_git_window { repoId, title, branch?, tab?, stash? }` (git suite,
 /// design doc 2026-07-02): open (or focus, when already open) the detached
 /// git window of one repo. The window loads the SPA with `?git=<repoId>`

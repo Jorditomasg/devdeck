@@ -23,22 +23,55 @@ import {
   OnDestroy,
   OnInit,
   inject,
+  signal,
   viewChild,
 } from '@angular/core';
 import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
 
+import { TranslationService } from '../../../core/i18n/translation.service';
 import { IpcCommands } from '../../../core/ipc/commands';
+import { IconComponent } from '../../../ui';
 
 @Component({
   selector: 'terminal-window',
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './terminal-window.component.scss',
-  template: `<div class="term__host" #host></div>`,
+  imports: [IconComponent],
+  template: `
+    <div class="term__host" #host></div>
+    <button
+      type="button"
+      class="term__pin"
+      [class.term__pin--on]="pinned()"
+      [attr.aria-label]="i18n.t('log.always_on_top')"
+      [attr.title]="i18n.t('log.always_on_top')"
+      (click)="togglePinned()"
+    >
+      <ui-icon name="pin" [size]="16" />
+    </button>
+    @if (!atBottom()) {
+      <button
+        type="button"
+        class="term__jump"
+        [attr.aria-label]="i18n.t('log.jump_to_bottom')"
+        [attr.title]="i18n.t('log.jump_to_bottom')"
+        (click)="scrollToBottom()"
+      >
+        <ui-icon name="arrow-down-to-line" [size]="16" />
+      </button>
+    }
+  `,
 })
 export class TerminalWindowComponent implements OnInit, OnDestroy {
+  protected readonly i18n = inject(TranslationService);
   private readonly commands = inject(IpcCommands);
   private readonly host = viewChild.required<ElementRef<HTMLElement>>('host');
+
+  /** Whether this window is pinned above others (per-window, not persisted). */
+  protected readonly pinned = signal(false);
+  /** False once the user scrolls up off the bottom — reveals the jump button. */
+  protected readonly atBottom = signal(true);
 
   /** Terminal id from the `?terminal=` query param (set by app.component). */
   private readonly id = decodeURIComponent(
@@ -95,6 +128,12 @@ export class TerminalWindowComponent implements OnInit, OnDestroy {
       return true;
     });
 
+    // Track scroll position for the jump-to-bottom button: onScroll covers user
+    // scrolling, onWriteParsed covers new output arriving while scrolled up
+    // (baseY grows but the viewport stays put).
+    term.onScroll(() => this.refreshAtBottom());
+    term.onWriteParsed(() => this.refreshAtBottom());
+
     // Keystrokes / pasted text → PTY stdin.
     term.onData((data) => void this.commands.terminal.write(this.id, data));
 
@@ -115,6 +154,29 @@ export class TerminalWindowComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.resizeObserver?.disconnect();
     this.term?.dispose();
+  }
+
+  /** Toggle "always on top" for this window (Rust owns the window state). */
+  protected togglePinned(): void {
+    const next = !this.pinned();
+    this.pinned.set(next);
+    void this.commands
+      .setWindowAlwaysOnTop(next)
+      .catch((err: unknown) => console.error('set always on top failed', err));
+    this.term?.focus();
+  }
+
+  /** Scroll the terminal to the newest line. */
+  protected scrollToBottom(): void {
+    this.term?.scrollToBottom();
+    this.refreshAtBottom();
+    this.term?.focus();
+  }
+
+  /** Recompute whether the viewport sits at the bottom of the scrollback. */
+  private refreshAtBottom(): void {
+    const buffer = this.term?.buffer.active;
+    this.atBottom.set(buffer ? buffer.viewportY >= buffer.baseY : true);
   }
 
   /** Push the current xterm dimensions to the PTY (SIGWINCH). */

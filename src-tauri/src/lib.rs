@@ -221,6 +221,7 @@ pub fn run() {
             commands::app::open_log_window,
             commands::app::get_log_backlog,
             commands::app::open_git_window,
+            commands::app::set_window_always_on_top,
             // interactive terminals (design doc 2026-06-14)
             commands::terminal::open_terminal_window,
             commands::terminal::attach_terminal,

@@ -72,6 +72,7 @@ import { formatGlobalLine, linesAfterMarker } from './global-log.logic';
         [lines]="lines()"
         [maxLines]="1000"
         [emptyText]="i18n.t('label.log_empty')"
+        [jumpToBottomLabel]="i18n.t('log.jump_to_bottom')"
       />
     }
   `,
