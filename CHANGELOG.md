@@ -5,6 +5,15 @@ All notable changes to DevDeck are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.5.0] - 2026-07-15
+
+### Changed
+
+- Git on WSL repositories is dramatically faster: the git window, compare
+  view and status badges now reuse a persistent session inside the distro
+  instead of paying a Windows↔WSL round-trip for every read. Opening the
+  history of a WSL repo drops from seconds to near-native latency.
+
 ## [3.4.0] - 2026-07-15
 
 ### Added
