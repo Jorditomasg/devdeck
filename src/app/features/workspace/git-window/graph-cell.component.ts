@@ -170,8 +170,18 @@ export class GraphCellComponent {
     return this.colorFor(this.row().topLabels[lane], lane);
   }
 
-  /** toBottom edges: the target lane's label, else this line's own. */
+  /**
+   * toBottom edges. The dot's OWN outgoing line — its first-parent
+   * continuation, OR the elbow where it early-converges into a lower lane —
+   * keeps the DOT's color: that segment belongs to the flowing line, not to
+   * the lane it lands in (user 2026-07-15: convergence elbows adopted the
+   * target branch's color, splitting a single branch into two colors). Merge
+   * fan-outs to OTHER lanes take that lane's own branch color.
+   */
   protected edgeColor(lane: number): string {
+    if (lane === this.row().firstParentLane) {
+      return this.colorFor(this.row().label, this.row().lane);
+    }
     return this.colorFor(this.row().labels[lane] ?? this.row().label, lane);
   }
 

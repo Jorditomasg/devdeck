@@ -62,6 +62,14 @@ export interface GraphRow {
    * filtered views don't drift rightward (user report 2026-07-03).
    */
   readonly dangling: readonly number[];
+  /**
+   * Lane the dot's OWN line flows into via its first parent — the
+   * continuation lane, or the lower lane it early-converges into. That edge
+   * belongs to THIS line, so it must keep the dot's color, not the color of
+   * the lane it merges into (user 2026-07-15: convergence elbows adopted the
+   * target branch's color). `undefined` at a root commit (line ends).
+   */
+  readonly firstParentLane?: number;
 }
 
 /** Best branch-ish name out of `%D` decorations: local branch > remote > tag. */
@@ -174,6 +182,7 @@ export function computeGraph(
 
     const toBottom: number[] = [];
     const dangling: number[] = [];
+    let firstParentLane: number | undefined;
     const [first, ...rest] = commit.parents;
     if (first === undefined) {
       lanes[lane] = null; // root commit ends the line
@@ -184,6 +193,7 @@ export function computeGraph(
       lanes[lane] = null;
       toBottom.push(lane);
       dangling.push(lane);
+      firstParentLane = lane;
     } else {
       // First parent: converge into a LOWER lane that already expects it
       // (join the main line as early as possible — keeps the graph narrow);
@@ -193,9 +203,11 @@ export function computeGraph(
       if (existing !== -1) {
         toBottom.push(existing);
         lanes[lane] = null;
+        firstParentLane = existing;
       } else {
         lanes[lane] = { sha: first, label, live: labelLive };
         toBottom.push(lane);
+        firstParentLane = lane;
       }
     }
     if (first !== undefined) {
@@ -269,6 +281,7 @@ export function computeGraph(
       labelsLive: lanes.map((slot) => slot?.live),
       topLabels,
       dangling,
+      firstParentLane,
     });
   }
   return rows;
@@ -308,6 +321,7 @@ function computeLinear(commits: readonly GraphInput[]): GraphRow[] {
       labelsLive: [hasParents ? labelLive : undefined],
       topLabels: prevSolid ? [prevLabel] : [],
       dangling: hasParents && !solidDown ? [0] : [],
+      firstParentLane: hasParents ? 0 : undefined,
     });
 
     prevSolid = solidDown;

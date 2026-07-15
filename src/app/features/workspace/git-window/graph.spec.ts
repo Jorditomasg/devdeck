@@ -205,6 +205,37 @@ describe('linear mode (fragmented filters)', () => {
   });
 });
 
+describe('firstParentLane (convergence-elbow color ownership)', () => {
+  it('points the elbow at the dot line so a converging branch keeps its color', () => {
+    // feature (lane 1) early-converges into main (lane 0). The elbow belongs
+    // to the feature line, so edgeColor must follow the DOT (feature), not the
+    // target lane (main) — the bug from the user report (2026-07-15).
+    const rows = computeGraph([
+      { sha: 'm', parents: ['b', 'f'], refs: ['HEAD -> main'], subject: "Merge branch 'feature'" },
+      { sha: 'f', parents: ['b'] }, // early convergence into lane 0
+      { sha: 'b', parents: [] },
+    ]);
+    expect(rows[1].lane).toBe(1);
+    expect(rows[1].toBottom).toEqual([0]); // converges into main
+    expect(rows[1].firstParentLane).toBe(0); // …but the elbow is the feature line
+  });
+
+  it('is the dot lane for a straight continuation and undefined at a root', () => {
+    const rows = computeGraph([
+      { sha: 'b', parents: ['a'] },
+      { sha: 'a', parents: [] },
+    ]);
+    expect(rows[0].firstParentLane).toBe(0);
+    expect(rows[1].firstParentLane).toBeUndefined(); // root: line ends
+  });
+
+  it('is the dot lane for a dangling first parent (fading stub is the line)', () => {
+    const rows = computeGraph([{ sha: 'b', parents: ['skipped'] }, { sha: 'a', parents: [] }]);
+    expect(rows[0].dangling).toEqual([0]);
+    expect(rows[0].firstParentLane).toBe(0);
+  });
+});
+
 describe('laneColor', () => {
   it('cycles the palette deterministically', () => {
     expect(laneColor(0)).toBe(LANE_COLORS[0]);
