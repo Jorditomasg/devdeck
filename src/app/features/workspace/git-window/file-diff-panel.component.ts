@@ -1,10 +1,11 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 
 import type { GitCommitFileStat } from '../../../core/ipc/tauri.types';
 import { BadgeComponent, DiffViewComponent, SpinnerComponent, ButtonComponent } from '../../../ui';
 // Direct import ON PURPOSE (not via the ui barrel): keeps CodeMirror out of
 // the initial bundle — see the note in ui/index.ts.
 import { CodeViewComponent } from '../../../ui/code-view/code-view.component';
+import { fileMatchesQuery, sortFilesFirst } from './git-window.logic';
 
 /** Static translated strings of the panel (container translates). */
 export interface FileDiffPanelText {
@@ -14,6 +15,7 @@ export interface FileDiffPanelText {
   readonly binaryBadge: string;
   readonly emptyDiff: string;
   readonly fileHistory: string;
+  readonly filterFiles: string;
 }
 
 /**
@@ -30,28 +32,38 @@ export interface FileDiffPanelText {
   imports: [BadgeComponent, ButtonComponent, CodeViewComponent, DiffViewComponent, SpinnerComponent],
   styleUrl: './file-diff-panel.component.scss',
   template: `
-    <ul class="fdp__files">
-      @for (file of files(); track file.path) {
-        <li
-          class="fdp__file"
-          [class.fdp__file--selected]="file.path === selectedPath()"
-          (click)="fileSelected.emit(file)"
-          (contextmenu)="fileMenuRequested.emit({ event: $event, file })"
-        >
-          <span class="fdp__path" [title]="file.path">
-            @if (file.oldPath) {
-              <span class="fdp__old">{{ file.oldPath }} → </span>
-            }{{ file.path }}
-          </span>
-          @if (file.binary) {
-            <ui-badge tone="muted">{{ text().binaryBadge }}</ui-badge>
-          } @else {
-            <span class="fdp__adds">+{{ file.additions }}</span>
-            <span class="fdp__dels">−{{ file.deletions }}</span>
-          }
-        </li>
-      }
-    </ul>
+    <aside class="fdp__side">
+      <input
+        class="fdp__filter"
+        type="text"
+        [placeholder]="text().filterFiles"
+        [value]="filterQuery()"
+        (input)="filterChanged.emit($any($event.target).value)"
+      />
+      <ul class="fdp__files">
+        @for (file of sortedFiles(); track file.path) {
+          <li
+            class="fdp__file"
+            [class.fdp__file--selected]="file.path === selectedPath()"
+            [class.fdp__file--dim]="dimmed(file)"
+            (click)="fileSelected.emit(file)"
+            (contextmenu)="fileMenuRequested.emit({ event: $event, file })"
+          >
+            <span class="fdp__path" [title]="file.path">
+              @if (file.oldPath) {
+                <span class="fdp__old">{{ file.oldPath }} → </span>
+              }{{ file.path }}
+            </span>
+            @if (file.binary) {
+              <ui-badge tone="muted">{{ text().binaryBadge }}</ui-badge>
+            } @else {
+              <span class="fdp__adds">+{{ file.additions }}</span>
+              <span class="fdp__dels">−{{ file.deletions }}</span>
+            }
+          </li>
+        }
+      </ul>
+    </aside>
 
     <div class="fdp__viewer">
       @if (loading()) {
@@ -99,9 +111,23 @@ export class FileDiffPanelComponent {
   readonly loading = input(false);
   /** Shows the "file history" jump (history-window consumers only). */
   readonly showFileHistory = input(false);
+  /** File-list search query — container-owned so it can prefill it. */
+  readonly filterQuery = input('');
   readonly text = input.required<FileDiffPanelText>();
 
+  /** Matches first (nothing hidden), original order within each group. */
+  protected readonly sortedFiles = computed(() =>
+    sortFilesFirst(this.files(), this.filterQuery()),
+  );
+
+  protected dimmed(file: GitCommitFileStat): boolean {
+    const q = this.filterQuery().trim().toLowerCase();
+    return q.length > 0 && !fileMatchesQuery(file, q);
+  }
+
   readonly fileSelected = output<GitCommitFileStat>();
+  /** Live query typed in the file-list search box. */
+  readonly filterChanged = output<string>();
   readonly viewFile = output<void>();
   readonly backToDiff = output<void>();
   /** Emits the selected path — the container scopes the log to it. */

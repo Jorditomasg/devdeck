@@ -47,6 +47,35 @@ export function buildLogFilter(form: FilterFormState, skip: number): GitLogFilte
   };
 }
 
+/**
+ * File-list search of the shared files/diff panel: matches (path or oldPath
+ * contains the query, case-insensitive) sort FIRST, both groups keeping
+ * their original order. Nothing is hidden — the query prioritizes.
+ */
+export function sortFilesFirst<T extends { path: string; oldPath?: string }>(
+  files: readonly T[],
+  query: string,
+): readonly T[] {
+  const q = query.trim().toLowerCase();
+  if (!q) {
+    return files;
+  }
+  return [...files].sort(
+    (a, b) => Number(fileMatchesQuery(b, q)) - Number(fileMatchesQuery(a, q)),
+  );
+}
+
+/** Case-insensitive substring match on path/oldPath (`query` pre-lowered). */
+export function fileMatchesQuery(
+  file: { path: string; oldPath?: string },
+  query: string,
+): boolean {
+  return (
+    file.path.toLowerCase().includes(query) ||
+    (file.oldPath?.toLowerCase().includes(query) ?? false)
+  );
+}
+
 /** Author dropdown display string. */
 export function authorLabel(name: string, email: string): string {
   return `${name} <${email}>`;

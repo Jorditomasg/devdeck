@@ -12,15 +12,41 @@
   overflow: hidden;
 }
 
+.fdp__side {
+  display: flex;
+  flex-direction: column;
+  width: 36%;
+  min-width: 220px;
+  max-width: 420px;
+  border-right: var(--geo-border-width) solid var(--color-border-default);
+}
+
+.fdp__filter {
+  @include mx.control-reset;
+  @include mx.transition(border-color);
+  height: var(--geo-btn-height-md);
+  flex-shrink: 0;
+  margin: 6px 8px 2px;
+  padding: 0 8px;
+  background-color: var(--color-section);
+  border: var(--geo-border-width) solid var(--color-border-default);
+  border-radius: var(--geo-corner-btn);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+
+  &::placeholder {
+    color: var(--color-text-muted);
+  }
+}
+
 .fdp__files {
   list-style: none;
   margin: 0;
   padding: 4px 0;
-  width: 36%;
-  min-width: 220px;
-  max-width: 420px;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
-  border-right: var(--geo-border-width) solid var(--color-border-default);
 }
 
 .fdp__file {
@@ -41,6 +67,11 @@
 .fdp__file--selected {
   background: var(--color-selected-bg);
   color: var(--color-selected-fg);
+}
+
+// Non-matches stay visible (the query prioritizes, never hides) but recede.
+.fdp__file--dim {
+  opacity: 0.45;
 }
 
 .fdp__path {

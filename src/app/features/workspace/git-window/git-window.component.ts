@@ -387,7 +387,9 @@ type PanelSource = 'ref' | 'range';
         [notice]="notice()"
         [loading]="detailLoading()"
         [showFileHistory]="mode === 'history'"
+        [filterQuery]="fileFilter()"
         [text]="panelText()"
+        (filterChanged)="fileFilter.set($event)"
         (fileSelected)="onSelectFile($event)"
         (viewFile)="onViewFile()"
         (backToDiff)="onBackToDiff()"
@@ -498,6 +500,13 @@ export class GitWindowComponent implements OnInit {
 
   // -- shared detail panel ----------------------------------------------------------
   protected readonly files = signal<readonly GitCommitFileStat[]>([]);
+  /**
+   * File-list search of the shared panel. NOT cleared by `resetDetail` —
+   * opening a commit from a path-filtered history PRE-FILLS it (user
+   * 2026-07-15: "accedo a un commit → primero los ficheros que busqué"),
+   * so each entry point sets it explicitly.
+   */
+  protected readonly fileFilter = signal('');
   protected readonly selectedFile = signal('');
   protected readonly detailMode = signal<DetailMode>('diff');
   protected readonly detailLoading = signal(false);
@@ -520,6 +529,7 @@ export class GitWindowComponent implements OnInit {
     binaryBadge: this.i18n.t('git.binary'),
     emptyDiff: this.i18n.t('git.empty_diff'),
     fileHistory: this.i18n.t('git.file_history'),
+    filterFiles: this.i18n.t('git.filter_files'),
   }));
 
   /** What the panel queries: a ref (commit / `stash@{n}`) or a range. */
@@ -633,6 +643,12 @@ export class GitWindowComponent implements OnInit {
     this.detailCommit.set(commit);
     this.view.set('detail');
     void this.openDetail(commit.sha, 'ref');
+    // A path-filtered history carries the search into the file list: the
+    // files the user was hunting sort first in the commit detail. Compare
+    // origin keeps whatever was typed in the compare panel instead.
+    if (origin === 'list') {
+      this.fileFilter.set(this.filters().path);
+    }
     // Body arrives async; strip the subject line (the crumb already shows it).
     this.detailBody.set('');
     void this.commands.git
@@ -728,6 +744,7 @@ export class GitWindowComponent implements OnInit {
     this.detailCommit.set(null);
     this.view.set('detail');
     void this.openDetail(`stash@{${stash.index}}`, 'ref');
+    this.fileFilter.set('');
   }
 
   // -- shared detail panel -------------------------------------------------------

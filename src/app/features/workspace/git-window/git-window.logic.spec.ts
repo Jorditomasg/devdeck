@@ -8,6 +8,7 @@ import {
   formatCommitDate,
   formatRelativeDate,
   shortSha,
+  sortFilesFirst,
 } from './git-window.logic';
 
 describe('buildLogFilter', () => {
@@ -60,6 +61,33 @@ describe('author labels', () => {
     expect(emailOfLabel('Weird <name <weird@x.com>')).toBe('weird@x.com');
     expect(emailOfLabel('')).toBe('');
     expect(emailOfLabel('Todos')).toBe('');
+  });
+});
+
+describe('sortFilesFirst', () => {
+  const files = [
+    { path: 'README.md' },
+    { path: 'src/app/ui/icon/icon.component.ts' },
+    { path: 'docs/notes.md', oldPath: 'src/app/old-notes.md' },
+    { path: 'src/app/core/ipc/commands.ts' },
+  ];
+
+  it('returns the same list untouched for an empty/blank query', () => {
+    expect(sortFilesFirst(files, '')).toBe(files);
+    expect(sortFilesFirst(files, '   ')).toBe(files);
+  });
+
+  it('moves matches first, keeping original order within each group', () => {
+    expect(sortFilesFirst(files, 'SRC/APP').map((f) => f.path)).toEqual([
+      'src/app/ui/icon/icon.component.ts',
+      'docs/notes.md', // oldPath matches too
+      'src/app/core/ipc/commands.ts',
+      'README.md',
+    ]);
+  });
+
+  it('hides nothing when nothing matches', () => {
+    expect(sortFilesFirst(files, 'zzz')).toHaveLength(4);
   });
 });
 
