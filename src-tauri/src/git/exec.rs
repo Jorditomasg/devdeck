@@ -72,6 +72,17 @@ pub(crate) async fn run_git(
     args: &[&str],
     timeout_secs: u64,
 ) -> Result<GitOutput, GitError> {
+    // WSL read short-circuit (2026-07-15-wsl-git-persistent-shell design):
+    // reads — and ONLY reads, discriminated by their timeout tier — stream
+    // through the distro's persistent bash session instead of paying a
+    // ~150-400 ms wsl.exe VM crossing per command. Mutations/long ops fall
+    // through to the one-shot `--exec` path below, unchanged.
+    #[cfg(windows)]
+    if let Some(wsl) = wsl_path_for(repo) {
+        if timeout_secs == T_QUERY || timeout_secs == T_FAST {
+            return super::session::run_query(&wsl, args, timeout_secs).await;
+        }
+    }
     let mut cmd = git_command(repo);
     cmd.args(args)
         .stdin(Stdio::null())

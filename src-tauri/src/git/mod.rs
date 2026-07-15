@@ -23,6 +23,7 @@
 pub mod branch;
 mod exec;
 pub mod history;
+mod session;
 pub mod ops;
 pub mod parse;
 pub mod poll;
