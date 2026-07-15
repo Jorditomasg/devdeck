@@ -118,12 +118,21 @@ const PAGE_SIZE = 15;
               [nextLabel]="'pagination.next' | t"
             >
               <tr *uiTableHead>
+                <th class="branch__select-head"></th>
                 <th>{{ 'dialog.branch.col_branch' | t }}</th>
                 <th class="branch__actions-head">{{ 'dialog.branch.col_actions' | t }}</th>
               </tr>
               <!-- Right-click offers the same actions as the buttons —
                    compact icon-buttons keep the table narrow. -->
               <tr *uiTableRow="let b" (contextmenu)="onRowMenu($event, b)">
+                <td class="branch__select">
+                  <input
+                    type="checkbox"
+                    [checked]="selected().has(b)"
+                    [disabled]="busy() || b === current()"
+                    (change)="toggleSelect(b)"
+                  />
+                </td>
                 <td>
                   <span class="branch__name">{{ b }}</span>
                   @if (b === current()) {
@@ -177,6 +186,17 @@ const PAGE_SIZE = 15;
                 </td>
               </tr>
             </ui-filter-table>
+            @if (selected().size > 0) {
+              <div class="branch__bulk">
+                <ui-button
+                  variant="danger-deep"
+                  [loading]="busy()"
+                  (clicked)="deleteSelected()"
+                >
+                  {{ 'dialog.branch.btn_delete_selected' | t: { count: selected().size } }}
+                </ui-button>
+              </div>
+            }
           }
         </div>
 
@@ -216,6 +236,8 @@ export class BranchDialogComponent extends DialogBase {
   protected readonly checkoutAfter = signal(true);
   protected readonly busy = signal(false);
   protected readonly createError = signal('');
+  /** Branch names checked for bulk delete — pruned to live entries on reload. */
+  protected readonly selected = signal<ReadonlySet<string>>(new Set());
   /**
    * Local result notices, each anchored to the number of streamed git lines
    * present when it was appended, so a burst of ops interleaves 1-to-1 with
@@ -383,6 +405,51 @@ export class BranchDialogComponent extends DialogBase {
     );
   }
 
+  protected toggleSelect(branch: string): void {
+    this.selected.update((set) => {
+      const next = new Set(set);
+      if (!next.delete(branch)) {
+        next.add(branch);
+      }
+      return next;
+    });
+  }
+
+  /**
+   * Delete every checked branch with `-d` (non-force). Failures — including
+   * "not fully merged" — are logged and the branch stays checked; per-branch
+   * force prompts don't belong in a bulk sweep.
+   */
+  protected async deleteSelected(): Promise<void> {
+    const names = [...this.selected()];
+    if (names.length === 0 || this.busy()) {
+      return;
+    }
+    const confirmed = await this.dialogs.confirm(
+      this.i18n.t('dialog.branch.delete_confirm_title'),
+      this.i18n.t('dialog.branch.delete_selected_confirm_msg', { count: names.length }),
+    );
+    if (!confirmed) {
+      return;
+    }
+    this.busy.set(true);
+    try {
+      for (const name of names) {
+        const result = await this.commands.git.deleteBranch(this.repoPath(), name, false);
+        this.appendLog(
+          result.ok
+            ? this.i18n.t('dialog.branch.done_deleted')
+            : this.i18n.t('dialog.branch.failed', { msg: result.message }),
+        );
+      }
+    } catch (err: unknown) {
+      this.appendLog(this.i18n.t('dialog.branch.failed', { msg: describe(err) }));
+    } finally {
+      this.busy.set(false);
+      await this.afterMutation();
+    }
+  }
+
   protected async deleteLocal(branch: string): Promise<void> {
     const confirmed = await this.dialogs.confirm(
       this.i18n.t('dialog.branch.delete_confirm_title'),
@@ -471,6 +538,11 @@ export class BranchDialogComponent extends DialogBase {
     this.branches.set(ordered.branches);
     this.recentCount.set(ordered.recentCount);
     this.current.set(current);
+    // Prune stale checks: deleted branches vanish, the current branch (after a
+    // checkout or rename) is never bulk-deletable.
+    this.selected.update(
+      (set) => new Set([...set].filter((b) => b !== current && ordered.branches.includes(b))),
+    );
     // Paging self-heals on shrink: ui-filter-table clamps on read.
     if (this.base() === '') {
       this.base.set(current);

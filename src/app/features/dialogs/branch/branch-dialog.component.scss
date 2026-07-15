@@ -66,6 +66,19 @@
   text-align: right;
 }
 
+.branch__select-head {
+  width: 28px;
+}
+
+.branch__select input {
+  cursor: pointer;
+}
+
+.branch__bulk {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .branch__name {
   @include mx.ellipsis;
   display: inline-block;

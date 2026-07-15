@@ -108,11 +108,20 @@ const PAGE_SIZE = 15;
               [nextLabel]="'pagination.next' | t"
             >
               <tr *uiTableHead>
+                <th class="stash__select-head"></th>
                 <th>{{ 'dialog.stash.col_stash' | t }}</th>
                 <th class="stash__actions-head">{{ 'dialog.stash.col_actions' | t }}</th>
               </tr>
               <!-- Right-click offers the same actions as the buttons. -->
               <tr *uiTableRow="let entry" (contextmenu)="onRowMenu($event, entry)">
+                <td class="stash__select">
+                  <input
+                    type="checkbox"
+                    [checked]="selected().has(entry.index)"
+                    [disabled]="busy()"
+                    (change)="toggleSelect(entry.index)"
+                  />
+                </td>
                 <td><span class="stash__name">{{ label(entry) }}</span></td>
                 <td>
                   <div class="stash__actions">
@@ -147,6 +156,17 @@ const PAGE_SIZE = 15;
                 </td>
               </tr>
             </ui-filter-table>
+            @if (selected().size > 0) {
+              <div class="stash__bulk">
+                <ui-button
+                  variant="danger-deep"
+                  [loading]="busy()"
+                  (clicked)="dropSelected()"
+                >
+                  {{ 'dialog.stash.btn_drop_selected' | t: { count: selected().size } }}
+                </ui-button>
+              </div>
+            }
           }
         </div>
 
@@ -184,6 +204,8 @@ export class StashDialogComponent extends DialogBase {
   protected readonly busy = signal(false);
   /** Working tree state — `null` until known; `false` disables Add. */
   protected readonly hasChanges = signal<boolean | null>(null);
+  /** Indices checked for bulk drop — cleared on every reload (indices shift). */
+  protected readonly selected = signal<ReadonlySet<number>>(new Set());
 
   /** ui-filter-table haystack: searchable text = ref + message + branch. */
   protected readonly stashHaystack = (e: StashEntry): string =>
@@ -295,6 +317,48 @@ export class StashDialogComponent extends DialogBase {
     );
   }
 
+  protected toggleSelect(index: number): void {
+    this.selected.update((set) => {
+      const next = new Set(set);
+      if (!next.delete(index)) {
+        next.add(index);
+      }
+      return next;
+    });
+  }
+
+  /** Drop every checked stash, highest index first so lower refs stay valid. */
+  protected async dropSelected(): Promise<void> {
+    const indices = [...this.selected()].sort((a, b) => b - a);
+    if (indices.length === 0 || this.busy()) {
+      return;
+    }
+    const confirmed = await this.dialogs.confirm(
+      this.i18n.t('dialog.stash.drop_confirm_title'),
+      this.i18n.t('dialog.stash.drop_selected_confirm_msg', { count: indices.length }),
+    );
+    if (!confirmed) {
+      return;
+    }
+    this.busy.set(true);
+    try {
+      for (const index of indices) {
+        const result = await this.commands.git.stashDrop(this.repoPath(), index);
+        this.appendLog(
+          result.ok
+            ? this.i18n.t('dialog.stash.done_dropped')
+            : this.i18n.t('dialog.stash.failed', { msg: result.message }),
+        );
+      }
+    } catch (err: unknown) {
+      this.appendLog(this.i18n.t('dialog.stash.failed', { msg: describe(err) }));
+    } finally {
+      void this.repos.refreshBadge(this.repoPath());
+      await this.reload();
+      this.busy.set(false);
+    }
+  }
+
   protected async drop(entry: StashEntry): Promise<void> {
     const confirmed = await this.dialogs.confirm(
       this.i18n.t('dialog.stash.drop_confirm_title'),
@@ -339,6 +403,8 @@ export class StashDialogComponent extends DialogBase {
   private async reload(): Promise<void> {
     const list = await this.commands.git.stashList(this.repoPath()).catch(() => [] as StashEntry[]);
     this.entries.set(list);
+    this.selected.set(new Set()); // indices shift after any mutation
+
     // Paging self-heals on shrink: ui-filter-table clamps on read.
     // Working-tree state gates the Add button (nothing to stash → disabled).
     // Every mutation (add/apply/pop) changes it, so re-query alongside.

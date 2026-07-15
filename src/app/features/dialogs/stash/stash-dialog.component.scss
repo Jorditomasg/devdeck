@@ -51,6 +51,19 @@
   text-align: right;
 }
 
+.stash__select-head {
+  width: 28px;
+}
+
+.stash__select input {
+  cursor: pointer;
+}
+
+.stash__bulk {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .stash__name {
   @include mx.ellipsis;
   display: inline-block;
