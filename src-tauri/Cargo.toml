@@ -57,8 +57,20 @@ libc = "0.2"
 # taskbar button and minimize to the taskbar — without it tao's secondary
 # windows minimize to the legacy bottom-left desktop stub (tauri#10422).
 # Reuses the `windows` crate Tauri already pulls in (0.61.x).
+# `Win32_System_JobObjects`/`Win32_System_Threading`/`Win32_Security` back the
+# per-service Job Object tree-kill in `process/job.rs` (stop-orphan-processes
+# design): JOBOBJECT_EXTENDED_LIMIT_INFORMATION is gated behind
+# Win32_System_Threading (its IoInfo field), and CreateJobObjectW is gated
+# behind Win32_Security (its SECURITY_ATTRIBUTES param) — both required even
+# though we pass `None`/no I/O info.
 [target.'cfg(windows)'.dependencies]
-windows = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }
+windows = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_System_JobObjects",
+    "Win32_System_Threading",
+    "Win32_Security",
+] }
 
 # Desktop-only plugins (single-instance has no mobile support).
 [target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]

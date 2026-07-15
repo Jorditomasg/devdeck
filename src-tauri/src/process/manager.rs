@@ -230,6 +230,11 @@ struct Entry {
     state_tx: Arc<watch::Sender<RuntimeState>>,
     state_rx: watch::Receiver<RuntimeState>,
     wsl: Option<WslRun>,
+    /// Windows-only Job Object handle for this run's process tree (`None` on
+    /// Unix/WSL always, and on Windows when assignment failed at spawn — in
+    /// which case the kill path falls back to `taskkill /F /T`, unchanged
+    /// from pre-change behavior). See `process/job.rs`.
+    job: Option<Arc<crate::process::job::ServiceJob>>,
 }
 
 struct Inner {
@@ -420,6 +425,39 @@ impl ProcessManager {
             source: std::io::Error::other("child exited before its pid could be read"),
         })?;
 
+        // Windows: give this run its OWN Job Object with KILL_ON_JOB_CLOSE,
+        // assigned right AFTER spawn (stop-orphan-processes design). There is
+        // an inherent spawn→assign micro-race — a grandchild spawned in the
+        // tiny window before assignment could escape the job — accepted as
+        // negligible (decision #462); Windows offers no atomic
+        // spawn-into-job primitive that tokio exposes. Assignment failure
+        // (or the child already having exited, so `raw_handle()` is `None`)
+        // degrades gracefully: the service still runs, a warning is logged,
+        // and the kill path falls back to the existing `taskkill /F /T`.
+        // WSL-routed runs are OUT OF SCOPE (spec requirement 1): `child` here
+        // is only the Windows-side `wsl.exe` bridge, and the tracked Linux
+        // tree lives inside the distro — a Job Object on the bridge process
+        // would do nothing useful, so we skip assignment entirely and leave
+        // `job = None`, same as the assignment-failure fallback.
+        #[cfg(windows)]
+        let job = if wsl.is_none() {
+            child.raw_handle().and_then(|h| {
+                match crate::process::job::ServiceJob::create_and_assign(h) {
+                    Ok(j) => Some(Arc::new(j)),
+                    Err(e) => {
+                        log::warn!(
+                            "job-object assignment failed for '{id}': {e}; falling back to taskkill on stop"
+                        );
+                        None
+                    }
+                }
+            })
+        } else {
+            None
+        };
+        #[cfg(not(windows))]
+        let job: Option<Arc<crate::process::job::ServiceJob>> = None;
+
         let initial = RuntimeState {
             status: analyzer.status(),
             port: analyzer.port(),
@@ -437,6 +475,7 @@ impl ProcessManager {
                 state_tx: state_tx.clone(),
                 state_rx,
                 wsl: wsl.clone(),
+                job: job.clone(),
             },
         );
         drop(services);
@@ -486,6 +525,7 @@ impl ProcessManager {
             state_tx,
             manually_stopped,
             wsl,
+            job,
         ));
 
         Ok(pid)
@@ -511,11 +551,12 @@ impl ProcessManager {
                     e.state_tx.clone(),
                     e.state_rx.clone(),
                     e.wsl.clone(),
+                    e.job.clone(),
                 )
             })
         };
         let emitter = self.inner.emitter.as_ref();
-        let Some((pid, stop_cmd, manually_stopped, state_tx, state_rx, wsl)) = entry else {
+        let Some((pid, stop_cmd, manually_stopped, state_tx, state_rx, wsl, job)) = entry else {
             // v1: `[svc] <name> is not running`, return False (§17.2).
             emit_lines_now(
                 emitter,
@@ -570,7 +611,7 @@ impl ProcessManager {
                     }
                 }
                 EscalationStep::Terminate { wait } => {
-                    kill_run_tree(id, pid, wsl.as_ref(), false).await;
+                    kill_run_tree(id, pid, wsl.as_ref(), job.as_ref(), false).await;
                     if wait_terminal(state_rx.clone(), wait).await {
                         return Ok(StopOutcome::Stopped);
                     }
@@ -583,7 +624,7 @@ impl ProcessManager {
                         LogStream::Service,
                         vec![format!("[svc] {id} force-stopped: graceful stop timed out")],
                     );
-                    kill_run_tree(id, pid, wsl.as_ref(), true).await;
+                    kill_run_tree(id, pid, wsl.as_ref(), job.as_ref(), true).await;
                     let _ = wait_terminal(state_rx.clone(), wait).await;
                 }
             }
@@ -620,16 +661,21 @@ impl ProcessManager {
         let drain = async move { while set.join_next().await.is_some() {} };
         if tokio::time::timeout(SHUTDOWN_ALL_CAP, drain).await.is_err() {
             // Cap exceeded (e.g. a slow stop_cmd) — force-kill survivors.
-            let leftovers: Vec<(String, u32, Option<WslRun>)> = self
+            let leftovers: Vec<(
+                String,
+                u32,
+                Option<WslRun>,
+                Option<Arc<crate::process::job::ServiceJob>>,
+            )> = self
                 .inner
                 .services
                 .lock()
                 .await
                 .iter()
-                .map(|(id, e)| (id.clone(), e.pid, e.wsl.clone()))
+                .map(|(id, e)| (id.clone(), e.pid, e.wsl.clone(), e.job.clone()))
                 .collect();
-            for (id, pid, wsl) in leftovers {
-                kill_run_tree(&id, pid, wsl.as_ref(), true).await;
+            for (id, pid, wsl, job) in leftovers {
+                kill_run_tree(&id, pid, wsl.as_ref(), job.as_ref(), true).await;
             }
         }
     }
@@ -663,7 +709,13 @@ async fn wait_terminal(mut rx: watch::Receiver<RuntimeState>, cap: Duration) -> 
 /// tree death and the ForceKill escalation still runs when the tree
 /// ignores SIGTERM (final-review fix, design doc
 /// 2026-07-07-wsl-service-execution-design §3).
-async fn kill_run_tree(id: &str, pid: u32, wsl: Option<&WslRun>, force: bool) {
+async fn kill_run_tree(
+    id: &str,
+    pid: u32,
+    wsl: Option<&WslRun>,
+    job: Option<&Arc<crate::process::job::ServiceJob>>,
+    force: bool,
+) {
     if let Some(w) = wsl {
         match w.pgid.get() {
             Some(&pgid) => {
@@ -688,6 +740,27 @@ async fn kill_run_tree(id: &str, pid: u32, wsl: Option<&WslRun>, force: bool) {
             }
         }
         return;
+    }
+    // Windows PRIMARY tree-kill: TerminateJobObject kills every process in
+    // this run's Job Object (including detached/reparented grandchildren) in
+    // one call — both escalation ladder steps map to it, exactly as
+    // `taskkill` did before this change (stop-orphan-processes design). WSL
+    // runs never reach this point (early `return` above); on Unix `job` is
+    // always `None` (Job Objects are Windows-only and out of scope for WSL
+    // per spec requirement 1 — `spawn_run` never assigns one to a WSL-routed
+    // run either), so this branch is inert there and the `killpg` path below
+    // is untouched. On a job-object failure, fall through to the existing
+    // taskkill/killpg dispatch below — defence in depth, and the ForceKill
+    // step retries anyway.
+    if let Some(j) = job {
+        match j.terminate() {
+            Ok(()) => return,
+            Err(e) => {
+                log::warn!(
+                    "TerminateJobObject failed for '{id}': {e}; falling back to taskkill"
+                );
+            }
+        }
     }
     let result = if force {
         kill::force_kill_tree(pid).await
@@ -740,6 +813,7 @@ async fn supervise(
     state_tx: Arc<watch::Sender<RuntimeState>>,
     manually_stopped: Arc<AtomicBool>,
     wsl: Option<WslRun>,
+    job: Option<Arc<crate::process::job::ServiceJob>>,
 ) {
     let emitter = inner.emitter.as_ref();
     let stream = match kind {
@@ -817,7 +891,7 @@ async fn supervise(
                     )],
                 );
             }
-            kill_run_tree(&id, pid, wsl.as_ref(), true).await;
+            kill_run_tree(&id, pid, wsl.as_ref(), job.as_ref(), true).await;
             match tokio::time::timeout(kill_grace, child.wait()).await {
                 Ok(Ok(status)) => status.code(),
                 _ => None, // kill_on_drop reaps the direct child as last resort

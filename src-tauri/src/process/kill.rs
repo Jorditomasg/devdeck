@@ -10,14 +10,23 @@
 //!   SIGKILL)` (escalation windows from [`super::constants`], §21.5).
 //!   `ESRCH` ("no such process") counts as success — the tree is already
 //!   dead, which is the goal.
-//! - **Windows**: `taskkill /F /T /PID <pid>` — the exact v1 tree-kill
-//!   (§17.2), spawned with `CREATE_NO_WINDOW` like every v1 subprocess
-//!   (§21.5). taskkill has no graceful mode, so BOTH escalation steps map to
-//!   it; the second invocation is a no-op (exit 128) on an already-dead tree.
+//! - **Windows**: `taskkill /F /T /PID <pid>` here is now the FALLBACK, not
+//!   the primary. `TerminateJobObject` (via the per-service
+//!   [`super::job::ServiceJob`], assigned right after spawn in
+//!   `super::manager`) is the PRIMARY Windows tree-kill primitive whenever a
+//!   valid job handle exists — both escalation ladder steps map to it, same
+//!   as taskkill did before it (stop-orphan-processes design). `taskkill`
+//!   below only fires when job assignment failed at spawn or
+//!   `TerminateJobObject` itself errors at kill time; it is spawned with
+//!   `CREATE_NO_WINDOW` like every v1 subprocess (§21.5), has no graceful
+//!   mode (both ladder steps map to it the same way), and the second
+//!   invocation is a no-op (exit 128) on an already-dead tree.
 //!
 //! Dependency note: the KILL side needs `libc` on Unix (`killpg` — std has no
 //! kill-by-process-group API); the SPAWN side (`process_group(0)`) is plain
-//! tokio/std and needs nothing extra.
+//! tokio/std and needs nothing extra. The Windows Job Object primitives
+//! (`super::job`) extend the existing `windows` crate features — no new
+//! crate.
 
 use std::time::Duration;
 

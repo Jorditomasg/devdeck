@@ -22,6 +22,7 @@
 
 pub mod constants;
 pub mod error;
+pub mod job;
 pub mod kill;
 pub mod line_machine;
 pub mod manager;
