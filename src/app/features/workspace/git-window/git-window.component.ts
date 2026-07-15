@@ -20,6 +20,7 @@
  *   discard/edit (changes-badge entry) — fully owned by the embedded
  *   `git-changes-view` container (design doc 2026-07-03).
  */
+import { NgTemplateOutlet } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -86,6 +87,7 @@ type PanelSource = 'ref' | 'range';
     FileDiffPanelComponent,
     GraphCellComponent,
     IconComponent,
+    NgTemplateOutlet,
     SearchableSelectComponent,
     SpinnerComponent,
     TPipe,
@@ -332,23 +334,7 @@ type PanelSource = 'ref' | 'range';
               </ul>
             }
           </aside>
-          <git-file-diff-panel
-            class="gitwin__panel"
-            [files]="files()"
-            [selectedPath]="selectedFile()"
-            [mode]="detailMode()"
-            [diffText]="diffText()"
-            [fileText]="fileText()"
-            [notice]="notice()"
-            [loading]="detailLoading()"
-            [showFileHistory]="mode === 'history'"
-            [text]="panelText()"
-            (fileSelected)="onSelectFile($event)"
-            (viewFile)="onViewFile()"
-            (backToDiff)="onBackToDiff()"
-            (fileHistory)="onFileHistory($event)"
-            (fileMenuRequested)="onFileMenu($event.event, $event.file)"
-          />
+          <ng-container [ngTemplateOutlet]="diffPanel" />
         </div>
       }
       @case ('detail') {
@@ -384,25 +370,31 @@ type PanelSource = 'ref' | 'range';
             <div class="gitwin__body-msg">{{ detailBody() }}</div>
           }
         }
-        <git-file-diff-panel
-          class="gitwin__panel"
-          [files]="files()"
-          [selectedPath]="selectedFile()"
-          [mode]="detailMode()"
-          [diffText]="diffText()"
-          [fileText]="fileText()"
-          [notice]="notice()"
-          [loading]="detailLoading()"
-          [showFileHistory]="mode === 'history'"
-          [text]="panelText()"
-          (fileSelected)="onSelectFile($event)"
-          (viewFile)="onViewFile()"
-          (backToDiff)="onBackToDiff()"
-          (fileHistory)="onFileHistory($event)"
-          (fileMenuRequested)="onFileMenu($event.event, $event.file)"
-        />
+        <ng-container [ngTemplateOutlet]="diffPanel" />
       }
     }
+
+    <!-- Shared files/diff panel — one binding site for the compare and
+         detail views (identical inputs; the surrounding layout differs). -->
+    <ng-template #diffPanel>
+      <git-file-diff-panel
+        class="gitwin__panel"
+        [files]="files()"
+        [selectedPath]="selectedFile()"
+        [mode]="detailMode()"
+        [diffText]="diffText()"
+        [fileText]="fileText()"
+        [notice]="notice()"
+        [loading]="detailLoading()"
+        [showFileHistory]="mode === 'history'"
+        [text]="panelText()"
+        (fileSelected)="onSelectFile($event)"
+        (viewFile)="onViewFile()"
+        (backToDiff)="onBackToDiff()"
+        (fileHistory)="onFileHistory($event)"
+        (fileMenuRequested)="onFileMenu($event.event, $event.file)"
+      />
+    </ng-template>
   `,
 })
 export class GitWindowComponent implements OnInit {
