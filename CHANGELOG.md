@@ -5,6 +5,29 @@ All notable changes to DevDeck are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.6.0] - 2026-07-15
+
+### Added
+
+- Bulk stash and branch management in the git window: multi-select stashes or
+  local branches and delete them in a single action.
+- Search the file list of a commit in the git window, pre-filled from the
+  active history path filter.
+
+### Changed
+
+- The always-on-top pin in log windows now shows a filled icon while active,
+  so you can tell at a glance whether a window is pinned.
+
+### Fixed
+
+- Stopping a service on Windows now terminates its entire process tree
+  reliably (build tools, dev servers and their children), leaving no orphaned
+  processes behind — even if DevDeck itself crashes.
+- Git graph edges now follow one consistent color rule: lines flowing into
+  merges keep a color even when their branch has no name, and fork connectors
+  take the color of the branch they fork from.
+
 ## [3.5.0] - 2026-07-15
 
 ### Changed
@@ -21,22 +44,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Log windows now have a jump-to-bottom button to quickly return to the latest
   lines after scrolling, plus a per-window "always on top" toggle so you can
   keep a specific log window pinned above other apps.
-- Bulk stash and branch management in the git window: multi-select stashes or
-  branches and delete them in a single action.
-- Filter files within a commit's detail view, pre-filled from the active path
-  filter.
-
-### Changed
-
-- Faster git status and badge reads for repositories inside WSL, using a
-  persistent per-distro shell session for near-native speed.
 
 ### Fixed
 
 - Branch lines in the git graph that converge into a shared commit now keep
   their own distinct colors instead of blending together.
-- The repo card branch badge now updates when the branch is switched outside
-  DevDeck.
 
 ## [3.3.1] - 2026-07-07
 
