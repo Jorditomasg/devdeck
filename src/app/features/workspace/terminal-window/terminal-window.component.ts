@@ -48,7 +48,7 @@ import { IconComponent } from '../../../ui';
       [attr.title]="i18n.t('log.always_on_top')"
       (click)="togglePinned()"
     >
-      <ui-icon name="pin" [size]="16" />
+      <ui-icon [name]="pinned() ? 'pin-filled' : 'pin'" [size]="16" />
     </button>
     @if (!atBottom()) {
       <button

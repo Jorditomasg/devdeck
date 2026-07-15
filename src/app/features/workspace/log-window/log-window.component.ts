@@ -58,7 +58,8 @@ const FULL_TAIL = 100_000;
         size="sm"
         (clicked)="togglePinned()"
       >
-        <ui-icon name="pin" [size]="13" /> {{ i18n.t('log.always_on_top') }}
+        <ui-icon [name]="pinned() ? 'pin-filled' : 'pin'" [size]="13" />
+        {{ i18n.t('log.always_on_top') }}
       </ui-button>
       <ui-button variant="log-action" size="sm" (clicked)="onCopy()">
         <ui-icon name="copy" [size]="13" /> {{ i18n.t('btn.copy_log') }}
