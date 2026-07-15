@@ -17,7 +17,7 @@ import {
 import { TPipe } from '../../../core/i18n/t.pipe';
 import { TranslationService } from '../../../core/i18n/translation.service';
 import { IpcCommands } from '../../../core/ipc/commands';
-import type { OpOutput } from '../../../core/ipc/tauri.types';
+import type { OpOutput, OrderedBranches } from '../../../core/ipc/tauri.types';
 import { ReposStore } from '../../../core/state/repos.store';
 import { ServicesStore } from '../../../core/state/services.store';
 import {
@@ -532,7 +532,7 @@ export class BranchDialogComponent extends DialogBase {
       // Local-only list: branch management never operates on remote-only names.
       this.commands.git
         .branches(repoPath, undefined, false)
-        .catch(() => ({ branches: [], recentCount: 0 })),
+        .catch((): OrderedBranches => ({ branches: [], recentCount: 0 })),
       this.commands.git.currentBranch(repoPath).catch(() => ''),
     ]);
     this.branches.set(ordered.branches);
