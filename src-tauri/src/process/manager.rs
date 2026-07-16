@@ -118,7 +118,18 @@ fn build_command(
             (cmd, None)
         }
     };
-    cmd.stdin(std::process::Stdio::null())
+    // Supervised WSL runs get a PIPED stdin they will never receive bytes
+    // on — the lifeline the in-distro watchdog parks on (wsl-lifeline
+    // design). Everything else keeps null: a pipe that never EOFs would
+    // HANG any tool that reads stdin, and non-WSL trees already have a
+    // kill primitive (Job Object / process group). Inside the distro the
+    // script re-nulls the service's own stdin, so behavior is unchanged.
+    let stdin = if wsl.is_some() && emit_pid {
+        std::process::Stdio::piped()
+    } else {
+        std::process::Stdio::null()
+    };
+    cmd.stdin(stdin)
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
         .kill_on_drop(true);
@@ -235,6 +246,15 @@ struct Entry {
     /// which case the kill path falls back to `taskkill /F /T`, unchanged
     /// from pre-change behavior). See `process/job.rs`.
     job: Option<Arc<crate::process::job::ServiceJob>>,
+    /// WSL runs only: the write end of the run's stdin pipe — the in-distro
+    /// mirror of KILL_ON_JOB_CLOSE (wsl-lifeline design). DevDeck never
+    /// writes to it; DROPPING it EOFs the [`crate::wsl::shell_script`]
+    /// watchdog, which SIGKILLs the whole Linux group from inside the
+    /// distro with no wsl.exe crossing. Closed implicitly on deregistration
+    /// and on any DevDeck death (the OS closes the handle), explicitly on
+    /// the ForceKill escalation step and the shutdown fast path. `None`
+    /// for non-WSL runs (their stdin is null).
+    lifeline: Option<tokio::process::ChildStdin>,
 }
 
 struct Inner {
@@ -512,6 +532,10 @@ impl ProcessManager {
         let (state_tx, state_rx) = watch::channel(initial);
         let state_tx = Arc::new(state_tx);
         let manually_stopped = Arc::new(AtomicBool::new(false));
+        // Detach the lifeline write end BEFORE the child moves into
+        // supervision — the registry owns it, so its lifetime is tied to
+        // the run's registration, not to the supervisor task.
+        let lifeline = child.stdin.take();
         services.insert(
             id.clone(),
             Entry {
@@ -522,6 +546,7 @@ impl ProcessManager {
                 state_rx,
                 wsl: wsl.clone(),
                 job: job.clone(),
+                lifeline,
             },
         );
         drop(services);
@@ -670,6 +695,20 @@ impl ProcessManager {
                         LogStream::Service,
                         vec![format!("[svc] {id} force-stopped: graceful stop timed out")],
                     );
+                    // WSL: sever the lifeline FIRST — the in-distro watchdog
+                    // SIGKILLs the whole group even when wsl.exe is wedged
+                    // or the pgid marker was never captured, so the force
+                    // step no longer depends on a healthy bridge.
+                    if wsl.is_some() {
+                        drop(
+                            self.inner
+                                .services
+                                .lock()
+                                .await
+                                .get_mut(id)
+                                .and_then(|e| e.lifeline.take()),
+                        );
+                    }
                     kill_run_tree(id, pid, wsl.as_ref(), job.as_ref(), true).await;
                     let _ = wait_terminal(state_rx.clone(), wait).await;
                 }
@@ -691,14 +730,46 @@ impl ProcessManager {
     /// new spawns from the first call on; total time bounded by
     /// [`SHUTDOWN_ALL_CAP`], after which any survivor gets a best-effort
     /// force-kill (v2 decision documented in `constants.rs`).
+    ///
+    /// WSL runs without a `stop_cmd` take the lifeline FAST PATH
+    /// (wsl-lifeline design): severing the stdin pipe makes the in-distro
+    /// watchdog SIGKILL the whole Linux group in ~ms — no wsl.exe crossing,
+    /// no 10 s graceful window. Exit drops from 10-30+ s to well under a
+    /// second. A graceful SIGTERM would buy these dev servers nothing on
+    /// app exit; runs WITH a `stop_cmd` (compose down) keep the full
+    /// ladder because their cleanup is semantic, not just process death.
     pub async fn shutdown_all(&self) {
+        use super::constants::LIFELINE_EXIT_WAIT;
+
         self.inner.shutting_down.store(true, Ordering::SeqCst);
-        let ids: Vec<String> = self.inner.services.lock().await.keys().cloned().collect();
-        if ids.is_empty() {
+        let mut fast = Vec::new();
+        let mut slow: Vec<String> = Vec::new();
+        {
+            let mut services = self.inner.services.lock().await;
+            for (id, e) in services.iter_mut() {
+                if e.wsl.is_some() && e.stop_cmd.is_none() {
+                    e.manually_stopped.store(true, Ordering::SeqCst);
+                    drop(e.lifeline.take()); // EOF → in-distro group SIGKILL
+                    fast.push((id.clone(), e.pid, e.wsl.clone(), e.job.clone(), e.state_rx.clone()));
+                } else {
+                    slow.push(id.clone());
+                }
+            }
+        }
+        if fast.is_empty() && slow.is_empty() {
             return;
         }
         let mut set = JoinSet::new();
-        for id in ids {
+        for (id, pid, wsl, job, rx) in fast {
+            set.spawn(async move {
+                // The watchdog usually wins in ms; the in-distro kill is the
+                // belt for a distro where bash never parked the watchdog.
+                if !wait_terminal(rx, LIFELINE_EXIT_WAIT).await {
+                    kill_run_tree(&id, pid, wsl.as_ref(), job.as_ref(), true).await;
+                }
+            });
+        }
+        for id in slow {
             let mgr = self.clone();
             set.spawn(async move {
                 let _ = mgr.stop(&id).await;

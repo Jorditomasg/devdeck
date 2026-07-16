@@ -67,13 +67,35 @@ pub(crate) fn sq_escape(s: &str) -> String {
     s.replace('\'', r"'\''")
 }
 
+/// The in-distro mirror of the Windows Job Object's KILL_ON_JOB_CLOSE
+/// (design 2026-07-16 wsl-lifeline): fd 0 at spawn is a pipe whose write
+/// end DevDeck holds open and NEVER writes to. The prefix dups it to fd 3,
+/// re-nulls the shell's own stdin (so the service still sees /dev/null,
+/// exactly as before), and parks a watchdog on fd 3: the `read` only
+/// returns on EOF — i.e. when DevDeck dropped the write end (explicit stop
+/// escalation, app exit) or DIED (crash: the OS closes the handle) — and
+/// then SIGKILLs the whole group from INSIDE the distro, no wsl.exe
+/// crossing needed. fd 3 MUST be explicit: without job control, bash gives
+/// background jobs stdin from /dev/null, so a plain `read` would fire at
+/// startup. `$$` inside the subshell is still the setsid bash leader. The
+/// watchdog's OWN stdio goes to /dev/null — it must not hold the run's
+/// stdout/stderr pipes open, or a service that exits on its own would
+/// never EOF the supervisor and the run would never finalize.
+const LIFELINE_WATCHDOG: &str =
+    "exec 3<&0 0</dev/null; { read -r -u 3 _; kill -KILL -- -$$; } >/dev/null 2>&1 & ";
+
 /// The bash script for an in-distro run: profile env as `export` entries
 /// (env set on the Windows wsl.exe process does NOT cross into Linux),
 /// optional Linux-PGID marker, then the user command. NOT `exec`-prefixed:
 /// compound commands (`a && b`) must keep bash as the setsid group leader,
-/// and `$$` already identifies the whole tree.
+/// and `$$` already identifies the whole tree. Supervised runs
+/// (`emit_pid` — services and installs) also get the [`LIFELINE_WATCHDOG`]
+/// prefix; captured-output stop_cmds get neither marker nor watchdog.
 pub fn shell_script(command: &str, env: &HashMap<String, String>, emit_pid: bool) -> String {
     let mut script = String::new();
+    if emit_pid {
+        script.push_str(LIFELINE_WATCHDOG);
+    }
     let mut keys: Vec<&String> = env.keys().collect();
     keys.sort(); // deterministic output (HashMap order is random)
     for k in keys {
@@ -213,8 +235,53 @@ mod tests {
         env.insert("SPRING_PROFILES_ACTIVE".to_string(), "dev".to_string());
         assert_eq!(
             shell_script("npm start", &env, true),
-            "export 'SPRING_PROFILES_ACTIVE=dev'; echo \"__DEVDECK_PID__$$\"; npm start"
+            "exec 3<&0 0</dev/null; { read -r -u 3 _; kill -KILL -- -$$; } >/dev/null 2>&1 & export 'SPRING_PROFILES_ACTIVE=dev'; echo \"__DEVDECK_PID__$$\"; npm start"
         );
+    }
+
+    /// Behavior pin for the lifeline: run the REAL generated script under
+    /// `setsid bash` (same shape as `exec_in_distro`, minus wsl.exe) with a
+    /// piped stdin, drop the write end, and the whole group — including the
+    /// long-running child — must die. Unix-only: bash + setsid + killpg
+    /// semantics are identical inside a WSL distro, which is the point.
+    #[cfg(unix)]
+    #[test]
+    fn lifeline_kills_the_group_when_stdin_write_end_drops() {
+        use std::io::Read as _;
+        use std::process::{Command, Stdio};
+        use std::time::{Duration, Instant};
+
+        // `echo ready` AFTER the marker so we know the tree is up; then park.
+        let script = shell_script("echo ready; sleep 30", &HashMap::new(), true);
+        let mut child = Command::new("setsid")
+            .args(["-w", "bash", "-c", &script]) // -ilc needs a profile; -c is enough off-WSL
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("setsid bash spawn");
+
+        // Wait for "ready" (bounded read of the first lines).
+        let mut out = child.stdout.take().expect("stdout");
+        let mut buf = [0u8; 256];
+        let mut seen = String::new();
+        while !seen.contains("ready") {
+            let n = out.read(&mut buf).expect("read stdout");
+            assert!(n > 0, "EOF before the tree was up: {seen:?}");
+            seen.push_str(&String::from_utf8_lossy(&buf[..n]));
+        }
+
+        drop(child.stdin.take()); // sever the lifeline
+
+        // The watchdog must SIGKILL the group well before sleep 30 ends.
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            if child.try_wait().expect("try_wait").is_some() {
+                break;
+            }
+            assert!(Instant::now() < deadline, "group survived the severed lifeline");
+            std::thread::sleep(Duration::from_millis(50));
+        }
     }
 
     #[test]

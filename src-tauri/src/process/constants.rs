@@ -54,6 +54,13 @@ pub const PORT_RELEASE_POLL: Duration = Duration::from_millis(500);
 /// force-kill and we return.
 pub const SHUTDOWN_ALL_CAP: Duration = Duration::from_secs(30);
 
+/// Exit fast-path bound for a severed WSL lifeline (wsl-lifeline design):
+/// the in-distro watchdog SIGKILLs the group in ~ms on a warm distro, so
+/// this only pads for a busy VM. Past it, `shutdown_all` falls back to the
+/// explicit in-distro kill — and even if THAT fails, process death closes
+/// every pipe anyway; the tree cannot outlive DevDeck.
+pub const LIFELINE_EXIT_WAIT: Duration = Duration::from_secs(3);
+
 // ---------------------------------------------------------------------------
 // Log batching (architecture-v2.md §3.2: flush every ~50-100 ms or 64 lines)
 // ---------------------------------------------------------------------------
@@ -123,6 +130,10 @@ mod tests {
     fn shutdown_cap_covers_one_full_escalation() {
         // graceful + force must fit inside the total shutdown bound.
         assert!(SHUTDOWN_ALL_CAP >= STOP_GRACEFUL_WAIT + STOP_FORCE_WAIT);
+        // The lifeline fast path must be MUCH tighter than the ladder it
+        // replaces — that is its whole reason to exist.
+        assert!(LIFELINE_EXIT_WAIT < STOP_GRACEFUL_WAIT);
+        assert_eq!(LIFELINE_EXIT_WAIT.as_secs(), 3);
     }
 
     #[test]
