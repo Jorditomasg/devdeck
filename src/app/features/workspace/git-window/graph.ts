@@ -99,6 +99,24 @@ export function mergedBranchOf(subject: string | undefined): string | undefined 
 }
 
 /**
+ * Branch a merge subject says it merged INTO — `Merge <anything> into y`.
+ * Counterpart of [`mergedBranchOf`]: names the commit's OWN line. On Azure
+ * DevOps repos the back-merges ("Merge remote-tracking branch
+ * 'origin/develop' into feature/r15-to-dev") are often the ONLY thing that
+ * names a deleted feature branch — its ref is gone and the PR merge subject
+ * ("Merged PR 9422: <title>") carries no branch name (user 2026-07-16).
+ */
+export function mergeTargetOf(subject: string | undefined): string | undefined {
+  if (!subject || !subject.startsWith('Merge')) {
+    return undefined;
+  }
+  // Greedy `.+` → LAST " into "; quote excluded so a quoted branch name
+  // containing "into" can't bleed a trailing `'` into the capture.
+  const m = /^Merge .+ into ([^'\s]+)$/.exec(subject);
+  return m ? m[1] : undefined;
+}
+
+/**
  * Assign lanes to a topo-ordered commit list. The final page may reference
  * parents that are not loaded yet — their lanes simply stay open through
  * the last row (correct: the line continues past the page).
@@ -109,6 +127,16 @@ interface LaneSlot {
   label?: string;
   /** Label provenance — see [`GraphRow.labelLive`]. */
   live: boolean;
+  /**
+   * Lane opened by a merge whose subject couldn't name it, still unnamed.
+   * Suppresses the `%S` label fallback: the walk reaches a deleted branch's
+   * commits from the ref it was merged INTO, so `%S` stamps the TARGET
+   * branch's name (develop) on every merged-in feature lane — technically
+   * reachable, semantically wrong (user 2026-07-16, Azure DevOps repo where
+   * every lane read "develop"). Left unnamed, backfill can name the run
+   * from an `into <branch>` subject below instead.
+   */
+  fanout: boolean;
 }
 
 /**
@@ -150,21 +178,28 @@ export function computeGraph(
         lanes.push(null);
       }
     }
-    // Decorations win; then the line's inherited name; then git's own
-    // per-commit reaching ref (%S — names filtered-view segments too).
-    // Every step here is a REAL ref except inheritance of a merge-subject
-    // name — provenance rides along (labelLive).
+    // Decorations win; then the branch this commit's own merge subject says
+    // it merged INTO; then the line's inherited name; then git's per-commit
+    // reaching ref (%S — names filtered-view segments too, but suppressed on
+    // unnamed merge fan-out lanes, see LaneSlot.fanout). Every step here is
+    // a REAL ref except the subject-parsed names — provenance rides along
+    // (labelLive).
     const refLabel = pickRefLabel(commit.refs);
+    const intoTarget = mergeTargetOf(commit.subject);
     const inherited = lanes[lane];
-    const label = refLabel ?? inherited?.label ?? (commit.source || undefined);
-    // Live when it came from a real ref — including a merge-subject name
+    const sourceLabel = inherited?.fanout ? undefined : commit.source || undefined;
+    const label = refLabel ?? intoTarget ?? inherited?.label ?? sourceLabel;
+    // Live when it came from a real ref — including a subject-parsed name
     // CONFIRMED by %S (fork-PR merges name the walked branch itself, e.g.
     // spring's "Merge pull request from spring-projects/1.5.x" ON 1.5.x).
     const labelLive =
-      refLabel !== undefined ||
-      (inherited?.label !== undefined
-        ? inherited.live || inherited.label === commit.source
-        : label !== undefined);
+      refLabel !== undefined
+        ? true
+        : intoTarget !== undefined
+          ? intoTarget === commit.source
+          : inherited?.label !== undefined
+            ? inherited.live || inherited.label === commit.source
+            : label !== undefined;
     // Converged children free their lanes (the dot's own lane is reused).
     for (const j of waiting) {
       if (j !== lane) {
@@ -194,7 +229,13 @@ export function computeGraph(
         toBottom.push(existing);
         lanes[lane] = null;
       } else {
-        lanes[lane] = { sha: first, label, live: labelLive };
+        lanes[lane] = {
+          sha: first,
+          label,
+          live: labelLive,
+          // A still-unnamed fan-out run keeps suppressing %S downward.
+          fanout: label === undefined && inherited?.fanout === true,
+        };
         toBottom.push(lane);
       }
     }
@@ -222,6 +263,7 @@ export function computeGraph(
             // Usually a deleted branch — but a subject naming the WALKED
             // ref itself (fork-PR merges) is confirmed real by %S.
             live: mergedName !== undefined && mergedName === commit.source,
+            fanout: mergedName === undefined,
           };
           const free = lanes.indexOf(null);
           const k = free !== -1 ? free : lanes.length;
@@ -302,6 +344,19 @@ function backfillUnnamedLanes(rows: GraphRow[]): void {
       }
       (row.labels as (string | undefined)[])[lane] = tip.label;
       (row.labelsLive as (boolean | undefined)[])[lane] = tip.labelLive;
+      if (row.lane === lane) {
+        // Unnamed commit ON the run (%S suppressed on Azure fan-out lanes,
+        // 2026-07-16): the run's name is its name — chip included.
+        if (row.label === undefined) {
+          (row as { label?: string }).label = tip.label;
+          (row as { labelLive: boolean }).labelLive = tip.labelLive;
+        }
+        if (!row.fromTop.includes(lane)) {
+          break; // the run's top commit (ring tip) — done
+        }
+        (row.topLabels as (string | undefined)[])[lane] = tip.label;
+        continue;
+      }
       if (row.toBottom.includes(lane) && !row.through.includes(lane)) {
         break; // the row that OPENED the lane (merge fan-out) — done
       }

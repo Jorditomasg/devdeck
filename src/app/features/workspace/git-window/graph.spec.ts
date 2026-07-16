@@ -6,6 +6,7 @@ import {
   graphWidth,
   laneColor,
   mergedBranchOf,
+  mergeTargetOf,
   pickRefLabel,
   LANE_COLORS,
 } from './graph';
@@ -111,6 +112,22 @@ describe('lane labels', () => {
     );
     expect(mergedBranchOf('feat: normal commit')).toBeUndefined();
     expect(mergedBranchOf(undefined)).toBeUndefined();
+  });
+
+  it('extracts the branch a merge subject merged INTO (the commit own line)', () => {
+    expect(
+      mergeTargetOf("Merge remote-tracking branch 'origin/develop' into feature/r15-to-dev"),
+    ).toBe('feature/r15-to-dev');
+    expect(
+      mergeTargetOf(
+        "Merge branch 'releases/21-algoritmos-v2' of https://dev.azure.com/o/p/_git/r into feature/21-to-dev",
+      ),
+    ).toBe('feature/21-to-dev');
+    expect(mergeTargetOf("Merge branch 'feature/x'")).toBeUndefined(); // no target
+    expect(mergeTargetOf('Merged PR 9422: r15 to DEV')).toBeUndefined(); // Azure PR: no branch
+    expect(mergeTargetOf("Merge branch 'fix into prod'")).toBeUndefined(); // quoted "into"
+    expect(mergeTargetOf('feat: turn data into rows')).toBeUndefined(); // not a merge
+    expect(mergeTargetOf(undefined)).toBeUndefined();
   });
 
   it('propagates labels down the first-parent chain and into merged lanes', () => {
@@ -239,6 +256,59 @@ describe('unnamed merge-lane backfill', () => {
     expect(rows[1].labels[1]).toBe('feat'); // through segment
     expect(rows[1].topLabels[1]).toBe('feat');
     expect(rows[2].topLabels[1]).toBe('feat');
+  });
+
+  it('suppresses the %S lie on unnamed fan-out lanes and names runs from "into" subjects', () => {
+    // The user's Azure DevOps repo (2026-07-16): features merged via
+    // "Merged PR N: <title>" (no branch name), branches deleted after merge,
+    // so %S reaches every feature commit from develop → EVERY lane read
+    // "develop" (same label → same color → "4 parallel develops").
+    const rows = computeGraph([
+      {
+        sha: 'm',
+        parents: ['d1', 'f2'],
+        refs: ['develop'],
+        subject: 'Merged PR 9422: r15 to DEV',
+        source: 'develop',
+      },
+      { sha: 'f2', parents: ['f1'], source: 'develop' }, // feature commit, %S lies
+      {
+        sha: 'f1',
+        parents: ['d1', 'd0'],
+        subject: "Merge remote-tracking branch 'origin/develop' into feature/r15-to-dev",
+        source: 'develop',
+      },
+      { sha: 'd1', parents: ['d0'], source: 'develop' },
+      { sha: 'd0', parents: [], source: 'develop' },
+    ]);
+    // The back-merge names its OWN line from the "into" subject…
+    expect(rows[2].label).toBe('feature/r15-to-dev');
+    // …the run above it is backfilled — chip AND lane, no %S "develop":
+    expect(rows[1].label).toBe('feature/r15-to-dev');
+    expect(rows[1].labels[1]).toBe('feature/r15-to-dev');
+    expect(rows[0].labels[1]).toBe('feature/r15-to-dev'); // fan-out elbow color
+    // …the merged-in origin/develop lane (reusing the slot the feature lane
+    // freed when its first parent converged into develop) keeps its name:
+    expect(rows[2].labels[1]).toBe('origin/develop');
+    // …and the real develop line is untouched:
+    expect(rows[0].label).toBe('develop');
+    expect(rows[3].label).toBe('develop');
+  });
+
+  it('leaves a fan-out run with no naming signal unnamed instead of lying', () => {
+    const rows = computeGraph([
+      {
+        sha: 'm',
+        parents: ['c', 'x'],
+        refs: ['develop'],
+        subject: 'Merged PR 1: t',
+        source: 'develop',
+      },
+      { sha: 'x', parents: ['gone'], source: 'develop' }, // deleted branch, no signal
+      { sha: 'c', parents: [], source: 'develop' },
+    ]);
+    expect(rows[1].label).toBeUndefined(); // was "develop" — the lie
+    expect(rows[1].labelLive).toBe(false);
   });
 
   it('leaves lanes already named by the merge subject alone', () => {
