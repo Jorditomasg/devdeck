@@ -17,10 +17,43 @@
 - **Exit fast path in `shutdown_all`.** WSL runs WITHOUT a `stop_cmd` skip the ladder: sever lifeline → `wait_terminal(LIFELINE_EXIT_WAIT = 3 s)` → in-distro force kill only as belt. Runs WITH a `stop_cmd` (compose down) keep the full ladder — their cleanup is semantic, not just process death. Non-WSL runs are untouched.
 - **Registry owns the write end** (`Entry.lifeline`), so its lifetime is the run's registration: normal self-exit → finalize → deregister → drop → the lone watchdog process reaps itself. No leaks between runs.
 
-## Verified behavior (live, setsid bash — identical semantics in-distro)
+## Addendum (same day): two root causes found by lab-testing against REAL nx
 
-- Sever lifeline while tree runs → whole group (incl. `sleep 30`) SIGKILLed in ~1 ms.
-- Service exits on its own → stdout EOF in ~1 ms (watchdog holds no pipes); watchdog reaped on lifeline drop.
+Reproduced the original "restart says port 4200 in use" against nx 23 in a live
+WSL distro. TWO independent production bugs surfaced:
+
+1. **dash rejects the in-distro kill syntax.** `/bin/sh` on Ubuntu is dash, and
+   dash's kill builtin fails `kill -KILL -- -pgid` with `Illegal number: -`
+   (exit 2). The in-distro group kill shipped by the WSL service feature —
+   graceful AND force — **never killed anything on Ubuntu**. Only the bridge
+   `taskkill` worked; the Linux tree always survived. This alone explains the
+   user-visible bug end to end ("graceful stop timed out", port held forever,
+   `wsl --shutdown` as the only cure). Fix: the POSIX `-s SIG` form
+   (`kill -s KILL -- $p -pgid`), which dash accepts (ESRCH → "No such
+   process" — the success marker `signal_group_wsl` already checks).
+2. **nx setsids tasks out of the group.** nx's Rust pseudo-terminal runs the
+   dev server (`node-MainThread`) in its OWN session, so even a WORKING group
+   kill (and the first lifeline watchdog) misses it. Fix: both the watchdog
+   and `kill_group_script` now do a DESCENDANT WALK (`pgrep -P` recursion from
+   the setsid root) and signal walked pids + the group. The walk catches PTY
+   escapees while their parent chain is alive (it is — the nx client holds the
+   PTY child). Watchdog subtlety: `s=$BASHPID` must be captured in the
+   subshell BEFORE any `$( )` (a command substitution fork has its own
+   BASHPID) and kills are per-pid with the group LAST — otherwise the watchdog
+   SIGKILLs itself mid-loop and later pids never get signaled (lab-verified
+   failure mode). ponytail: a double-forked daemon whose parent chain is gone
+   still escapes the walk — only cgroups would catch it; accept.
+
+## Verified behavior (live — real nx 23 serve tree + setsid bash)
+
+- Sever lifeline under a running `nx run web:serve` → bash group AND the
+  session-escaped PTY dev server all dead; port released (~ms).
+- Fixed force script under dash kills the same full tree; stderr clean.
+- Graceful `SIGTERM` to walked pids + group: nx tears down its PTY task (dev
+  server exits) — graceful stop now actually works, so most stops never reach
+  the force step.
+- Service exits on its own → stdout EOF in ~1 ms (watchdog holds no pipes);
+  watchdog reaped on lifeline drop.
 - PGID marker still parsed; `ready`-pattern output unaffected.
 
 ## What does NOT change

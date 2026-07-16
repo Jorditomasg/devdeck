@@ -81,8 +81,26 @@ pub(crate) fn sq_escape(s: &str) -> String {
 /// watchdog's OWN stdio goes to /dev/null — it must not hold the run's
 /// stdout/stderr pipes open, or a service that exits on its own would
 /// never EOF the supervisor and the run would never finalize.
-const LIFELINE_WATCHDOG: &str =
-    "exec 3<&0 0</dev/null; { read -r -u 3 _; kill -KILL -- -$$; } >/dev/null 2>&1 & ";
+///
+/// The kill is a DESCENDANT WALK + group kill, not just `kill -- -$$`:
+/// PTY-based task runners (nx's Rust pseudo-terminal — verified live
+/// against nx 23) `setsid` the actual dev server OUT of bash's group, so a
+/// bare group kill leaves it alive holding its port — the original
+/// "restart says port in use" bug. Walking `pgrep -P` from `$$` catches it
+/// while the parent chain is alive (it is: the client holds the PTY child).
+///
+/// Self-exclusion is load-bearing and subtle: the watchdog must skip its
+/// OWN pid or it kills itself MID-LOOP and every pid after it in the list
+/// never gets signaled (lab-verified failure). `s=$BASHPID` is captured
+/// directly in the subshell BEFORE any command substitution — inside
+/// `$( )` a fork has its own BASHPID, so filtering there excludes the
+/// wrong process. Kills are per-pid so one dead pid cannot short-circuit
+/// the rest; the group kill `-$$` goes LAST and reaps the watchdog itself.
+/// ponytail: a double-forked daemon whose parent chain already died still
+/// escapes the walk — only cgroups would catch that; accept.
+const LIFELINE_WATCHDOG: &str = "exec 3<&0 0</dev/null; { s=$BASHPID; read -r -u 3 _; \
+w(){ echo \"$1\"; for c in $(pgrep -P \"$1\"); do w \"$c\"; done; }; \
+for t in $(w $$) -$$; do [ \"$t\" != \"$s\" ] && kill -KILL -- \"$t\"; done; } >/dev/null 2>&1 & ";
 
 /// The bash script for an in-distro run: profile env as `export` entries
 /// (env set on the Windows wsl.exe process does NOT cross into Linux),
@@ -122,11 +140,31 @@ pub fn is_bash_noise(line: &str) -> bool {
         || line == "bash: no job control in this shell"
 }
 
-/// `kill` invocation for the whole Linux process group (negative pgid),
-/// run via `/bin/sh -c` inside the distro.
+/// In-distro kill for a run rooted at `pgid` (== the setsid bash pid), run
+/// via `/bin/sh -c`. Signals the DESCENDANT WALK plus the group, for the
+/// same reason as [`LIFELINE_WATCHDOG`]: PTY task runners (nx) `setsid`
+/// the dev server out of the group, and a bare `kill -- -pgid` misses it.
+/// TERM must NOT freeze the tree first (handlers need to run — nx tears
+/// its PTY task down on SIGTERM); KILL freezes with STOP so nothing
+/// respawns mid-kill. This script runs in its own wsl.exe shell, so no
+/// self-exclusion is needed. stderr stays unsuppressed on the final kill:
+/// the Rust side treats "No such process" as success.
+///
+/// SIGNAL SYNTAX IS LOAD-BEARING: `/bin/sh` is dash on Ubuntu, and dash's
+/// kill builtin REJECTS `kill -KILL -- -pgid` with "Illegal number: -"
+/// (lab-verified) — the `-s SIG` POSIX form is the one dash accepts for
+/// negative pgids. The original `kill -KILL -- -pgid` shipped by the WSL
+/// service feature NEVER killed anything on Ubuntu: this silent failure
+/// was the root cause of "restart says port in use" / trees surviving
+/// until `wsl --shutdown`.
 pub fn kill_group_script(pgid: u32, force: bool) -> String {
-    let sig = if force { "KILL" } else { "TERM" };
-    format!("kill -{sig} -- -{pgid}")
+    let walk =
+        format!("w(){{ echo \"$1\"; for c in $(pgrep -P \"$1\"); do w \"$c\"; done; }}; p=$(w {pgid}); ");
+    if force {
+        format!("{walk}kill -s STOP $p 2>/dev/null; kill -s KILL -- $p -{pgid}")
+    } else {
+        format!("{walk}kill -s TERM -- $p -{pgid}")
+    }
 }
 
 /// Spawn a service/install command inside the distro: `setsid` makes bash
@@ -233,10 +271,13 @@ mod tests {
     fn shell_script_exports_env_emits_pid_then_runs_command() {
         let mut env = HashMap::new();
         env.insert("SPRING_PROFILES_ACTIVE".to_string(), "dev".to_string());
-        assert_eq!(
-            shell_script("npm start", &env, true),
-            "exec 3<&0 0</dev/null; { read -r -u 3 _; kill -KILL -- -$$; } >/dev/null 2>&1 & export 'SPRING_PROFILES_ACTIVE=dev'; echo \"__DEVDECK_PID__$$\"; npm start"
-        );
+        let script = shell_script("npm start", &env, true);
+        // Watchdog prefix first, then env/marker/command — exact suffix
+        // pinned; the watchdog body is behavior-tested below, not string-pinned.
+        assert!(script.starts_with("exec 3<&0 0</dev/null; { s=$BASHPID; read -r -u 3 _; "), "{script}");
+        assert!(script.ends_with(
+            "} >/dev/null 2>&1 & export 'SPRING_PROFILES_ACTIVE=dev'; echo \"__DEVDECK_PID__$$\"; npm start"
+        ), "{script}");
     }
 
     /// Behavior pin for the lifeline: run the REAL generated script under
@@ -333,9 +374,108 @@ mod tests {
     }
 
     #[test]
-    fn kill_group_script_signals_the_negative_pgid() {
-        assert_eq!(kill_group_script(4242, false), "kill -TERM -- -4242");
-        assert_eq!(kill_group_script(4242, true), "kill -KILL -- -4242");
+    fn kill_group_script_signals_descendants_and_the_negative_pgid() {
+        let walk = "w(){ echo \"$1\"; for c in $(pgrep -P \"$1\"); do w \"$c\"; done; }; p=$(w 4242); ";
+        // `-s SIG` form is mandatory: dash (Ubuntu /bin/sh) rejects
+        // `kill -KILL -- -pgid` — see kill_group_script docs.
+        assert_eq!(
+            kill_group_script(4242, false),
+            format!("{walk}kill -s TERM -- $p -4242")
+        );
+        assert_eq!(
+            kill_group_script(4242, true),
+            format!("{walk}kill -s STOP $p 2>/dev/null; kill -s KILL -- $p -4242")
+        );
+    }
+
+    /// dash (Ubuntu's /bin/sh) rejects `kill -KILL -- -pgid` — the exact
+    /// silent failure that shipped with the WSL service feature. Pin that
+    /// the generated script is dash-parseable end to end: run it against a
+    /// nonexistent pgid; dash must report "No such process" (the success
+    /// marker `signal_group_wsl` looks for), NEVER "Illegal number".
+    #[cfg(unix)]
+    #[test]
+    fn kill_group_script_parses_under_dash_posix_sh() {
+        use std::process::Command;
+        for force in [false, true] {
+            // Far above Linux pid_max (4194304) — guaranteed ESRCH, can
+            // never hit a real process (same guard as kill.rs tests).
+            let out = Command::new("/bin/sh")
+                .args(["-c", &kill_group_script(99_999_999, force)])
+                .output()
+                .expect("/bin/sh");
+            let stderr = String::from_utf8_lossy(&out.stderr);
+            assert!(
+                !stderr.contains("Illegal number"),
+                "dash rejected the kill syntax (force={force}): {stderr}"
+            );
+            assert!(
+                stderr.contains("No such process"),
+                "expected ESRCH marker (force={force}): {stderr}"
+            );
+        }
+    }
+
+    /// Regression pin for the nx pseudo-terminal escape: a child that
+    /// `setsid`s into its OWN session (like nx's PTY task runner does with
+    /// the dev server) is OUTSIDE bash's process group, but its parent
+    /// chain is alive — the descendant walk must still kill it. Modeled
+    /// with `setsid -w sleep 30` (waiting parent == the nx client shape).
+    #[cfg(unix)]
+    #[test]
+    fn lifeline_kills_a_setsid_escaped_descendant() {
+        use std::io::Read as _;
+        use std::process::{Command, Stdio};
+        use std::time::{Duration, Instant};
+
+        // The inner bash prints ITS pid (the escaped session leader) then
+        // becomes the sleeper via exec — so we can assert on that exact pid.
+        let script = shell_script(
+            "setsid -w bash -c 'echo \"ESC_$BASHPID\"; exec sleep 30' & echo ready; wait",
+            &HashMap::new(),
+            true,
+        );
+        let mut child = Command::new("setsid")
+            .args(["-w", "bash", "-c", &script])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("setsid bash spawn");
+
+        let mut out = child.stdout.take().expect("stdout");
+        let mut buf = [0u8; 128];
+        let mut seen = String::new();
+        while !(seen.contains("ready") && seen.contains("ESC_")) {
+            let n = out.read(&mut buf).expect("read stdout");
+            assert!(n > 0, "EOF before the escaped pid was printed: {seen:?}");
+            seen.push_str(&String::from_utf8_lossy(&buf[..n]));
+        }
+        let esc_pid: i32 = seen
+            .lines()
+            .find_map(|l| l.trim().strip_prefix("ESC_"))
+            .expect("ESC_ line")
+            .trim()
+            .parse()
+            .expect("escaped pid");
+
+        drop(child.stdin.take()); // sever the lifeline
+
+        // The ESCAPED session leader itself must die — not just the group.
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            // SAFETY: signal 0 only probes existence; esc_pid came from a
+            // process we spawned moments ago.
+            if unsafe { libc::kill(esc_pid, 0) } != 0 {
+                break; // ESRCH — the escaped sleeper is gone
+            }
+            assert!(
+                Instant::now() < deadline,
+                "setsid-escaped descendant (pid {esc_pid}) survived the lifeline"
+            );
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        let _ = child.wait();
     }
 
     #[test]
