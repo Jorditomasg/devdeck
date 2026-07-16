@@ -7,8 +7,10 @@ import {
   ViewEncapsulation,
   computed,
   contentChild,
+  effect,
   inject,
   input,
+  output,
   signal,
 } from '@angular/core';
 import { PaginationComponent } from '../pagination/pagination.component';
@@ -118,6 +120,13 @@ export class FilterTableComponent<T> {
   readonly prevLabel = input('');
   readonly nextLabel = input('');
 
+  /**
+   * The list the user currently sees (post-filter, pre-paging). Containers
+   * that offer "select all" need it — the filter lives HERE, so without this
+   * they would select rows the user filtered out of view.
+   */
+  readonly filteredChange = output<readonly T[]>();
+
   protected readonly head = contentChild.required(TableHeadDirective);
   protected readonly row = contentChild.required<TableRowDirective<T>>(TableRowDirective);
 
@@ -141,6 +150,10 @@ export class FilterTableComponent<T> {
   protected readonly visible = computed(() =>
     pageSlice(this.filtered(), this.currentPage(), this.pageSize()),
   );
+
+  constructor() {
+    effect(() => this.filteredChange.emit(this.filtered()));
+  }
 
   /** Filter change resets paging (the page count just changed). */
   protected onFilter(value: string): void {

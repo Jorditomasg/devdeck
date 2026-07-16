@@ -116,9 +116,18 @@ const PAGE_SIZE = 15;
               [noResultsText]="'placeholder.no_results' | t"
               [prevLabel]="'pagination.prev' | t"
               [nextLabel]="'pagination.next' | t"
+              (filteredChange)="visibleBranches.set($event)"
             >
               <tr *uiTableHead>
-                <th class="branch__select-head"></th>
+                <th class="branch__select-head">
+                  <input
+                    type="checkbox"
+                    [checked]="allVisibleSelected()"
+                    [indeterminate]="selected().size > 0 && !allVisibleSelected()"
+                    [disabled]="busy() || selectableVisible().length === 0"
+                    (change)="toggleSelectAll()"
+                  />
+                </th>
                 <th>{{ 'dialog.branch.col_branch' | t }}</th>
                 <th class="branch__actions-head">{{ 'dialog.branch.col_actions' | t }}</th>
               </tr>
@@ -186,17 +195,16 @@ const PAGE_SIZE = 15;
                 </td>
               </tr>
             </ui-filter-table>
-            @if (selected().size > 0) {
-              <div class="branch__bulk">
-                <ui-button
-                  variant="danger-deep"
-                  [loading]="busy()"
-                  (clicked)="deleteSelected()"
-                >
-                  {{ 'dialog.branch.btn_delete_selected' | t: { count: selected().size } }}
-                </ui-button>
-              </div>
-            }
+            <div class="branch__bulk">
+              <ui-button
+                variant="danger-deep"
+                [loading]="busy()"
+                [disabled]="selected().size === 0"
+                (clicked)="deleteSelected()"
+              >
+                {{ 'dialog.branch.btn_delete_selected' | t: { count: selected().size } }}
+              </ui-button>
+            </div>
           }
         </div>
 
@@ -238,6 +246,19 @@ export class BranchDialogComponent extends DialogBase {
   protected readonly createError = signal('');
   /** Branch names checked for bulk delete — pruned to live entries on reload. */
   protected readonly selected = signal<ReadonlySet<string>>(new Set());
+  /** What the table currently shows (post-filter) — the select-all scope. */
+  protected readonly visibleBranches = signal<readonly string[]>([]);
+
+  /** Select-all candidates: visible rows minus the current branch. */
+  protected readonly selectableVisible = computed(() =>
+    this.visibleBranches().filter((b) => b !== this.current()),
+  );
+
+  protected readonly allVisibleSelected = computed(() => {
+    const visible = this.selectableVisible();
+    const selected = this.selected();
+    return visible.length > 0 && visible.every((b) => selected.has(b));
+  });
   /**
    * Local result notices, each anchored to the number of streamed git lines
    * present when it was appended, so a burst of ops interleaves 1-to-1 with
@@ -403,6 +424,23 @@ export class BranchDialogComponent extends DialogBase {
       () => this.commands.git.deleteRemoteBranch(this.repoPath(), branch),
       'dialog.branch.done_deleted',
     );
+  }
+
+  /** Check/uncheck every VISIBLE row (hidden-by-filter rows keep their state). */
+  protected toggleSelectAll(): void {
+    const visible = this.selectableVisible();
+    const all = this.allVisibleSelected();
+    this.selected.update((set) => {
+      const next = new Set(set);
+      for (const branch of visible) {
+        if (all) {
+          next.delete(branch);
+        } else {
+          next.add(branch);
+        }
+      }
+      return next;
+    });
   }
 
   protected toggleSelect(branch: string): void {

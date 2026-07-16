@@ -106,9 +106,18 @@ const PAGE_SIZE = 15;
               [noResultsText]="'placeholder.no_results' | t"
               [prevLabel]="'pagination.prev' | t"
               [nextLabel]="'pagination.next' | t"
+              (filteredChange)="visibleEntries.set($event)"
             >
               <tr *uiTableHead>
-                <th class="stash__select-head"></th>
+                <th class="stash__select-head">
+                  <input
+                    type="checkbox"
+                    [checked]="allVisibleSelected()"
+                    [indeterminate]="selected().size > 0 && !allVisibleSelected()"
+                    [disabled]="busy()"
+                    (change)="toggleSelectAll()"
+                  />
+                </th>
                 <th>{{ 'dialog.stash.col_stash' | t }}</th>
                 <th class="stash__actions-head">{{ 'dialog.stash.col_actions' | t }}</th>
               </tr>
@@ -156,17 +165,16 @@ const PAGE_SIZE = 15;
                 </td>
               </tr>
             </ui-filter-table>
-            @if (selected().size > 0) {
-              <div class="stash__bulk">
-                <ui-button
-                  variant="danger-deep"
-                  [loading]="busy()"
-                  (clicked)="dropSelected()"
-                >
-                  {{ 'dialog.stash.btn_drop_selected' | t: { count: selected().size } }}
-                </ui-button>
-              </div>
-            }
+            <div class="stash__bulk">
+              <ui-button
+                variant="danger-deep"
+                [loading]="busy()"
+                [disabled]="selected().size === 0"
+                (clicked)="dropSelected()"
+              >
+                {{ 'dialog.stash.btn_drop_selected' | t: { count: selected().size } }}
+              </ui-button>
+            </div>
           }
         </div>
 
@@ -206,6 +214,14 @@ export class StashDialogComponent extends DialogBase {
   protected readonly hasChanges = signal<boolean | null>(null);
   /** Indices checked for bulk drop — cleared on every reload (indices shift). */
   protected readonly selected = signal<ReadonlySet<number>>(new Set());
+  /** What the table currently shows (post-filter) — the select-all scope. */
+  protected readonly visibleEntries = signal<readonly StashEntry[]>([]);
+
+  protected readonly allVisibleSelected = computed(() => {
+    const visible = this.visibleEntries();
+    const selected = this.selected();
+    return visible.length > 0 && visible.every((e) => selected.has(e.index));
+  });
 
   /** ui-filter-table haystack: searchable text = ref + message + branch. */
   protected readonly stashHaystack = (e: StashEntry): string =>
@@ -315,6 +331,23 @@ export class StashDialogComponent extends DialogBase {
       () => this.commands.git.stashPop(this.repoPath(), entry.index),
       'dialog.stash.done_popped',
     );
+  }
+
+  /** Check/uncheck every VISIBLE row (hidden-by-filter rows keep their state). */
+  protected toggleSelectAll(): void {
+    const visible = this.visibleEntries().map((e) => e.index);
+    const all = this.allVisibleSelected();
+    this.selected.update((set) => {
+      const next = new Set(set);
+      for (const index of visible) {
+        if (all) {
+          next.delete(index);
+        } else {
+          next.add(index);
+        }
+      }
+      return next;
+    });
   }
 
   protected toggleSelect(index: number): void {
