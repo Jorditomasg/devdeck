@@ -5,6 +5,27 @@ All notable changes to DevDeck are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.7.0] - 2026-07-17
+
+### Added
+
+- WSL services now carry an in-distro "lifeline": if DevDeck stops them,
+  exits, or even crashes, the whole Linux process tree is killed instantly
+  from inside the distro — no more orphaned dev servers holding their ports
+  and no more needing `wsl --shutdown` to recover.
+
+### Changed
+
+- Closing the app while WSL services are running is now near-instant
+  (previously it could freeze for 10-30+ seconds while stopping them).
+
+### Fixed
+
+- Force-stopping a WSL service now works even when `wsl.exe` is unresponsive
+  or the service's Linux process id was never captured.
+- Git window: feature lanes are labeled from the "into <branch>" part of
+  merge subjects, so merged-only branches get their real name.
+
 ## [3.6.2] - 2026-07-16
 
 ### Changed
