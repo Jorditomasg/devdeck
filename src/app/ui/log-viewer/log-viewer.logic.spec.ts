@@ -4,6 +4,7 @@ import {
   DEFAULT_MAX_LINES,
   capLines,
   isNearBottom,
+  nextStick,
 } from './log-viewer.logic';
 
 const lines = (n: number): string[] => Array.from({ length: n }, (_, i) => `line ${i}`);
@@ -64,5 +65,26 @@ describe('isNearBottom (autoscroll stickiness)', () => {
 
   it('is true for content shorter than the viewport', () => {
     expect(isNearBottom(0, 500, 300)).toBe(true);
+  });
+});
+
+describe('nextStick (stickiness transition on scroll events)', () => {
+  it('re-engages at (or near) the bottom regardless of history', () => {
+    expect(nextStick(false, 500, 0, 500, 1000)).toBe(true);
+  });
+
+  it('disengages when the user scrolls UP off the bottom', () => {
+    expect(nextStick(true, 300, 500, 500, 1000)).toBe(false);
+  });
+
+  it('SURVIVES a pin that lands short of the bottom (late layout growth)', () => {
+    // Pin moved us DOWN to 480, but content grew after render so we are
+    // >threshold from the bottom. The old position-only sampling flipped
+    // stickiness off here and killed autoscroll permanently.
+    expect(nextStick(true, 480, 200, 500, 1200)).toBe(true);
+  });
+
+  it('stays disengaged while scrolling down but not yet at the bottom', () => {
+    expect(nextStick(false, 300, 100, 500, 1000)).toBe(false);
   });
 });

@@ -1,15 +1,18 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   ElementRef,
+  afterNextRender,
   afterRenderEffect,
   computed,
+  inject,
   input,
   signal,
   viewChild,
 } from '@angular/core';
 import { IconComponent } from '../icon/icon.component';
-import { DEFAULT_MAX_LINES, capLines, isNearBottom } from './log-viewer.logic';
+import { DEFAULT_MAX_LINES, capLines, nextStick } from './log-viewer.logic';
 
 /**
  * High-performance read-only log panel — replaces the v1 card/global/detached
@@ -34,7 +37,9 @@ import { DEFAULT_MAX_LINES, capLines, isNearBottom } from './log-viewer.logic';
  *    (breaks Ctrl+F-style selection and native scrolling) for no measurable
  *    win — content-visibility gives the same paint savings.
  * 4. **Autoscroll-unless-scrolled-up**: stickiness is tracked from scroll
- *    events (`isNearBottom`), re-applied after each render only while stuck.
+ *    events (`nextStick` — only an UPWARD user move disengages), re-applied
+ *    after each render while stuck, and re-asserted via a ResizeObserver on
+ *    the content once `content-visibility` estimated heights settle.
  *
  * Containers should batch line appends (the IPC bridge already flushes every
  * ~50-100ms — architecture §3.2) so this component re-renders at most ~20x/s.
@@ -46,11 +51,13 @@ import { DEFAULT_MAX_LINES, capLines, isNearBottom } from './log-viewer.logic';
   imports: [IconComponent],
   template: `
     <div #scroller class="log" (scroll)="onScroll()">
-      @for (line of view().lines; track base() + $index) {
-        <div class="log__line">{{ line }}</div>
-      } @empty {
-        <div class="log__empty">{{ emptyText() }}</div>
-      }
+      <div #content>
+        @for (line of view().lines; track base() + $index) {
+          <div class="log__line">{{ line }}</div>
+        } @empty {
+          <div class="log__empty">{{ emptyText() }}</div>
+        }
+      </div>
     </div>
     @if (!stick()) {
       <button
@@ -93,34 +100,56 @@ export class LogViewerComponent {
   protected readonly base = computed(() => this.startIndex() + this.view().dropped);
 
   private readonly scroller = viewChild.required<ElementRef<HTMLElement>>('scroller');
+  private readonly content = viewChild.required<ElementRef<HTMLElement>>('content');
+  private readonly destroyRef = inject(DestroyRef);
   /**
    * True while the user is at (or near) the bottom — autoscroll engaged.
    * When false the jump-to-bottom button appears (there is content below).
    */
   protected readonly stick = signal(true);
+  /** Last scroll position seen — lets `nextStick` detect an upward move. */
+  private lastScrollTop = 0;
 
   constructor() {
     // Re-pin to the bottom after every render while stickiness is engaged.
-    // No programmatic-scroll guard is needed: pinning lands at the bottom,
-    // so the resulting scroll event recomputes stickiness as `true`.
     afterRenderEffect(() => {
       this.view(); // re-run on new lines
       if (!this.autoScroll() || !this.stick()) return;
-      const el = this.scroller().nativeElement;
-      el.scrollTop = el.scrollHeight;
+      this.pin();
+    });
+    // The pin above can land SHORT of the real bottom: with
+    // `content-visibility: auto`, scrollHeight uses the 15px intrinsic-size
+    // estimate until lines (especially wrapped ones) actually lay out. Re-pin
+    // when the content's real height settles so stickiness truly sticks.
+    afterNextRender(() => {
+      const observer = new ResizeObserver(() => {
+        if (this.autoScroll() && this.stick()) this.pin();
+      });
+      observer.observe(this.content().nativeElement);
+      this.destroyRef.onDestroy(() => observer.disconnect());
     });
   }
 
-  /** Scroll: disengage when leaving the bottom, re-engage on return. */
+  /**
+   * Scroll: re-engage at the bottom; disengage only when the user moved UP
+   * (position-only sampling used to disengage on late-layout drift too).
+   */
   protected onScroll(): void {
     const el = this.scroller().nativeElement;
-    this.stick.set(isNearBottom(el.scrollTop, el.clientHeight, el.scrollHeight));
+    this.stick.set(
+      nextStick(this.stick(), el.scrollTop, this.lastScrollTop, el.clientHeight, el.scrollHeight),
+    );
+    this.lastScrollTop = el.scrollTop;
   }
 
   /** Jump to the newest line and re-engage autoscroll. */
   protected scrollToBottom(): void {
+    this.pin();
+    this.stick.set(true);
+  }
+
+  private pin(): void {
     const el = this.scroller().nativeElement;
     el.scrollTop = el.scrollHeight;
-    this.stick.set(true);
   }
 }

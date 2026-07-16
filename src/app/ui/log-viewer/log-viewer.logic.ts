@@ -47,3 +47,26 @@ export function isNearBottom(
 ): boolean {
   return scrollHeight - scrollTop - clientHeight <= threshold;
 }
+
+/**
+ * Stickiness transition for a scroll event. Disengaging requires USER intent
+ * (the viewport moved UP); merely "not being at the bottom" must NOT
+ * disengage, because programmatic pins can land short of the real bottom
+ * while `content-visibility` line heights are still estimates — a single
+ * such sample used to kill autoscroll permanently.
+ */
+export function nextStick(
+  prev: boolean,
+  scrollTop: number,
+  lastScrollTop: number,
+  clientHeight: number,
+  scrollHeight: number,
+): boolean {
+  if (isNearBottom(scrollTop, clientHeight, scrollHeight)) {
+    return true;
+  }
+  if (scrollTop < lastScrollTop) {
+    return false; // the user scrolled up
+  }
+  return prev;
+}
