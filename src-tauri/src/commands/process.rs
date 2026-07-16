@@ -96,6 +96,9 @@ pub async fn restart_service(
 
     tauri::async_runtime::spawn(async move {
         let id = spec.id.clone();
+        // Capture the last detected port BEFORE stopping — the supervisor
+        // deregisters the entry on exit, so it is unreadable afterwards.
+        let port = process.port_of(&id).await;
         match process.stop(&id).await {
             // Untracked only — see stop_service for the rationale.
             Ok(StopOutcome::Untracked) => {
@@ -105,6 +108,12 @@ pub async fn restart_service(
             }
             Ok(StopOutcome::Stopped | StopOutcome::AlreadyTerminal) => {}
             Err(err) => log::warn!("restart {id}: stop phase failed: {err}"),
+        }
+        // stop() returning does not guarantee the socket was released (a
+        // tree member may have survived the kill) — without this guard the
+        // relaunch races the old listener and dies with "port in use".
+        if let Some(port) = port {
+            process.wait_port_free(&id, port).await;
         }
         tokio::time::sleep(delay).await;
         if let Err(err) = process.start_service(spec).await {

@@ -37,6 +37,16 @@ pub const TASKKILL_TIMEOUT: Duration = Duration::from_secs(15);
 /// shipped `stop_cmd` is a compose down. v1 never ran `stop_cmd` (§22.6).
 pub const STOP_CMD_TIMEOUT: Duration = Duration::from_secs(60);
 
+/// Restart-only guard: after stop, wait up to this long for the service's
+/// last-known port to become bindable again before relaunching. Covers kill
+/// paths where a tree member survives (or the OS releases the socket late)
+/// so the relaunch doesn't die with "port already in use". v2 addition — no
+/// v1 equivalent (v1 restarts raced the port exactly like the bug report).
+pub const PORT_RELEASE_WAIT: Duration = Duration::from_secs(10);
+
+/// Poll cadence for [`PORT_RELEASE_WAIT`].
+pub const PORT_RELEASE_POLL: Duration = Duration::from_millis(500);
+
 /// Total bound for `shutdown_all` on app exit. v2 decision (no v1 equivalent
 /// — v1 relied on unbounded serial atexit hooks, §21.4): stops run
 /// concurrently, each bounded by stop_cmd (60 s worst case) + graceful (10 s)
@@ -100,6 +110,13 @@ mod tests {
         assert_eq!(STOP_FORCE_WAIT.as_secs(), 5);
         assert_eq!(TASKKILL_TIMEOUT.as_secs(), 15, "taskkill 15 s");
         assert_eq!(STOP_CMD_TIMEOUT.as_secs(), 60, "compose down/stop 60 s");
+    }
+
+    #[test]
+    fn port_release_guard_is_bounded_and_polls_sanely() {
+        assert_eq!(PORT_RELEASE_WAIT.as_secs(), 10);
+        assert_eq!(PORT_RELEASE_POLL.as_millis(), 500);
+        assert!(PORT_RELEASE_POLL < PORT_RELEASE_WAIT);
     }
 
     #[test]

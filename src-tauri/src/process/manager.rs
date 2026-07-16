@@ -287,6 +287,54 @@ impl ProcessManager {
             .unwrap_or(ServiceStatus::Stopped)
     }
 
+    /// Last port detected on the run's output (None if untracked or the
+    /// analyzer never saw one). Read BEFORE a stop: the terminal supervisor
+    /// deregisters the entry, after which this returns None.
+    pub async fn port_of(&self, id: &str) -> Option<u16> {
+        self.inner
+            .services
+            .lock()
+            .await
+            .get(id)
+            .and_then(|e| e.state_rx.borrow().port)
+    }
+
+    /// Restart guard: poll `port` until it can be bound again, bounded by
+    /// [`super::constants::PORT_RELEASE_WAIT`]. Needed because stop() can
+    /// return while something still holds the socket — a tree member that
+    /// survived the kill, or late OS-side socket teardown (the boa2-frontend
+    /// "Port 4200 is already in use" restart failure). On timeout the guard
+    /// logs to the service window and gives up — the relaunch then fails
+    /// with the framework's own port error, but the log line says why.
+    pub async fn wait_port_free(&self, id: &str, port: u16) {
+        use super::constants::{PORT_RELEASE_POLL, PORT_RELEASE_WAIT};
+
+        let deadline = tokio::time::Instant::now() + PORT_RELEASE_WAIT;
+        loop {
+            // Bind-test on localhost — the same operation the relaunched dev
+            // server will attempt; a connect-test would miss servers bound
+            // to 0.0.0.0 with no accept queue. The listener drops (closes)
+            // immediately on success.
+            match std::net::TcpListener::bind(("127.0.0.1", port)) {
+                Ok(_) => return,
+                Err(_) if tokio::time::Instant::now() >= deadline => {
+                    log::warn!("'{id}': port {port} still in use {}s after stop", PORT_RELEASE_WAIT.as_secs());
+                    emit_lines_now(
+                        self.inner.emitter.as_ref(),
+                        id,
+                        LogStream::Service,
+                        vec![format!(
+                            "[svc] ⚠️ {id}: port {port} still in use {}s after stop (a process survived the kill?) — starting anyway",
+                            PORT_RELEASE_WAIT.as_secs()
+                        )],
+                    );
+                    return;
+                }
+                Err(_) => tokio::time::sleep(PORT_RELEASE_POLL).await,
+            }
+        }
+    }
+
     /// Snapshot of every tracked run (v1 `get_all_services` copy, §17).
     pub async fn snapshots(&self) -> Vec<ServiceSnapshot> {
         self.inner
@@ -1145,6 +1193,38 @@ mod tests {
         let (_, mgr) = collecting_manager();
         assert_eq!(mgr.status("ghost").await, ServiceStatus::Stopped);
         assert!(!mgr.is_running("ghost").await);
+        assert_eq!(mgr.port_of("ghost").await, None);
+    }
+
+    // -- restart port-release guard ------------------------------------------
+
+    #[tokio::test]
+    async fn wait_port_free_returns_silently_on_a_free_port() {
+        let (emitter, mgr) = collecting_manager();
+        // Learn a port the OS just handed out, then release it.
+        let port = std::net::TcpListener::bind(("127.0.0.1", 0))
+            .unwrap()
+            .local_addr()
+            .unwrap()
+            .port();
+        mgr.wait_port_free("svc", port).await;
+        assert!(emitter.log_lines_for("svc").is_empty(), "free port must not log");
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn wait_port_free_gives_up_and_logs_when_the_port_stays_busy() {
+        let (emitter, mgr) = collecting_manager();
+        let holder = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let port = holder.local_addr().unwrap().port();
+        // Paused clock: the 10 s bound elapses virtually, the test stays fast.
+        mgr.wait_port_free("svc", port).await;
+        let lines = emitter.log_lines_for("svc");
+        assert_eq!(lines.len(), 1, "exactly one warning line: {lines:?}");
+        assert!(
+            lines[0].contains(&format!("port {port} still in use")),
+            "{lines:?}"
+        );
+        drop(holder);
     }
 
     // -- real-process lifecycle (Unix only: relies on /bin/sh) ---------------
