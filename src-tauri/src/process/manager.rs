@@ -311,27 +311,25 @@ impl ProcessManager {
 
         let deadline = tokio::time::Instant::now() + PORT_RELEASE_WAIT;
         loop {
-            // Bind-test on localhost — the same operation the relaunched dev
-            // server will attempt; a connect-test would miss servers bound
-            // to 0.0.0.0 with no accept queue. The listener drops (closes)
-            // immediately on success.
-            match std::net::TcpListener::bind(("127.0.0.1", port)) {
-                Ok(_) => return,
-                Err(_) if tokio::time::Instant::now() >= deadline => {
-                    log::warn!("'{id}': port {port} still in use {}s after stop", PORT_RELEASE_WAIT.as_secs());
-                    emit_lines_now(
-                        self.inner.emitter.as_ref(),
-                        id,
-                        LogStream::Service,
-                        vec![format!(
-                            "[svc] ⚠️ {id}: port {port} still in use {}s after stop (a process survived the kill?) — starting anyway",
-                            PORT_RELEASE_WAIT.as_secs()
-                        )],
-                    );
-                    return;
-                }
-                Err(_) => tokio::time::sleep(PORT_RELEASE_POLL).await,
+            if port_bindable(port) {
+                return;
             }
+            if tokio::time::Instant::now() >= deadline {
+                log::warn!("'{id}': port {port} still in use {}s after stop", PORT_RELEASE_WAIT.as_secs());
+                let mut lines = vec![format!(
+                    "[svc] ⚠️ {id}: port {port} still in use {}s after stop (a process survived the kill?) — starting anyway",
+                    PORT_RELEASE_WAIT.as_secs()
+                )];
+                // Name the culprit while it is still alive — the one piece of
+                // evidence the boa2-frontend restart failures never captured.
+                if let Some(holder) = port_holder_diagnostic(port).await {
+                    log::warn!("'{id}': port {port} is held by {holder}");
+                    lines.push(format!("[svc] 🔎 {id}: port {port} is held by {holder}"));
+                }
+                emit_lines_now(self.inner.emitter.as_ref(), id, LogStream::Service, lines);
+                return;
+            }
+            tokio::time::sleep(PORT_RELEASE_POLL).await;
         }
     }
 
@@ -820,6 +818,112 @@ async fn kill_run_tree(
     }
 }
 
+/// Bind-test both stacks — the same operation the relaunched dev server
+/// will attempt; a connect-test would miss servers bound to 0.0.0.0 with no
+/// accept queue. The listeners drop (close) immediately on success. The
+/// IPv6 probe exists because modern dev servers (vite / angular esbuild)
+/// listen on `::` — an IPv6-only survivor passes a v4-only probe and the
+/// relaunch still dies with "port in use". A v6 error OTHER than
+/// in-use/denied (e.g. no IPv6 stack) counts as free.
+fn port_bindable(port: u16) -> bool {
+    if std::net::TcpListener::bind(("127.0.0.1", port)).is_err() {
+        return false;
+    }
+    match std::net::TcpListener::bind(("::1", port)) {
+        Ok(_) => true,
+        Err(e) => !matches!(
+            e.kind(),
+            std::io::ErrorKind::AddrInUse | std::io::ErrorKind::PermissionDenied
+        ),
+    }
+}
+
+/// PIDs LISTENING on `port`, parsed from `netstat -ano -p tcp` output
+/// (pure — testable off-Windows). UDP rows have no State column and TCP
+/// rows from other ports/states fall out of the filter.
+#[cfg(any(windows, test))]
+fn netstat_listener_pids(output: &str, port: u16) -> Vec<u32> {
+    let needle = format!(":{port}");
+    let mut pids: Vec<u32> = output
+        .lines()
+        .filter_map(|line| {
+            let mut cols = line.split_whitespace();
+            let proto = cols.next()?;
+            let local = cols.next()?;
+            let _foreign = cols.next()?;
+            let state = cols.next()?;
+            let pid = cols.next()?;
+            (proto.eq_ignore_ascii_case("tcp")
+                && local.ends_with(&needle)
+                && state.eq_ignore_ascii_case("listening"))
+            .then(|| pid.parse().ok())
+            .flatten()
+        })
+        .collect();
+    pids.sort_unstable();
+    pids.dedup();
+    pids
+}
+
+/// First quoted field of `tasklist /FO CSV /NH` output — the image name.
+/// `None` when tasklist matched nothing (it prints an unquoted INFO line).
+#[cfg(any(windows, test))]
+fn tasklist_image(csv: &str) -> Option<String> {
+    let line = csv.lines().find(|l| l.starts_with('"'))?;
+    line[1..].split('"').next().map(str::to_owned)
+}
+
+/// Post-mortem for a port that never freed after a stop: name who is STILL
+/// listening on it ("node.exe (PID 1234)"), so the service window records
+/// the survivor instead of a guess. Windows-only — the survived-kill path
+/// is the job/taskkill one; bounded so a slow netstat can never hold the
+/// restart hostage.
+#[cfg(windows)]
+async fn port_holder_diagnostic(port: u16) -> Option<String> {
+    const DIAG_TIMEOUT: Duration = Duration::from_secs(5);
+
+    #[allow(clippy::items_after_statements)]
+    async fn run_quiet(program: &str, args: &[&str]) -> Option<std::process::Output> {
+        use std::os::windows::process::CommandExt;
+        let mut cmd = tokio::process::Command::new(program);
+        cmd.args(args)
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::null())
+            .kill_on_drop(true);
+        cmd.creation_flags(super::constants::CREATE_NO_WINDOW);
+        tokio::time::timeout(DIAG_TIMEOUT, cmd.output())
+            .await
+            .ok()?
+            .ok()
+    }
+
+    let out = run_quiet("netstat", &["-ano", "-p", "tcp"]).await?;
+    let pids = netstat_listener_pids(&String::from_utf8_lossy(&out.stdout), port);
+    if pids.is_empty() {
+        return None;
+    }
+    let mut parts = Vec::new();
+    for pid in pids.iter().take(3) {
+        let filter = format!("PID eq {pid}");
+        let name = run_quiet("tasklist", &["/FO", "CSV", "/NH", "/FI", &filter])
+            .await
+            .and_then(|o| tasklist_image(&String::from_utf8_lossy(&o.stdout)));
+        parts.push(match name {
+            Some(n) => format!("{n} (PID {pid})"),
+            None => format!("PID {pid}"),
+        });
+    }
+    Some(parts.join(", "))
+}
+
+#[cfg(not(windows))]
+async fn port_holder_diagnostic(_port: u16) -> Option<String> {
+    // ponytail: Windows-only — the survived-kill bug lives on the
+    // job/taskkill path; add an `ss -ltnp` variant if Linux ever reproduces.
+    None
+}
+
 /// Pump one output pipe into the shared line channel: lossy UTF-8 decode
 /// (§21.5 `errors='replace'`), ANSI strip (§21.2), trim, drop empties (§18).
 async fn pump_lines<R: AsyncRead + Unpin>(reader: R, tx: mpsc::Sender<String>) {
@@ -1219,12 +1323,40 @@ mod tests {
         // Paused clock: the 10 s bound elapses virtually, the test stays fast.
         mgr.wait_port_free("svc", port).await;
         let lines = emitter.log_lines_for("svc");
-        assert_eq!(lines.len(), 1, "exactly one warning line: {lines:?}");
+        // On Windows the post-mortem may append a second "held by" line
+        // (here the holder is this test itself); elsewhere exactly one.
+        assert!(!lines.is_empty(), "expected the warning line: {lines:?}");
         assert!(
             lines[0].contains(&format!("port {port} still in use")),
             "{lines:?}"
         );
         drop(holder);
+    }
+
+    #[test]
+    fn netstat_parse_picks_only_listeners_on_the_port() {
+        let out = "\
+  Proto  Local Address          Foreign Address        State           PID
+  TCP    0.0.0.0:4200           0.0.0.0:0              LISTENING       1234
+  TCP    [::]:4200              [::]:0                 LISTENING       1234
+  TCP    127.0.0.1:14200        0.0.0.0:0              LISTENING       9
+  TCP    10.0.0.5:4200          10.0.0.9:55555         ESTABLISHED     77
+  TCP    0.0.0.0:8080           0.0.0.0:0              LISTENING       4321
+  UDP    0.0.0.0:4200           *:*                                    55
+";
+        assert_eq!(netstat_listener_pids(out, 4200), vec![1234]);
+    }
+
+    #[test]
+    fn tasklist_image_extracts_the_first_csv_field_or_none() {
+        assert_eq!(
+            tasklist_image("\"node.exe\",\"1234\",\"Console\",\"1\",\"88.100 K\"\r\n").as_deref(),
+            Some("node.exe")
+        );
+        assert_eq!(
+            tasklist_image("INFO: No tasks are running which match the specified criteria.\r\n"),
+            None
+        );
     }
 
     // -- real-process lifecycle (Unix only: relies on /bin/sh) ---------------
