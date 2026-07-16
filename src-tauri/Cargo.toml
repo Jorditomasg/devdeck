@@ -9,7 +9,7 @@
 
 [package]
 name = "devdeck"
-version = "3.6.1"
+version = "3.6.2"
 description = "DevDeck — desktop app for managing local development services"
 authors = ["Jorditomasg"]
 edition = "2021"

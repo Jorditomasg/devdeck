@@ -5,6 +5,18 @@ All notable changes to DevDeck are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.6.2] - 2026-07-16
+
+### Changed
+
+- When a restart times out waiting for the port to be released, the error now
+  names the process still holding the port (IPv6 listeners are detected too).
+
+### Fixed
+
+- Log autoscroll no longer disengages on its own; only scrolling upward
+  detaches it, and jumping back to the bottom re-engages it.
+
 ## [3.6.1] - 2026-07-16
 
 ### Changed
