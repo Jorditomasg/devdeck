@@ -1,0 +1,25 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "stdin=$(cat); case \"$stdin\" in *src/assets/i18n/*) node scripts/check-i18n-keys.mjs >&2 || exit 2;; esac",
+            "timeout": 30,
+            "statusMessage": "Checking i18n key parity (en/es)..."
+          },
+          {
+            "type": "command",
+            "command": "stdin=$(cat); case \"$stdin\" in *src/app/*.ts\\\"*) out=$(npx madge --circular --extensions ts src/app 2>&1) || { echo \"$out\" >&2; exit 2; };; esac",
+            "timeout": 120,
+            "asyncRewake": true,
+            "rewakeMessage": "madge found a circular dependency in src/app — this shipped a blank-window crash before. Fix the cycle now:",
+            "statusMessage": "Checking circular dependencies (madge)..."
+          }
+        ]
+      }
+    ]
+  }
+}
