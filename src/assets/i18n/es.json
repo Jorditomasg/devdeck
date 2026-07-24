@@ -41,7 +41,9 @@
     "branches": "Ramas",
     "git_history": "Historial",
     "edit": "Editar",
-    "delete": "Eliminar"
+    "delete": "Eliminar",
+    "git_batch": "Git",
+    "apply_branch_menu": "Aplicar rama…"
   },
   "install": {
     "label_missing": "Install",
@@ -55,7 +57,6 @@
     "branch": "Rama:",
     "select_all": "Seleccionar todos",
     "global_panel_title": "Panel Global",
-    "global_branch": "Rama:",
     "log_section": "Logs del Repositorio",
     "terminal": "Terminal",
     "status": {
@@ -84,7 +85,12 @@
     "no_repos": "No se detectaron repositorios en este workspace",
     "no_repos_match": "Ningún repositorio coincide con la búsqueda",
     "orphans_running": "{count} servicio(s) siguen activos en otro workspace",
-    "env_drift_deselected": "{count} selección(es) de entorno deseleccionada(s) — su fichero cambió en disco"
+    "env_drift_deselected": "{count} selección(es) de entorno deseleccionada(s) — su fichero cambió en disco",
+    "batch_applying_branch": "Aplicando rama",
+    "batch_fetching": "Haciendo fetch",
+    "batch_pulling": "Haciendo pull",
+    "batch_checking_install": "Comprobando",
+    "batch_installing": "Instalando"
   },
   "tooltip": {
     "drag_reorder": "Arrastrar para reordenar",
@@ -132,7 +138,9 @@
     "open_port": "Abrir en el navegador",
     "stash_btn": "Gestionar el stash: añadir, aplicar, pop o eliminar cambios",
     "branches_btn": "Gestionar ramas: crear, renombrar, publicar o borrar",
-    "git_history_btn": "Historial de commits, diffs y versiones de ficheros"
+    "git_history_btn": "Historial de commits, diffs y versiones de ficheros",
+    "git_batch": "Acciones git en lote sobre los repos seleccionados",
+    "select_all": "Seleccionar o deseleccionar todos los repos"
   },
   "dialog": {
     "settings": {
@@ -592,7 +600,9 @@
     "no_repos_selected": "No hay repos seleccionados",
     "branch_not_found_title": "Rama no encontrada",
     "branch_not_found_msg": "La rama '{branch}' no se encontró en:\n{repos}\n\nEstos repos mantienen su rama actual.",
-    "copy_suffix": "_copia"
+    "copy_suffix": "_copia",
+    "confirm_stop_selected_one": "¿Detener el servicio en ejecución?",
+    "confirm_stop_selected_many": "¿Detener los {count} servicios en ejecución?"
   },
   "docker": {
     "title": "Servicios Definidos",

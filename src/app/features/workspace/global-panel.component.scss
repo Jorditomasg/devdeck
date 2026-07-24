@@ -1,12 +1,13 @@
-// Global panel (inventory-gui §3) — card-styled batch-controls frame.
-// Token values only.
-@use '../../../styles/mixins' as mx;
+// Global panel (inventory-gui §3) — ONE-ROW card-styled command bar.
+// Token values only. The section title lives in the host's aria-label, not in
+// a row of pixels, so the bar is a single line tall.
 
 :host {
   display: flex;
   flex-shrink: 0;
-  flex-direction: column;
+  align-items: center;
   gap: 6px;
+  min-height: var(--geo-btn-height-md);
   margin: 10px 10px 6px;
   padding: 8px 12px;
   background-color: var(--color-card);
@@ -14,27 +15,39 @@
   border-radius: var(--geo-corner-card);
 }
 
-.panel__row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-height: var(--geo-btn-height-md);
-}
-
-.panel__title {
-  color: var(--color-text-primary);
-  font-size: var(--font-size-xxl);
-  font-weight: 700;
-}
-
 .panel__spacer {
   flex: 1 1 0;
 }
 
+// Native <progress> — themed with accent-color, no pseudo-element pile.
+// Fixed width (not flex): a bar that grows as repos are counted would shove
+// the action buttons sideways mid-batch.
+.panel__progress {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-md);
+
+  progress {
+    width: 140px;
+    height: 6px;
+    accent-color: var(--color-text-accent-bright);
+  }
+}
+
+.panel__progress-count {
+  font-family: var(--font-family-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+// Sits immediately left of the Start/Stop/Restart it governs (§3 proximity).
 .panel__select-all {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  margin-right: 4px;
   color: var(--color-text-muted);
   font-size: var(--font-size-base);
   cursor: pointer;
@@ -47,32 +60,9 @@
   }
 }
 
-.panel__label {
-  flex-shrink: 0;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-base);
-}
-
-.panel__branch {
-  @include mx.control-reset;
-  @include mx.transition(border-color);
-  width: 180px;
-  flex-shrink: 0;
-  height: var(--geo-btn-height-md);
-  padding: 0 8px;
-  background-color: var(--color-section);
-  border: var(--geo-border-width) solid var(--color-border-default);
-  border-radius: var(--geo-corner-btn);
-  color: var(--color-text-primary);
+// tabular-nums so 9/12 → 10/12 does not nudge the buttons.
+.panel__count {
   font-family: var(--font-family-mono);
   font-size: var(--font-size-md);
-
-  &::placeholder {
-    color: var(--color-text-placeholder);
-  }
-
-  &:focus {
-    outline: none;
-    border-color: var(--color-text-accent-bright);
-  }
+  font-variant-numeric: tabular-nums;
 }

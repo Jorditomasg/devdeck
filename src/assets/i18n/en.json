@@ -41,7 +41,9 @@
     "branches": "Branches",
     "git_history": "History",
     "edit": "Edit",
-    "delete": "Delete"
+    "delete": "Delete",
+    "git_batch": "Git",
+    "apply_branch_menu": "Apply branch…"
   },
   "install": {
     "label_missing": "Install",
@@ -55,7 +57,6 @@
     "branch": "Branch:",
     "select_all": "Select all",
     "global_panel_title": "Global Panel",
-    "global_branch": "Branch:",
     "log_section": "Repository Log",
     "terminal": "Terminal",
     "status": {
@@ -84,7 +85,12 @@
     "no_repos": "No repositories detected in this workspace",
     "no_repos_match": "No repositories match your search",
     "orphans_running": "{count} service(s) still running in another workspace",
-    "env_drift_deselected": "{count} environment selection(s) deselected — their file changed on disk"
+    "env_drift_deselected": "{count} environment selection(s) deselected — their file changed on disk",
+    "batch_applying_branch": "Applying branch",
+    "batch_fetching": "Fetching",
+    "batch_pulling": "Pulling",
+    "batch_checking_install": "Checking",
+    "batch_installing": "Installing"
   },
   "tooltip": {
     "drag_reorder": "Drag to reorder",
@@ -132,7 +138,9 @@
     "open_port": "Open in browser",
     "stash_btn": "Manage the stash: add, apply, pop or drop changes",
     "branches_btn": "Manage branches: create, rename, publish or delete",
-    "git_history_btn": "Commit history, diffs and file versions"
+    "git_history_btn": "Commit history, diffs and file versions",
+    "git_batch": "Batch git actions over the selected repos",
+    "select_all": "Select or deselect every repo"
   },
   "dialog": {
     "settings": {
@@ -592,7 +600,9 @@
     "no_repos_selected": "No repos selected",
     "branch_not_found_title": "Branch not found",
     "branch_not_found_msg": "Branch '{branch}' not found in:\n{repos}\n\nThese repos keep their current branch.",
-    "copy_suffix": "_copy"
+    "copy_suffix": "_copy",
+    "confirm_stop_selected_one": "Stop the 1 running service?",
+    "confirm_stop_selected_many": "Stop the {count} running services?"
   },
   "docker": {
     "title": "Defined Services",

@@ -51,7 +51,7 @@ export interface ServiceRuntime {
 }
 
 /** Statuses with a live OS process (mirror of `ServiceStatus::is_active`). */
-const ACTIVE_STATUSES: readonly ServiceStatus[] = [
+export const ACTIVE_STATUSES: readonly ServiceStatus[] = [
   'starting',
   'running',
   'stopping',

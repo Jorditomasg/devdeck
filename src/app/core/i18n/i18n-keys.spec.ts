@@ -26,6 +26,8 @@ const DYNAMIC_PREFIXES = [
   // tn() plural pairs: the call site names the BASE key only
   // (confirm-close: tn('dialog.confirm_close.message', count)).
   /^dialog\.confirm_close\.message_(one|many)$/,
+  // global-panel: tn('misc.confirm_stop_selected', aliveCount).
+  /^misc\.confirm_stop_selected_(one|many)$/,
 ];
 
 function flatten(catalog: object, prefix = ''): string[] {
