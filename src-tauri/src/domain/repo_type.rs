@@ -270,7 +270,7 @@ mod tests {
         assert!(!docker.detect.git_required);
         assert_eq!(docker.run.restart_delay_ms, Some(2000));
         assert!(!docker.config.editable);
-        assert_eq!(docker.run.stop.default.as_deref(), Some("docker-compose down"));
+        assert_eq!(docker.run.stop.default.as_deref(), Some("docker compose down"));
 
         // spring-boot: spring writer, java_version enricher, implicit default profile.
         let spring = &defs["spring-boot"];

@@ -304,7 +304,7 @@ mod tests {
         .unwrap();
         let repo = build_repo_info("infra", &root, &def);
         assert_eq!(repo.docker_compose_files.len(), 1);
-        assert_eq!(repo.stop_command.as_deref(), Some("docker-compose down"));
+        assert_eq!(repo.stop_command.as_deref(), Some("docker compose down"));
         assert_eq!(repo.environment_files.len(), 1);
         assert!(repo.profiles.is_empty(), ".env patterns extract no profiles");
         // v2 data-driven fields: docker-infra carries its restart delay and is
