@@ -330,16 +330,81 @@ describe('laneColor', () => {
 });
 
 describe('assignBranchColors', () => {
-  it('gives every distinct visible label its own color, first-seen order', () => {
+  it('gives every distinct visible line its own color', () => {
     const rows = computeGraph([
       { sha: 'b', parents: ['x'], source: 'main' },
       { sha: 'a', parents: ['y'], source: 'efficient-webjars' },
     ]);
     const palette = assignBranchColors(rows);
     // The exact regression: recycled lane 0 made these look like ONE line.
-    expect(palette.get('main')).toBe(LANE_COLORS[0]);
-    expect(palette.get('efficient-webjars')).toBe(LANE_COLORS[1]);
     expect(palette.get('main')).not.toBe(palette.get('efficient-webjars'));
+  });
+
+  it('colors an UNNAMED merged-in lane apart from its neighbours', () => {
+    // The 2026-07-24 report: an Azure DevOps branch with no name anywhere
+    // fell back to laneColor(index) and came out in the same green as the
+    // NAMED branch in the lane next to it.
+    const rows = computeGraph([
+      { sha: 'm', parents: ['d1', 'f1'], refs: ['develop'], subject: 'Merged PR 1: t' },
+      { sha: 'f1', parents: ['gone'], source: 'develop' }, // nameless: no ref, no subject
+      { sha: 'd1', parents: [], source: 'develop' },
+    ]);
+    const palette = assignBranchColors(rows);
+    expect(rows[1].label).toBeUndefined(); // still honestly unnamed…
+    expect(palette.get(rows[1].key)).toBeDefined(); // …but it OWNS a color
+    expect(palette.get(rows[1].key)).not.toBe(palette.get('develop'));
+  });
+
+  it('keeps one color per line across its whole run', () => {
+    const rows = computeGraph([
+      { sha: 'm', parents: ['c', 'x2'], refs: ['develop'], subject: 'Merged PR 1: t' },
+      { sha: 'x2', parents: ['x1'] }, // unnamed run, two commits
+      { sha: 'x1', parents: ['c'] },
+      { sha: 'c', parents: [] },
+    ]);
+    const palette = assignBranchColors(rows);
+    expect(rows[1].key).toBe(rows[2].key); // same run = same identity
+    expect(palette.get(rows[1].key)).toBe(palette.get(rows[2].key));
+  });
+
+  it('reuses a color only between lines that never share a row', () => {
+    // 12 colors, 28 lines in a real 60-commit page — reuse is unavoidable,
+    // but never between two lines drawn together (measured 2026-07-24).
+    const rows = computeGraph([
+      { sha: 'm', parents: ['c', 'x'], refs: ['main'], subject: "Merge branch 'a'" },
+      { sha: 'x', parents: ['c'] },
+      { sha: 'c', parents: ['n', 'y'], subject: "Merge branch 'b'" },
+      { sha: 'y', parents: ['n'] },
+      { sha: 'n', parents: [] },
+    ]);
+    const palette = assignBranchColors(rows);
+    for (const row of rows) {
+      const together = new Set<string>([row.key]);
+      row.through.forEach((l) => row.keys[l] !== undefined && together.add(row.keys[l]!));
+      row.fromTop.forEach((l) => row.topKeys[l] !== undefined && together.add(row.topKeys[l]!));
+      const colors = [...together].map((k) => palette.get(k));
+      expect(new Set(colors).size).toBe(together.size);
+    }
+  });
+
+  it('derives the color from the branch NAME, so it survives reordering', () => {
+    // User 2026-07-24: "los colores deberían repartirse por los nombres de
+    // las ramas, no por orden" — a branch that shows up later in another page
+    // must not change color.
+    const first = assignBranchColors(
+      computeGraph([
+        { sha: 'b', parents: [], source: 'main' },
+        { sha: 'a', parents: [], source: 'feature/kpi' },
+      ]),
+    );
+    const swapped = assignBranchColors(
+      computeGraph([
+        { sha: 'a', parents: [], source: 'feature/kpi' },
+        { sha: 'b', parents: [], source: 'main' },
+      ]),
+    );
+    expect(swapped.get('main')).toBe(first.get('main'));
+    expect(swapped.get('feature/kpi')).toBe(first.get('feature/kpi'));
   });
 });
 

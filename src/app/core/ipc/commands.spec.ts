@@ -5,7 +5,7 @@ import { CMD, IpcCommands } from './commands';
 import { FakeTauriBridge } from './tauri-bridge.fake';
 
 describe('CMD registry', () => {
-  it('contains the 111 contract commands, all snake_case and unique', () => {
+  it('contains every contract command, all snake_case and unique', () => {
     // 86 prior + show_main_window / request_quit (tray quick-control panel)
     // + whats_new_on_startup / disable_whats_new (post-update popup)
     // + open_git_window / git_log / git_commit_files / git_commit_file_diff
@@ -112,7 +112,7 @@ describe('IpcCommands wrappers', () => {
     const api = new IpcCommands(bridge);
 
     await api.git.createBranch('/ws/api', 'feature/x', 'main', true);
-    await api.git.deleteBranch('/ws/api', 'old', false);
+    await api.git.deleteBranches('/ws/api', ['old', 'older'], false);
     await api.git.deleteRemoteBranch('/ws/api', 'old');
     await api.git.renameBranch('/ws/api', null, 'renamed');
     await api.git.publishBranch('/ws/api', 'feature/x');
@@ -125,7 +125,7 @@ describe('IpcCommands wrappers', () => {
     });
     expect(bridge.invokesOf(CMD.gitDeleteBranch)[0]?.args).toEqual({
       repoPath: '/ws/api',
-      name: 'old',
+      names: ['old', 'older'],
       force: false,
     });
     expect(bridge.invokesOf(CMD.gitDeleteRemoteBranch)[0]?.args).toEqual({

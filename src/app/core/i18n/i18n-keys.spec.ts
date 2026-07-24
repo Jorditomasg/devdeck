@@ -58,6 +58,8 @@ describe('i18n catalogs', () => {
     expect(esKeys.filter((k) => !enSet.has(k))).toEqual([]);
   });
 
+  // 30 s timeout: reads the whole src/app tree — pure I/O that flirts with
+  // the default 5 s under full-suite load on slow filesystems (WSL /mnt/c).
   it('every key is referenced in src/app (or matches a dynamic prefix)', () => {
     // cwd = repo root (vitest runs from the package root).
     const source = readTree(join(process.cwd(), 'src/app'));
@@ -65,5 +67,5 @@ describe('i18n catalogs', () => {
       (key) => !source.includes(key) && !DYNAMIC_PREFIXES.some((p) => p.test(key)),
     );
     expect(orphans).toEqual([]);
-  });
+  }, 30_000);
 });

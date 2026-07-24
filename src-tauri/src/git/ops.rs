@@ -186,9 +186,27 @@ pub async fn get_remote_url(repo: &Path) -> Option<String> {
     out.success.then(|| parse::remote_url_to_https(&out.stdout))
 }
 
-/// Membership in `get_branches(include_remote=true)` (v1 `has_branch`).
+/// Membership in `get_branches(include_remote=true)` (v1 `has_branch`),
+/// answered with output-free `show-ref` probes (early exit) instead of
+/// listing, sorting and scanning EVERY branch — two full subprocesses — to
+/// test one name. Remote names may arrive origin-stripped (`feature/x`) or
+/// remote-qualified (`upstream/x`), mirroring `parse_remote_branches`, so
+/// both remote forms are probed.
 pub async fn has_branch(repo: &Path, branch: &str) -> bool {
-    get_branches(repo, true).await.iter().any(|b| b == branch)
+    if is_option_like(branch) {
+        return false;
+    }
+    for refname in [
+        format!("refs/heads/{branch}"),
+        format!("refs/remotes/origin/{branch}"),
+        format!("refs/remotes/{branch}"),
+    ] {
+        let probe = run_git(repo, &["show-ref", "--verify", "--quiet", &refname], T_FAST).await;
+        if matches!(probe, Ok(out) if out.success) {
+            return true;
+        }
+    }
+    false
 }
 
 // ---------------------------------------------------------------------------

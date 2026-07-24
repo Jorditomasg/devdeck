@@ -89,11 +89,14 @@ async fn path_op(repo: &Path, prefix: &[&str], path: &str, log: Option<&LogSink>
 /// (512 KiB ⇒ `too_large`, NUL byte ⇒ `binary`).
 pub async fn read_working_file(repo: &Path, path: &str) -> Result<FileAtCommit, String> {
     let full = resolve_in_repo(repo, path)?;
-    let size = std::fs::metadata(&full).map_err(|e| format!("read {path}: {e}"))?.len();
+    // tokio::fs, not std::fs: for repos under \\wsl.localhost these calls
+    // cross the 9P bridge (hundreds of ms) and would stall a runtime worker.
+    let meta = tokio::fs::metadata(&full).await.map_err(|e| format!("read {path}: {e}"))?;
+    let size = meta.len();
     if size as usize > MAX_TEXT_BYTES {
         return Ok(FileAtCommit { content: None, binary: false, too_large: true, size });
     }
-    let bytes = std::fs::read(&full).map_err(|e| format!("read {path}: {e}"))?;
+    let bytes = tokio::fs::read(&full).await.map_err(|e| format!("read {path}: {e}"))?;
     if bytes.contains(&0) {
         return Ok(FileAtCommit { content: None, binary: true, too_large: false, size });
     }
@@ -109,7 +112,7 @@ pub async fn read_working_file(repo: &Path, path: &str) -> Result<FileAtCommit, 
 /// canonicalizes it) — this never creates paths.
 pub async fn write_working_file(repo: &Path, path: &str, content: &str) -> Result<(), String> {
     let full = resolve_in_repo(repo, path)?;
-    std::fs::write(&full, content).map_err(|e| format!("write {path}: {e}"))
+    tokio::fs::write(&full, content).await.map_err(|e| format!("write {path}: {e}"))
 }
 
 /// Trust boundary for direct file access: `rel` must be a plain relative

@@ -76,6 +76,12 @@ export function formatCardLine(entry: LogLine): string {
     // §accent: deselected repos recede so the marked set stands out — but a
     // running repo stays accented even when unmarked (CSS-only).
     '[class.card--dimmed]': '!state().selected && status() !== "running"',
+    // Any focus inside the card (click on a control, keyboard tab-in) reads as
+    // "I'm looking at this repo" → acknowledge a failed run. `focusin` bubbles;
+    // `focus` does not. Clicking dead card space focuses nothing, which is why
+    // `onToggleExpand` acks explicitly too (and WebKit does not focus buttons
+    // on click at all).
+    '(focusin)': 'ackError()',
   },
   template: `
     <app-card-header
@@ -534,10 +540,21 @@ export class RepoCardComponent {
     void this.persistRepoState();
   }
 
+  /**
+   * Acknowledge a failed run: the red dot is an "unread failure" flag, so
+   * looking at the repo clears it. No-op unless the card IS in `error`
+   * (`ServicesStore.clearError`), so the host `focusin` binding is free.
+   * The log lines stay — only the dot is acknowledged.
+   */
+  protected ackError(): void {
+    this.services.clearError(this.repo().name);
+  }
+
   protected onToggleExpand(): void {
     if (this.ws.reorderMode()) {
       return; // reorder mode keeps the list collapsed for dragging
     }
+    this.ackError();
     const expanded = !this.state().expanded;
     this.ws.patchCard(this.repo().name, { expanded }, { silent: true });
     void this.persistRepoState();

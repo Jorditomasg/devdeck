@@ -26,7 +26,9 @@ use tokio::io::{AsyncBufRead, AsyncBufReadExt, BufReader, Lines};
 use tokio::task::JoinHandle;
 
 use crate::events::{now_ms, EventEmitter, LogStream, ServiceLogPayload};
+use crate::process::constants::LOG_BATCH_FLUSH;
 use crate::process::line_machine::strip_ansi;
+use crate::process::manager::LogBatcher;
 
 use super::exec::compose_streaming_command;
 
@@ -131,23 +133,38 @@ fn spawn_follower(
         };
 
         // Merge stdout + stderr into one line stream (compose interleaves both).
+        // Lines are batched exactly like service logs (75 ms / 64 lines,
+        // architecture-v2.md §3.2): the --tail=500 attach replay becomes ~8
+        // events instead of 500, and a chatty container can't flood the bus
+        // with one IPC event + LogCache lock per line.
         let mut out = child.stdout.take().map(|s| BufReader::new(s).lines());
         let mut err = child.stderr.take().map(|s| BufReader::new(s).lines());
-        loop {
-            let (line, is_out) = tokio::select! {
-                l = next_line(&mut out), if out.is_some() => (l, true),
-                l = next_line(&mut err), if err.is_some() => (l, false),
-                else => break,
-            };
-            match line {
-                Some(l) => emit_line(&emitter, &service_id, strip_ansi(&l).trim_end()),
-                None if is_out => out = None,
-                None => err = None,
-            }
-            if out.is_none() && err.is_none() {
-                break;
+        let mut batch = LogBatcher::new(service_id.clone(), LogStream::Docker);
+        let mut flush_timer = tokio::time::interval(LOG_BATCH_FLUSH);
+        flush_timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+
+        fn push_line(batch: &mut LogBatcher, emitter: &dyn EventEmitter, raw: &str) {
+            let line = strip_ansi(raw);
+            let line = line.trim_end();
+            if !line.is_empty() && batch.push(line.to_string()) {
+                batch.flush(emitter); // early flush at 64 lines (§3.2)
             }
         }
+
+        while out.is_some() || err.is_some() {
+            tokio::select! {
+                l = next_line(&mut out), if out.is_some() => match l {
+                    Some(l) => push_line(&mut batch, emitter.as_ref(), &l),
+                    None => out = None,
+                },
+                l = next_line(&mut err), if err.is_some() => match l {
+                    Some(l) => push_line(&mut batch, emitter.as_ref(), &l),
+                    None => err = None,
+                },
+                _ = flush_timer.tick() => batch.flush(emitter.as_ref()), // 75 ms cadence
+            }
+        }
+        batch.flush(emitter.as_ref());
     })
 }
 

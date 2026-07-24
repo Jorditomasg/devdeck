@@ -65,6 +65,38 @@ describe('ServicesStore', () => {
     expect(store.services()['api']?.port).toBe(8080);
   });
 
+  it('acknowledges the error marker when a log window opens, keeping the port', async () => {
+    const bridge = new FakeTauriBridge().whenInvoked(CMD.listServices, []);
+    const store = makeStore(bridge);
+    await store.init();
+
+    bridge.emit(
+      EVT.serviceStatusChanged,
+      statusEvent({ name: 'api', status: 'error', port: 8080, error: 'boom', exitCode: 1 }),
+    );
+    expect(store.statusFor('api')).toBe('error');
+
+    bridge.emit(EVT.serviceLogOpened, { serviceId: 'api' });
+    expect(store.statusFor('api')).toBe('stopped');
+    expect(store.services()['api']?.port).toBe(8080); // port label survives
+    expect(store.services()['api']?.error).toBeUndefined();
+    expect(store.services()['api']?.exitCode).toBeUndefined();
+  });
+
+  it('never disturbs a live run when acknowledging', async () => {
+    const bridge = new FakeTauriBridge().whenInvoked(CMD.listServices, []);
+    const store = makeStore(bridge);
+    await store.init();
+
+    bridge.emit(
+      EVT.serviceStatusChanged,
+      statusEvent({ name: 'api', status: 'running', port: 8080, pid: 42 }),
+    );
+    store.clearError('api');
+    expect(store.statusFor('api')).toBe('running');
+    expect(store.services()['api']?.pid).toBe(42);
+  });
+
   it('drives the 6-state machine from status events', async () => {
     const bridge = new FakeTauriBridge().whenInvoked(CMD.listServices, []);
     const store = makeStore(bridge);

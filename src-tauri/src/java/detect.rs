@@ -119,6 +119,12 @@ async fn validate_candidate(java_home: &Path, suffix: &str) -> Option<(String, S
 pub async fn auto_detect_java_paths() -> BTreeMap<String, String> {
     let mut found = BTreeMap::new();
 
+    // Collect candidates first, then validate them concurrently — each
+    // validation spawns `java -version` with a 2 s timeout, so a machine
+    // with several JDKs would otherwise pay the sum serially (10 s+ of
+    // settings-dialog latency). Ordering doesn't matter: the BTreeMap
+    // sorts by label.
+    let mut candidates = Vec::new();
     for base_dir in search_paths() {
         let Ok(entries) = std::fs::read_dir(&base_dir) else { continue };
         for entry in entries.flatten() {
@@ -127,10 +133,16 @@ pub async fn auto_detect_java_paths() -> BTreeMap<String, String> {
                 continue;
             }
             let dirname = entry.file_name().to_string_lossy().into_owned();
-            let home = jdk_home(&base_dir, &path);
-            if let Some((label, home)) = validate_candidate(&home, &dirname).await {
-                found.insert(label, home);
-            }
+            candidates.push((jdk_home(&base_dir, &path), dirname));
+        }
+    }
+    let mut validations = tokio::task::JoinSet::new();
+    for (home, dirname) in candidates {
+        validations.spawn(async move { validate_candidate(&home, &dirname).await });
+    }
+    while let Some(result) = validations.join_next().await {
+        if let Ok(Some((label, home))) = result {
+            found.insert(label, home);
         }
     }
 

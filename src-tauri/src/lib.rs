@@ -695,7 +695,17 @@ impl EventEmitter for TrayTrackingEmitter {
                 self.logs.push_batch(name, &lines);
             }
         }
-        if event == SERVICE_STATUS_CHANGED && record_status_payload(&self.tray, &payload) {
+        // Opening a service's log acknowledges its failure: the frontend card
+        // drops the red dot, so the tray icon must drop the red too or the two
+        // disagree (events.rs `SERVICE_LOG_OPENED`, `TrayStatus::clear_error`).
+        let acknowledged = event == events::SERVICE_LOG_OPENED
+            && payload
+                .get("serviceId")
+                .and_then(|v| v.as_str())
+                .is_some_and(|id| self.tray.clear_error(id));
+        if acknowledged
+            || (event == SERVICE_STATUS_CHANGED && record_status_payload(&self.tray, &payload))
+        {
             if let Some(tray_icon) = self.app.tray_by_id(TRAY_ID) {
                 let _ = tray_icon.set_tooltip(Some(self.tray.tooltip()));
                 // Precedence error > running > idle — only swap on a state edge.

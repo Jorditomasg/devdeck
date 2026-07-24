@@ -14,7 +14,18 @@ use std::path::Path;
 
 /// Build the full [`RepoInfo`] for a directory that matched `def`.
 pub fn build_repo_info(name: &str, path: &Path, def: &RepoTypeDef) -> RepoInfo {
-    let scan = resolve_env_files(path, &def.config);
+    // `{main_app}`-style placeholders apply to `config.dir` too (nx-workspace
+    // declares `apps/{main_app}/src/environments`) — without this, env-file
+    // discovery only hit the fast path for an app literally named after the
+    // placeholder fallback, and `env_default_dir` pointed at a ghost dir.
+    let mut config = def.config.clone();
+    if let Some(ar) = &def.run.app_resolution {
+        let token = format!("{{{}}}", ar.placeholder);
+        if config.dir.contains(&token) {
+            config.dir = config.dir.replace(&token, &resolve_app(path, ar));
+        }
+    }
+    let scan = resolve_env_files(path, &config);
 
     let mut repo = RepoInfo {
         name: name.to_string(),
@@ -34,11 +45,11 @@ pub fn build_repo_info(name: &str, path: &Path, def: &RepoTypeDef) -> RepoInfo {
         environment_files: scan.files,
         profiles: scan.profiles,
         modules: scan.modules,
-        env_default_dir: def.config.dir.clone(),
-        env_config_writer_type: def.config.writer.clone(),
-        env_pull_ignore_patterns: def.config.pull_ignore.clone(),
-        env_main_config_filename: def.config.main_file.clone(),
-        env_patterns: def.config.patterns.clone(),
+        env_default_dir: config.dir.clone(),
+        env_config_writer_type: config.writer.clone(),
+        env_pull_ignore_patterns: config.pull_ignore.clone(),
+        env_main_config_filename: config.main_file.clone(),
+        env_patterns: config.patterns.clone(),
         ..Default::default()
     };
 

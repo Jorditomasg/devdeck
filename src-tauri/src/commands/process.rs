@@ -206,18 +206,12 @@ pub async fn stop_all_services(state: State<'_, AppState>) -> CmdResult<()> {
     .is_err();
 
     if timed_out {
-        // Cap exceeded (e.g. a slow stop_cmd) — force-kill the survivors,
-        // mirroring `ProcessManager::shutdown_all` (inventory-backend.md
-        // §21.4: nothing may outlive the stop-all).
-        for snapshot in state.process.snapshots().await {
-            let Some(pid) = snapshot.pid else { continue };
-            if let Err(err) = crate::process::kill::force_kill_tree(pid).await {
-                log::warn!(
-                    "stop_all: force-kill of survivor {} (pid {pid}) failed: {err}",
-                    snapshot.id
-                );
-            }
-        }
+        // Cap exceeded (e.g. a slow stop_cmd) — force-kill the survivors
+        // through the full tree-kill path (Job Object / WSL group), same as
+        // `ProcessManager::shutdown_all` (inventory-backend.md §21.4:
+        // nothing may outlive the stop-all). A raw pid kill here would miss
+        // reparented grandchildren and never signal in-distro WSL groups.
+        state.process.force_kill_survivors().await;
     }
     Ok(())
 }

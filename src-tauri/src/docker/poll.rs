@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use tokio::sync::{watch, RwLock};
+use tokio::sync::{watch, Notify, RwLock};
 use tokio::task::{JoinHandle, JoinSet};
 
 use crate::events::{DockerStatusPayload, EventEmitter, DOCKER_STATUS};
@@ -34,15 +34,21 @@ pub struct StatusTarget {
 /// [`StatusPoller::shutdown`] to end the loop.
 pub struct StatusPoller {
     targets: Arc<RwLock<Vec<StatusTarget>>>,
+    kick: Arc<Notify>,
     stop_tx: watch::Sender<bool>,
     task: JoinHandle<()>,
 }
 
 impl StatusPoller {
     /// Replace the polled target set (after every workspace scan / when a
-    /// docker card changes its active compose file). Next tick picks it up.
+    /// docker card changes its active compose file) and kick one immediate
+    /// refresh pass. Without the kick, the interval starts at app setup —
+    /// BEFORE any scan registers targets — so startup cards waited up to a
+    /// full 15 s tick for their first compose status (same bug the badge
+    /// poller fixed, user report 2026-07-03).
     pub async fn set_targets(&self, targets: Vec<StatusTarget>) {
         *self.targets.write().await = targets;
+        self.kick.notify_one();
     }
 
     /// Signal the loop to exit; returns immediately.
@@ -61,8 +67,10 @@ impl StatusPoller {
 /// then every [`DOCKER_POLL`].
 pub fn spawn_status_poller(emitter: Arc<dyn EventEmitter>) -> StatusPoller {
     let targets: Arc<RwLock<Vec<StatusTarget>>> = Arc::default();
+    let kick: Arc<Notify> = Arc::default();
     let (stop_tx, mut stop_rx) = watch::channel(false);
     let loop_targets = targets.clone();
+    let loop_kick = kick.clone();
 
     let task = tokio::spawn(async move {
         let mut interval = tokio::time::interval(DOCKER_POLL);
@@ -70,6 +78,14 @@ pub fn spawn_status_poller(emitter: Arc<dyn EventEmitter>) -> StatusPoller {
         loop {
             tokio::select! {
                 _ = interval.tick() => {
+                    let snapshot = loop_targets.read().await.clone();
+                    refresh_all(&emitter, snapshot).await;
+                }
+                _ = loop_kick.notified() => {
+                    // Immediate pass after set_targets; reset so the next
+                    // periodic tick lands a full DOCKER_POLL from now (the
+                    // 15 s cadence is re-anchored, never shortened).
+                    interval.reset();
                     let snapshot = loop_targets.read().await.clone();
                     refresh_all(&emitter, snapshot).await;
                 }
@@ -82,7 +98,7 @@ pub fn spawn_status_poller(emitter: Arc<dyn EventEmitter>) -> StatusPoller {
         }
     });
 
-    StatusPoller { targets, stop_tx, task }
+    StatusPoller { targets, kick, stop_tx, task }
 }
 
 async fn refresh_all(emitter: &Arc<dyn EventEmitter>, targets: Vec<StatusTarget>) {

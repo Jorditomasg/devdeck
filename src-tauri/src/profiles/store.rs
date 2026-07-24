@@ -82,7 +82,7 @@ impl ProfileStore {
         doc.name = Some(name.to_string());
         doc.created = Some(iso8601_utc_now());
         let path = self.profiles_dir(group).join(format!("{name}{PROFILE_EXT}"));
-        std::fs::write(&path, serde_json::to_string_pretty(doc)?)?;
+        write_atomic(&path, &serde_json::to_string_pretty(doc)?)?;
         Ok(path)
     }
 
@@ -134,7 +134,24 @@ fn list_json_stems(dir: &Path) -> Vec<String> {
 /// Export a profile document to an arbitrary file (v1
 /// `export_profile_to_file`) — plain pretty JSON.
 pub fn export_profile_to_file(doc: &ProfileDocument, dest: &Path) -> Result<(), ProfileError> {
-    std::fs::write(dest, serde_json::to_string_pretty(doc)?)?;
+    write_atomic(dest, &serde_json::to_string_pretty(doc)?)?;
+    Ok(())
+}
+
+/// tmp-file + rename so a crash/power-loss mid-write can't truncate the
+/// target (same pattern as `ConfigStore::save`). A truncated profile would
+/// parse-fail in `load_profile` and silently vanish from the user's list.
+fn write_atomic(path: &Path, contents: &str) -> std::io::Result<()> {
+    let tmp = path.with_file_name(match path.file_name() {
+        Some(name) => format!("{}.tmp", name.to_string_lossy()),
+        None => ".tmp".to_owned(),
+    });
+    std::fs::write(&tmp, contents)?;
+    if let Err(err) = std::fs::rename(&tmp, path) {
+        // Best-effort cleanup of the temp file on failure.
+        let _ = std::fs::remove_file(&tmp);
+        return Err(err);
+    }
     Ok(())
 }
 

@@ -52,7 +52,13 @@ export class AvatarComponent {
       if (!email) {
         return;
       }
-      void gravatarUrl(email).then((href) => this.url.set(href));
+      void gravatarUrl(email).then((href) => {
+        // The instance is reused across commit switches (detail breadcrumb):
+        // only apply the hash if the email is still the one we resolved.
+        if (this.email().trim() === email) {
+          this.url.set(href);
+        }
+      });
     });
   }
 }

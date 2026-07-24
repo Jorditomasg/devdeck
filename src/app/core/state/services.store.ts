@@ -129,6 +129,7 @@ export class ServicesStore {
     await Promise.all([
       this.events.onServiceStatusChanged((e) => this.applyStatus(e)),
       this.events.onServiceLogLine((e) => this.applyLogBatch(e)),
+      this.events.onServiceLogOpened((e) => this.clearError(e.serviceId)),
     ]);
     await this.hydrate();
   }
@@ -153,6 +154,30 @@ export class ServicesStore {
   /** Runtime state of one service (`stopped` when never seen — v1 default). */
   statusFor(id: ServiceId): ServiceStatus {
     return this._services()[id]?.status ?? 'stopped';
+  }
+
+  /**
+   * Drop the terminal `error` marker of one service — the red dot is an
+   * "unread failure" flag, so any gesture that puts the log in front of the
+   * user (expand, focus, open the log window) acknowledges it. Frontend-only
+   * by design: the Rust supervisor already deregistered the run when it died
+   * (`process/manager.rs`), so `list_services` no longer reports it and there
+   * is nothing to sync back. No-op unless the status IS `error`, so it can
+   * never disturb a live run.
+   *
+   * Replaces the entry instead of patching it: `patchService` drops
+   * `undefined` values (a status event must not erase a known port), so it
+   * cannot CLEAR `error` / `exitCode` — and a stale error string hanging off a
+   * `stopped` service is the trap the next tooltip would step on.
+   */
+  clearError(id: ServiceId): void {
+    if (this.statusFor(id) !== 'error') {
+      return;
+    }
+    this._services.update((current) => ({
+      ...current,
+      [id]: { status: 'stopped', port: current[id]?.port },
+    }));
   }
 
   /** Reactive log buffer of one service (created empty on first access). */

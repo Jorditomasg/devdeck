@@ -310,6 +310,21 @@ impl TrayStatus {
         }
     }
 
+    /// Acknowledge a service's `Error` entry — the red tray icon is an "unread
+    /// failure" flag, so opening that service's log clears it (the frontend
+    /// card does the same on `service://log-opened`). Returns `true` when an
+    /// entry was actually dropped, i.e. when the caller must refresh the icon.
+    /// Only `Error` is touched: a live run keeps its entry.
+    pub fn clear_error(&self, name: &str) -> bool {
+        match self.statuses.lock() {
+            Ok(mut map) if map.get(name) == Some(&ServiceStatus::Error) => {
+                map.remove(name);
+                true
+            }
+            _ => false,
+        }
+    }
+
     /// Set the total card count (updated by `scan_workspace`).
     pub fn set_total(&self, total: usize) {
         self.total_repos.store(total, Ordering::Relaxed);
@@ -425,6 +440,20 @@ mod tests {
             format_tray_tooltip(0, 3, true),
             "DevDeck — 0/3 corriendo"
         );
+    }
+
+    #[test]
+    fn clear_error_acks_only_errors() {
+        let tray = TrayStatus::default();
+        tray.record("a", ServiceStatus::Error);
+        tray.record("b", ServiceStatus::Running);
+
+        assert!(tray.clear_error("a")); // acked → caller refreshes the icon
+        assert_eq!(tray.error_count(), 0);
+        assert!(!tray.clear_error("a")); // already acked → no icon churn
+        assert!(!tray.clear_error("b")); // a live run is untouchable
+        assert_eq!(tray.running_count(), 1);
+        assert!(!tray.clear_error("never-seen"));
     }
 
     #[test]

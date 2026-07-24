@@ -51,6 +51,20 @@ export interface GraphRow {
   readonly labels: readonly (string | undefined)[];
   /** Per-lane provenance flags matching `labels` (line click gating). */
   readonly labelsLive: readonly (boolean | undefined)[];
+  /**
+   * Palette identity of the commit's line — the branch name when known, else
+   * `@<tip sha>` of its run. An UNNAMED line is still ONE line and deserves
+   * its own color: Azure DevOps merged-in branches carry no name anywhere
+   * (ref deleted, "Merged PR N: <title>" names nothing, `%S` names the
+   * TARGET), so they used to fall back to `laneColor(index)` and came out in
+   * the SAME green as the named branch in the lane next door (user
+   * 2026-07-24, boa2-backend-configuracion rows 17-23).
+   */
+  readonly key: string;
+  /** Per-lane palette identities at this row (index = lane, cf. `labels`). */
+  readonly keys: readonly (string | undefined)[];
+  /** Same snapshot at the row TOP (cf. `topLabels`) — colors fromTop edges. */
+  readonly topKeys: readonly (string | undefined)[];
   /** Same snapshot at the row TOP (before this commit mutated the lanes) —
    *  colors the fromTop edges so convergence elbows keep their line's color. */
   readonly topLabels: readonly (string | undefined)[];
@@ -137,6 +151,17 @@ interface LaneSlot {
    * from an `into <branch>` subject below instead.
    */
   fanout: boolean;
+  /**
+   * Sha the lane was OPENED for (its run's tip) — stable while the run
+   * flows down, so an unnamed line keeps one palette identity even when it
+   * lands on a different lane index. See [`GraphRow.key`].
+   */
+  run: string;
+}
+
+/** Palette identity of a lane: its branch name, else its run. */
+function keyOf(slot: LaneSlot): string {
+  return slot.label ?? `@${slot.run}`;
 }
 
 /**
@@ -160,6 +185,7 @@ export function computeGraph(
   for (const commit of commits) {
     const topActive = lanes.map((s) => s !== null);
     const topLabels = lanes.map((s) => s?.label);
+    const topKeys = lanes.map((s) => (s === null ? undefined : keyOf(s)));
 
     const waiting: number[] = [];
     lanes.forEach((slot, i) => {
@@ -200,6 +226,9 @@ export function computeGraph(
           : inherited?.label !== undefined
             ? inherited.live || inherited.label === commit.source
             : label !== undefined;
+    // Lanes nobody was waiting for START a run here (page tip / fork point).
+    const run = inherited?.run ?? commit.sha;
+    const key = label ?? `@${run}`;
     // Converged children free their lanes (the dot's own lane is reused).
     for (const j of waiting) {
       if (j !== lane) {
@@ -235,6 +264,7 @@ export function computeGraph(
           live: labelLive,
           // A still-unnamed fan-out run keeps suppressing %S downward.
           fanout: label === undefined && inherited?.fanout === true,
+          run,
         };
         toBottom.push(lane);
       }
@@ -264,6 +294,7 @@ export function computeGraph(
             // ref itself (fork-PR merges) is confirmed real by %S.
             live: mergedName !== undefined && mergedName === commit.source,
             fanout: mergedName === undefined,
+            run: parent, // the merged-in branch's tip — its run starts here
           };
           const free = lanes.indexOf(null);
           const k = free !== -1 ? free : lanes.length;
@@ -309,6 +340,9 @@ export function computeGraph(
       labelLive,
       labels: lanes.map((slot) => slot?.label),
       labelsLive: lanes.map((slot) => slot?.live),
+      key,
+      keys: lanes.map((slot) => (slot === null ? undefined : keyOf(slot))),
+      topKeys,
       topLabels,
       dangling,
     });
@@ -337,6 +371,7 @@ function backfillUnnamedLanes(rows: GraphRow[]): void {
       continue; // run already named (subject parse or inheritance)
     }
     (tip.topLabels as (string | undefined)[])[lane] = tip.label;
+    (tip.topKeys as (string | undefined)[])[lane] = tip.key;
     for (let r = t - 1; r >= 0; r--) {
       const row = rows[r];
       if (row.labels[lane] !== undefined) {
@@ -344,23 +379,29 @@ function backfillUnnamedLanes(rows: GraphRow[]): void {
       }
       (row.labels as (string | undefined)[])[lane] = tip.label;
       (row.labelsLive as (boolean | undefined)[])[lane] = tip.labelLive;
+      // The name is the run's palette identity too — without this the run
+      // stayed `@<run>` above a tip keyed by its name: one line, two colors.
+      (row.keys as (string | undefined)[])[lane] = tip.key;
       if (row.lane === lane) {
         // Unnamed commit ON the run (%S suppressed on Azure fan-out lanes,
         // 2026-07-16): the run's name is its name — chip included.
         if (row.label === undefined) {
           (row as { label?: string }).label = tip.label;
           (row as { labelLive: boolean }).labelLive = tip.labelLive;
+          (row as { key: string }).key = tip.key;
         }
         if (!row.fromTop.includes(lane)) {
           break; // the run's top commit (ring tip) — done
         }
         (row.topLabels as (string | undefined)[])[lane] = tip.label;
+        (row.topKeys as (string | undefined)[])[lane] = tip.key;
         continue;
       }
       if (row.toBottom.includes(lane) && !row.through.includes(lane)) {
         break; // the row that OPENED the lane (merge fan-out) — done
       }
       (row.topLabels as (string | undefined)[])[lane] = tip.label;
+      (row.topKeys as (string | undefined)[])[lane] = tip.key;
     }
   }
 }
@@ -371,6 +412,8 @@ function computeLinear(commits: readonly GraphInput[]): GraphRow[] {
   let prevSolid = false;
   let prevLabel: string | undefined;
   let prevLive = false;
+  let prevRun = '';
+  let prevKey: string | undefined;
 
   commits.forEach((commit, i) => {
     const refLabel = pickRefLabel(commit.refs);
@@ -386,6 +429,9 @@ function computeLinear(commits: readonly GraphInput[]): GraphRow[] {
     const next = commits[i + 1];
     const hasParents = commit.parents.length > 0;
     const solidDown = hasParents && next !== undefined && commit.parents.includes(next.sha);
+    // Only a solid edge continues a run; a stub starts a fresh one.
+    const run = prevSolid ? prevRun : commit.sha;
+    const key = label ?? `@${run}`;
 
     rows.push({
       lane: 0,
@@ -397,6 +443,9 @@ function computeLinear(commits: readonly GraphInput[]): GraphRow[] {
       labelLive,
       labels: [hasParents ? label : undefined],
       labelsLive: [hasParents ? labelLive : undefined],
+      key,
+      keys: [hasParents ? key : undefined],
+      topKeys: prevSolid ? [prevKey] : [],
       topLabels: prevSolid ? [prevLabel] : [],
       dangling: hasParents && !solidDown ? [0] : [],
     });
@@ -404,26 +453,96 @@ function computeLinear(commits: readonly GraphInput[]): GraphRow[] {
     prevSolid = solidDown;
     prevLabel = label;
     prevLive = labelLive;
+    prevRun = run;
+    prevKey = key;
   });
   return rows;
 }
 
+/** Palette slot a name PREFERS (FNV-1a — stable across pages and filters). */
+function preferredSlot(key: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < key.length; i++) {
+    h = Math.imul(h ^ key.charCodeAt(i), 16777619);
+  }
+  return (h >>> 0) % LANE_COLORS.length;
+}
+
 /**
- * Assign palette colors to the DISTINCT labels of a page, first-seen order —
- * no collisions until the palette runs out (hash coloring made two visible
- * branches share a color, user 2026-07-04). Recomputed with the rows, so a
- * label keeps its color for the lifetime of the loaded view.
+ * Assign palette colors to the DISTINCT lines of a page ([`GraphRow.key`] —
+ * branch name, or `@<run>` for a nameless one). Two rules, in this order:
+ *
+ * 1. Lines drawn in the SAME row never share a color. Lines that never
+ *    coexist may reuse one — a 60-commit page of a real Azure DevOps repo
+ *    holds up to 28 lines but never more than 7 at once, so "first free
+ *    color" globally exhausted the palette and put two live branches in the
+ *    same purple (measured 2026-07-24, boa2-backend-configuracion).
+ * 2. Within that, each line starts at the slot its own NAME hashes to, so a
+ *    branch keeps its color across pages, filters and load-more (user
+ *    2026-07-24: "los colores deberían repartirse por los nombres de las
+ *    ramas, no por orden"). Plain hashing alone was tried on 2026-07-04 and
+ *    reverted — it broke rule 1, which wins.
  */
 export function assignBranchColors(rows: readonly GraphRow[]): ReadonlyMap<string, string> {
-  const colors = new Map<string, string>();
-  const claim = (label: string | undefined): void => {
-    if (label !== undefined && !colors.has(label)) {
-      colors.set(label, LANE_COLORS[colors.size % LANE_COLORS.length]);
+  const order: string[] = [];
+  const clash = new Map<string, Set<string>>();
+  const see = (key: string): Set<string> => {
+    let set = clash.get(key);
+    if (set === undefined) {
+      set = new Set();
+      clash.set(key, set);
+      order.push(key);
     }
+    return set;
   };
+
   for (const row of rows) {
-    claim(row.label);
-    row.labels.forEach(claim);
+    const visible = new Set<string>([row.key]);
+    for (const lane of row.through) {
+      const key = row.keys[lane];
+      if (key !== undefined) {
+        visible.add(key);
+      }
+    }
+    for (const lane of row.fromTop) {
+      const key = row.topKeys[lane];
+      if (key !== undefined) {
+        visible.add(key);
+      }
+    }
+    // Dangling stubs carry no lane of their own — they wear the row's color.
+    for (const lane of row.toBottom) {
+      visible.add(row.keys[lane] ?? row.key);
+    }
+    for (const key of visible) {
+      const neighbours = see(key);
+      for (const other of visible) {
+        if (other !== key) {
+          neighbours.add(other);
+        }
+      }
+    }
+  }
+
+  const colors = new Map<string, string>();
+  for (const key of order) {
+    const blocked = new Set<string>();
+    for (const other of clash.get(key) ?? []) {
+      const color = colors.get(other);
+      if (color !== undefined) {
+        blocked.add(color);
+      }
+    }
+    const start = preferredSlot(key);
+    let pick = LANE_COLORS[start]; // every color blocked: reuse the preferred
+    for (let n = 0; n < LANE_COLORS.length; n++) {
+      const color = LANE_COLORS[(start + n) % LANE_COLORS.length];
+      if (!blocked.has(color)) {
+        pick = color;
+        break;
+      }
+    }
+    colors.set(key, pick);
   }
   return colors;
 }

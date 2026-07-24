@@ -95,13 +95,24 @@ pub async fn request_quit(app: tauri::AppHandle) -> CmdResult<()> {
 /// The window loads the SPA with `?log=<serviceId>`; the frontend renders the
 /// standalone log view, seeds from `get_log_backlog` and follows live
 /// `service://log-line` events. `serviceId` may be the `__global__` aggregate.
+/// Also emits `service://log-opened` (both paths) — the failure acknowledgement
+/// for the card dot and the tray icon; see `events.rs SERVICE_LOG_OPENED`.
 #[tauri::command]
 pub async fn open_log_window(
     app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
     service_id: String,
     title: String,
 ) -> CmdResult<()> {
     let label = log_window_label(&service_id);
+    // Opening the log acknowledges the service's `error` marker in EVERY window
+    // (events.rs `SERVICE_LOG_OPENED`) — emitted up front so the re-focus path
+    // below is covered too. On a build failure we ack a log the user asked for
+    // and did not get; harmless, the dot only means "unread failure".
+    state.emitter.emit(
+        crate::events::SERVICE_LOG_OPENED,
+        serde_json::json!({ "serviceId": service_id }),
+    );
     if let Some(existing) = app.get_webview_window(&label) {
         let _ = existing.unminimize();
         let _ = existing.set_focus();

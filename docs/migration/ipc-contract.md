@@ -109,7 +109,7 @@ assertion lives in
 | 57 | `app_hide_to_tray` | — | `void` | hides the main window; the app keeps running behind the tray icon (inventory-gui.md §25). Restore happens Rust-side via the tray panel "Open DevDeck" or the right-click tray menu |
 | 57a | `show_main_window` | — | `void` | restores + focuses the main window and hides the tray quick-control panel — the panel's "Open DevDeck" action (tray-panel design doc 2026-06-23). Exposed because the panel webview holds no `core:window:*` perms |
 | 57b | `request_quit` | — | `void` | tray-panel "Close DevDeck": same confirm-running flow as the tray Quit menu — with active services it restores the main window + emits `app://close-requested`, else `app.exit(0)` |
-| 60 | `open_log_window` | `{ serviceId: string, title: string }` | `void` | opens (or focuses, when already open) the detached log window for a service — the v1 detached log Toplevel (inventory-gui.md §5/§8) as a real OS window. Loads the SPA with `?log=<serviceId>`; `serviceId` may be the `__global__` aggregate. Window label: `log-<sanitized id>` (capability `windows: ["main", "log-*"]`) |
+| 60 | `open_log_window` | `{ serviceId: string, title: string }` | `void` | opens (or focuses, when already open) the detached log window for a service — the v1 detached log Toplevel (inventory-gui.md §5/§8) as a real OS window. Loads the SPA with `?log=<serviceId>`; `serviceId` may be the `__global__` aggregate. Window label: `log-<sanitized id>` (capability `windows: ["main", "log-*"]`). Emits `service://log-opened` on both paths — acknowledges the service's `error` marker (card dot + tray icon) |
 | 61 | `get_log_backlog` | `{ serviceId: string }` | `string[]` | recent lines from the Rust-side `LogCache` (500/service, 1000 for `__global__` with `[name] ` prefixes) — seeds detached log windows, which then follow live `service://log-line` events |
 | 112 | `set_window_always_on_top` | `{ onTop: boolean }` | `void` | pins/unpins the CALLING window (detached log `log-*` and terminal `term-*` windows) so it stays above other windows. Runs Rust-side because the webview holds no `core:window:*` permissions (all window manipulation lives Rust-side, capabilities/default.json). Per-window and NOT persisted — reopening a window starts unpinned |
 
@@ -366,13 +366,14 @@ migration phases.
 
 ## 3. Events
 
-12 events. Only Rust emits; the frontend only listens (`core/ipc/events.ts`). Names and payload
+13 events. Only Rust emits; the frontend only listens (`core/ipc/events.ts`). Names and payload
 structs live in `src-tauri/src/events.rs`.
 
 | Event | Payload (TS mirror) | Cadence / source |
 |---|---|---|
 | `service://status-changed` | `ServiceStatusEvent { name, status: ServiceStatus, exitCode?, error?, port?, pid? }` | on every lifecycle transition (process layer). 6-state model — see §1.4 |
 | `service://log-line` | `ServiceLogEvent { name, stream: "service"\|"install"\|"docker"\|"git", lines: string[], timestampMs }` | **batched**: flush every 75 ms or 64 lines, whichever first (`process::constants::LOG_BATCH_*`); ANSI-stripped, non-empty lines |
+| `service://log-opened` | `ServiceLogOpenedEvent { serviceId }` | Rust relay of `open_log_window` (new window OR re-focus) — "the user is looking at this log", so the main window's `ServicesStore` drops a stale `error` marker. Needed because the tray panel is a separate webview with its own store; `__global__` matches no service (no-op) |
 | `repo://scan-progress` | `ScanProgressEvent { phase, detected, total }` | during `scan_workspace`; terminal phase is `"done"` |
 | `git://badge` | `GitBadgeEvent { name, path, branch, behind, staged, unstaged, conflicts }` | 30 s poll loop per repo (`git::BADGE_REFRESH`; semaphore 3) + forced via `git_refresh_badge`. `name` is the path basename (fallback); the frontend routes by `path` — repos with duplicate basenames across roots carry disambiguated `RepoInfo.name`s |
 | `docker://status` | `DockerStatusEvent { name, services: Record<string, "running"\|"stopped"> }` | 15 s poll loop per docker-capable repo (`docker::DOCKER_POLL`) + forced via `docker_refresh_status` |
@@ -397,7 +398,7 @@ service ring buffer, 1000 lines global — enforced in `core/state/services.stor
 | Store | Commands consumed | Events consumed |
 |---|---|---|
 | `ReposStore` | `scan_workspace`, `git_refresh_badge` | `repo://scan-progress`, `git://badge` |
-| `ServicesStore` | `start_service`, `stop_service`, `restart_service`, `install_dependencies`, `list_services`, `stop_all_services` | `service://status-changed`, `service://log-line` |
+| `ServicesStore` | `start_service`, `stop_service`, `restart_service`, `install_dependencies`, `list_services`, `stop_all_services` | `service://status-changed`, `service://log-line`, `service://log-opened` |
 | `ProfilesStore` | `list_profiles`, `load_profile`, `save_profile`, `delete_profile`, `export_profile`, `import_profile`, `get_missing_repos`, `apply_profile_environments` | — |
 | `SettingsStore` | `get_app_config`, `set_language`, `set_minimize_to_tray`, `set_active_group`, `save_workspace_groups`, `set_repo_state`, `save_java_versions`, `detect_jdks` | `app://single-instance` |
 | feature tasks (dialogs/cards) | git group, docker group, config env group (29–35) | via stores |

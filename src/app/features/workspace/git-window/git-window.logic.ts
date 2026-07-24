@@ -93,6 +93,30 @@ export function shortSha(sha: string): string {
 }
 
 
+// Intl formatters are memoized per locale: constructing one costs ~50-200 µs
+// and both helpers run per commit row per change-detection pass — with 500+
+// loaded commits an unmemoized pass allocates thousands of Intl objects.
+const dtfCache = new Map<string, Intl.DateTimeFormat>();
+const rtfCache = new Map<string, Intl.RelativeTimeFormat>();
+
+function dtf(locale: string): Intl.DateTimeFormat {
+  let fmt = dtfCache.get(locale);
+  if (!fmt) {
+    fmt = new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' });
+    dtfCache.set(locale, fmt);
+  }
+  return fmt;
+}
+
+function rtf(locale: string): Intl.RelativeTimeFormat {
+  let fmt = rtfCache.get(locale);
+  if (!fmt) {
+    fmt = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
+    rtfCache.set(locale, fmt);
+  }
+  return fmt;
+}
+
 /**
  * Commit date → local display string. ISO input comes from `%aI`; a bad
  * date renders as-is rather than `Invalid Date`.
@@ -102,10 +126,7 @@ export function formatCommitDate(iso: string, locale: string): string {
   if (Number.isNaN(date.getTime())) {
     return iso;
   }
-  return new Intl.DateTimeFormat(locale, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(date);
+  return dtf(locale).format(date);
 }
 
 /**
@@ -120,18 +141,18 @@ export function formatRelativeDate(iso: string, locale: string, now = Date.now()
   }
   const seconds = Math.round((date.getTime() - now) / 1000);
   const abs = Math.abs(seconds);
-  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
+  const fmt = rtf(locale);
   if (abs < 60) {
-    return rtf.format(seconds, 'second');
+    return fmt.format(seconds, 'second');
   }
   if (abs < 3600) {
-    return rtf.format(Math.trunc(seconds / 60), 'minute');
+    return fmt.format(Math.trunc(seconds / 60), 'minute');
   }
   if (abs < 86400) {
-    return rtf.format(Math.trunc(seconds / 3600), 'hour');
+    return fmt.format(Math.trunc(seconds / 3600), 'hour');
   }
   if (abs < 30 * 86400) {
-    return rtf.format(Math.trunc(seconds / 86400), 'day');
+    return fmt.format(Math.trunc(seconds / 86400), 'day');
   }
   return formatCommitDate(iso, locale);
 }

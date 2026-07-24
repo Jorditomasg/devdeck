@@ -30,6 +30,16 @@ pub const SERVICE_STATUS_CHANGED: &str = "service://status-changed";
 /// git operation). ANSI escapes are stripped Rust-side.
 pub const SERVICE_LOG_LINE: &str = "service://log-line";
 
+/// A detached log window was opened (or re-focused) for a service — i.e. "the
+/// user is now looking at this log". The main window's `ServicesStore` uses it
+/// to drop a stale `error` marker: `open_log_window` is called BOTH from the
+/// main window and from the (separate-webview) tray panel, and that second
+/// store cannot reach the first one, so the acknowledgement travels through
+/// Rust (same reason as [`DOCKER_SELECTION`]). Emitted from
+/// `commands::app::open_log_window`. Payload: `{ serviceId: string }` — may be
+/// the `__global__` aggregate, which matches no service and is a no-op.
+pub const SERVICE_LOG_OPENED: &str = "service://log-opened";
+
 /// Workspace scan progress for the status bar.
 /// Emitted by the `detection` layer (name + payload live here so the project
 /// has exactly one event registry).

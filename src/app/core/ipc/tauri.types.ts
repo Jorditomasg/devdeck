@@ -114,6 +114,14 @@ export interface ServiceLogEvent {
   readonly timestampMs: number;
 }
 
+/**
+ * Payload of `service://log-opened` — a detached log window was opened or
+ * re-focused for this service (from any window, incl. the tray panel).
+ */
+export interface ServiceLogOpenedEvent {
+  readonly serviceId: ServiceId;
+}
+
 /** Payload of `repo://scan-progress`. Terminal phase is `"done"`. */
 export interface ScanProgressEvent {
   readonly phase: string;

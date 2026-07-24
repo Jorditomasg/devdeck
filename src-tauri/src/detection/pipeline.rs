@@ -176,23 +176,36 @@ pub async fn detect_repos(
     defs: &[RepoTypeDef],
     on_progress: Option<&ScanProgressFn>,
 ) -> Vec<RepoInfo> {
-    if !workspace_dir.is_dir() {
+    // The workspace listing runs on the blocking pool: for a workspace under
+    // \\wsl.localhost, is_dir/read_dir cross the 9P bridge and a large
+    // directory would stall a tokio worker (classification below is already
+    // spawn_blocking).
+    let ws = workspace_dir.to_path_buf();
+    let listing = tokio::task::spawn_blocking(move || -> Vec<(String, PathBuf)> {
+        if !ws.is_dir() {
+            return Vec::new();
+        }
+        let mut candidates: Vec<(String, PathBuf)> = match fs::read_dir(&ws) {
+            Ok(rd) => rd
+                .flatten()
+                .map(|e| e.path())
+                .filter(|p| p.is_dir())
+                .filter_map(|p| {
+                    p.file_name()
+                        .map(|n| (n.to_string_lossy().into_owned(), p.clone()))
+                })
+                .filter(|(name, _)| !name.starts_with('.') && name != "node_modules")
+                .collect(),
+            Err(_) => return Vec::new(),
+        };
+        candidates.sort_by(|a, b| a.0.cmp(&b.0));
+        candidates
+    })
+    .await;
+    let candidates = listing.unwrap_or_default();
+    if candidates.is_empty() {
         return Vec::new();
     }
-    let mut candidates: Vec<(String, PathBuf)> = match fs::read_dir(workspace_dir) {
-        Ok(rd) => rd
-            .flatten()
-            .map(|e| e.path())
-            .filter(|p| p.is_dir())
-            .filter_map(|p| {
-                p.file_name()
-                    .map(|n| (n.to_string_lossy().into_owned(), p.clone()))
-            })
-            .filter(|(name, _)| !name.starts_with('.') && name != "node_modules")
-            .collect(),
-        Err(_) => return Vec::new(),
-    };
-    candidates.sort_by(|a, b| a.0.cmp(&b.0));
 
     let defs: Arc<Vec<RepoTypeDef>> = Arc::new(defs.to_vec());
     let semaphore = Arc::new(Semaphore::new(MAX_CLASSIFY_CONCURRENCY));

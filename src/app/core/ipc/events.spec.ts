@@ -9,6 +9,7 @@ describe('EVT registry', () => {
   it('mirrors src-tauri/src/events.rs byte-for-byte', () => {
     expect(EVT.serviceStatusChanged).toBe('service://status-changed');
     expect(EVT.serviceLogLine).toBe('service://log-line');
+    expect(EVT.serviceLogOpened).toBe('service://log-opened');
     expect(EVT.repoScanProgress).toBe('repo://scan-progress');
     expect(EVT.gitBadge).toBe('git://badge');
     expect(EVT.dockerStatus).toBe('docker://status');
@@ -19,7 +20,7 @@ describe('EVT registry', () => {
     expect(EVT.dialogResolved).toBe('dialog://resolved');
     expect(EVT.configChanged).toBe('config://changed');
     expect(EVT.profilesChanged).toBe('profiles://changed');
-    expect(Object.values(EVT).length).toBe(12);
+    expect(Object.values(EVT).length).toBe(13);
   });
 });
 

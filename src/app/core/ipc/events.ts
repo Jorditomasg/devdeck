@@ -15,6 +15,7 @@ import type {
   GitBadgeEvent,
   ScanProgressEvent,
   ServiceLogEvent,
+  ServiceLogOpenedEvent,
   ServiceStatusEvent,
   SingleInstanceEvent,
   UpdateProgressEvent,
@@ -29,6 +30,13 @@ export const EVT = {
   serviceStatusChanged: 'service://status-changed',
   /** events.rs `SERVICE_LOG_LINE` (batched, ANSI-stripped) */
   serviceLogLine: 'service://log-line',
+  /**
+   * events.rs `SERVICE_LOG_OPENED` — a detached log window was opened (or
+   * re-focused) for a service; the main window's `ServicesStore` clears the
+   * stale `error` marker. Rust relay of `open_log_window` so the tray panel's
+   * separate webview can reach the main window's store.
+   */
+  serviceLogOpened: 'service://log-opened',
   /** events.rs `REPO_SCAN_PROGRESS` */
   repoScanProgress: 'repo://scan-progress',
   /** events.rs `GIT_BADGE` (30 s poll loop, inventory-gui.md §28) */
@@ -85,6 +93,13 @@ export class IpcEvents {
     handler: (event: ServiceLogEvent) => void,
   ): Promise<UnlistenFn> {
     return this.bridge.listen(EVT.serviceLogLine, handler);
+  }
+
+  /** A log window was opened/re-focused for a service (any window). */
+  onServiceLogOpened(
+    handler: (event: ServiceLogOpenedEvent) => void,
+  ): Promise<UnlistenFn> {
+    return this.bridge.listen(EVT.serviceLogOpened, handler);
   }
 
   /** Workspace scan progress; terminal phase is `"done"`. */

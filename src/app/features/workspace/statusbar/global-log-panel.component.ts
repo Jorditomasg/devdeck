@@ -46,7 +46,7 @@ import { formatGlobalLine, linesAfterMarker } from './global-log.logic';
       <span class="glog__title" [uiTooltip]="i18n.t('tooltip.expand')">
         {{ i18n.t('label.global_log_section') }}
       </span>
-      <span class="glog__count">({{ lines().length }})</span>
+      <span class="glog__count">({{ count() }})</span>
       <span class="glog__spacer"></span>
       @if (open()) {
         <div class="glog__actions" (click)="$event.stopPropagation()">
@@ -87,6 +87,17 @@ export class GlobalLogPanelComponent {
     linesAfterMarker(this.services.globalLog(), this.marker()).map(
       formatGlobalLine,
     ),
+  );
+
+  /**
+   * Header badge count, WITHOUT formatting the lines: the header renders
+   * while the panel is collapsed, so binding it to `lines().length` would
+   * re-format all ≤1000 buffered lines on every log batch (~75 ms per
+   * active service) just to print a number. `lines` now only evaluates
+   * when the panel is open (viewer/copy).
+   */
+  protected readonly count = computed(
+    () => linesAfterMarker(this.services.globalLog(), this.marker()).length,
   );
 
   constructor(

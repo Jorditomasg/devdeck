@@ -15,8 +15,9 @@ const STUB_OVERHANG = 9;
  *
  * Interactivity lives ONLY on the dot (user 2026-07-04: line hover/click
  * was ambiguous — clicks near the dot hit the wrong target): an invisible
- * hit circle shows the branch-name tooltip for every dot, and for LIVE
- * branches adds a halo on hover + click-to-filter. Lines are inert.
+ * hit circle carries the branch-name tooltip, a halo on hover and
+ * click-to-enter-that-line, for EVERY dot (2026-07-24 — see the hit circle).
+ * Lines are inert except LIVE named ones (click filters by name).
  *
  * Dangling edges (parent not loaded: filters skip commits, or it lies
  * beyond the loaded pages) start SOLID at the dot and FADE OUT downward via
@@ -108,14 +109,16 @@ const STUB_OVERHANG = 9;
         />
       }
       <!-- Invisible hit circle: a 4px dot is unhoverable/unclickable — this
-           carries the tooltip for every dot, and halo + click-to-filter for
-           LIVE branches only (deleted merge-subject names are display-only:
-           filtering a gone ref errors). -->
+           carries the tooltip and the halo + click-to-enter-the-line. EVERY
+           dot is clickable, named or not: a nameless line (Azure DevOps
+           merged-in branch — ref deleted, subject names nothing) is still
+           walkable from its own commit, and leaving it inert was the one
+           branch you could not open (user 2026-07-24). The container decides
+           name-vs-sha; the rest of the row still opens the commit. -->
       <svg:circle
         [attr.cx]="cx(row().lane)" [attr.cy]="mid" r="9"
-        class="dot-hit"
+        class="dot-hit dot-hit--live"
         [style.color]="dotColor()"
-        [class.dot-hit--live]="row().label !== undefined"
         (click)="onDot($event)"
       >
         @if (row().label; as label) {
@@ -131,11 +134,11 @@ export class GraphCellComponent {
   readonly row = input.required<GraphRow>();
   /** Page-wide lane count so every row renders the same width. */
   readonly lanes = input.required<number>();
-  /** Page palette: label → color (assignBranchColors, container-owned). */
+  /** Page palette: line key → color (assignBranchColors, container-owned). */
   readonly palette = input<ReadonlyMap<string, string>>(new Map());
   /** Click on a live-branch LINE — the container filters to that branch. */
   readonly laneClicked = output<string>();
-  /** Click on any labeled dot — the container resolves label vs sha. */
+  /** Click on ANY dot — the container resolves live label vs commit sha. */
   readonly dotClicked = output<void>();
 
   protected readonly rowHeight = ROW_HEIGHT;
@@ -153,21 +156,21 @@ export class GraphCellComponent {
     return lane * LANE_WIDTH + LANE_WIDTH / 2;
   }
 
-  private colorFor(label: string | undefined, lane: number): string {
-    return (label !== undefined && this.palette().get(label)) || laneColor(lane);
+  private colorFor(key: string | undefined, lane: number): string {
+    return (key !== undefined && this.palette().get(key)) || laneColor(lane);
   }
 
-  /** The commit's own line color (label identity, lane fallback). */
+  /** The commit's own line color (line identity, lane fallback). */
   protected dotColor(): string {
-    return this.colorFor(this.row().label, this.row().lane);
+    return this.colorFor(this.row().key, this.row().lane);
   }
 
   protected throughColor(lane: number): string {
-    return this.colorFor(this.row().labels[lane], lane);
+    return this.colorFor(this.row().keys[lane], lane);
   }
 
   protected topColor(lane: number): string {
-    return this.colorFor(this.row().topLabels[lane], lane);
+    return this.colorFor(this.row().topKeys[lane], lane);
   }
 
   /**
@@ -180,7 +183,7 @@ export class GraphCellComponent {
    * change happens AT a dot, never mid-line.
    */
   protected edgeColor(lane: number): string {
-    return this.colorFor(this.row().labels[lane] ?? this.row().label, lane);
+    return this.colorFor(this.row().keys[lane] ?? this.row().key, lane);
   }
 
   protected fadeId(lane: number): string {
@@ -206,10 +209,8 @@ export class GraphCellComponent {
   }
 
   protected onDot(event: Event): void {
-    if (this.row().label !== undefined) {
-      event.stopPropagation(); // don't open the row's commit detail
-      this.dotClicked.emit();
-    }
+    event.stopPropagation(); // don't open the row's commit detail
+    this.dotClicked.emit();
   }
 
   /** No line enters from above and it has parents → a branch's tip commit. */

@@ -460,7 +460,7 @@ export class GitWindowComponent implements OnInit {
     return match ? authorLabel(match.name, match.email) : this.i18n.t('git.all_authors');
   });
 
-  /** Page palette: distinct visible labels → colors, first-seen order. */
+  /** Page palette: distinct visible LINES → colors (named or not). */
   protected readonly branchPalette = computed(() => assignBranchColors(this.graphRows()));
 
   // -- history list --------------------------------------------------------------
@@ -535,6 +535,15 @@ export class GitWindowComponent implements OnInit {
   /** What the panel queries: a ref (commit / `stash@{n}`) or a range. */
   private panelSource: PanelSource = 'ref';
   private detailRef = '';
+
+  // Monotonic tokens guarding every async write to shared signals: reads are
+  // serialized behind the shared git semaphore (WSL repos add latency), so a
+  // broader-and-slower query fired FIRST can resolve LAST and overwrite the
+  // state of the newer one. Each fetch captures the counter, bumps it, and
+  // discards its response if a newer fetch has bumped it since.
+  private logSeq = 0;
+  private rangeSeq = 0;
+  private diffSeq = 0;
 
   async ngOnInit(): Promise<void> {
     const params = new URLSearchParams(window.location.search);
@@ -654,6 +663,9 @@ export class GitWindowComponent implements OnInit {
     void this.commands.git
       .commitBody(this.repoPath(), commit.sha)
       .then((full) => {
+        if (this.detailCommit()?.sha !== commit.sha) {
+          return; // user already switched commits — don't paint A's body under B
+        }
         const body = full.startsWith(commit.subject)
           ? full.slice(commit.subject.length).trim()
           : full.trim();
@@ -713,6 +725,7 @@ export class GitWindowComponent implements OnInit {
 
   /** (Re)load the compare view: incoming commits + range file list. */
   private async openRange(): Promise<void> {
+    const seq = ++this.rangeSeq;
     const base = this.compareBase();
     const target = this.compareTarget();
     this.resetDetail();
@@ -727,13 +740,20 @@ export class GitWindowComponent implements OnInit {
         this.commands.git.log(this.repoPath(), { branch: `${base}..${target}`, skip: 0 }),
         this.commands.git.diffRange(this.repoPath(), base, target),
       ]);
+      if (seq !== this.rangeSeq) {
+        return; // base/target changed (or a detail opened) while in flight
+      }
       this.compareCommits.set(page.commits);
       this.panelSource = 'range';
       this.files.set(rangeFiles);
     } catch (err: unknown) {
-      this.error.set(this.messageOf(err));
+      if (seq === this.rangeSeq) {
+        this.error.set(this.messageOf(err));
+      }
     } finally {
-      this.compareLoading.set(false);
+      if (seq === this.rangeSeq) {
+        this.compareLoading.set(false);
+      }
     }
   }
 
@@ -948,7 +968,7 @@ export class GitWindowComponent implements OnInit {
     if (!row) {
       return laneColor(0);
     }
-    return (row.label !== undefined && this.branchPalette().get(row.label)) || laneColor(row.lane);
+    return this.branchPalette().get(row.key) || laneColor(row.lane);
   }
 
   protected relDate(iso: string): string {
@@ -1008,6 +1028,7 @@ export class GitWindowComponent implements OnInit {
   }
 
   private async fetchPage(skip: number): Promise<void> {
+    const seq = ++this.logSeq;
     this.loading.set(true);
     this.error.set('');
     try {
@@ -1015,14 +1036,27 @@ export class GitWindowComponent implements OnInit {
         this.repoPath(),
         buildLogFilter(this.filters(), skip),
       );
-      this.commits.update((existing) =>
-        skip === 0 ? page.commits : [...existing, ...page.commits],
-      );
+      if (seq !== this.logSeq) {
+        return; // superseded by a newer reload/filter — drop the stale page
+      }
+      this.commits.update((existing) => {
+        if (skip === 0) {
+          return page.commits;
+        }
+        // A commit landing between pages shifts --skip and repeats the tail
+        // of the previous page; duplicate shas would break `track commit.sha`.
+        const seen = new Set(existing.map((c) => c.sha));
+        return [...existing, ...page.commits.filter((c) => !seen.has(c.sha))];
+      });
       this.hasMore.set(page.hasMore);
     } catch (err: unknown) {
-      this.error.set(this.messageOf(err));
+      if (seq === this.logSeq) {
+        this.error.set(this.messageOf(err));
+      }
     } finally {
-      this.loading.set(false);
+      if (seq === this.logSeq) {
+        this.loading.set(false);
+      }
     }
   }
 
@@ -1030,14 +1064,23 @@ export class GitWindowComponent implements OnInit {
   private async openDetail(ref: string, source: PanelSource): Promise<void> {
     this.detailRef = ref;
     this.panelSource = source;
+    this.rangeSeq++; // an in-flight compare load must not clobber this detail
     this.resetDetail();
     this.detailLoading.set(true);
     try {
-      this.files.set(await this.commands.git.commitFiles(this.repoPath(), ref));
+      const files = await this.commands.git.commitFiles(this.repoPath(), ref);
+      if (this.detailRef !== ref) {
+        return; // user already selected another commit — drop the stale list
+      }
+      this.files.set(files);
     } catch (err: unknown) {
-      this.error.set(this.messageOf(err));
+      if (this.detailRef === ref) {
+        this.error.set(this.messageOf(err));
+      }
     } finally {
-      this.detailLoading.set(false);
+      if (this.detailRef === ref) {
+        this.detailLoading.set(false);
+      }
     }
   }
 
@@ -1047,6 +1090,7 @@ export class GitWindowComponent implements OnInit {
       this.notice.set(this.i18n.t('git.binary_file'));
       return;
     }
+    const seq = ++this.diffSeq;
     this.detailLoading.set(true);
     try {
       const diff =
@@ -1058,6 +1102,9 @@ export class GitWindowComponent implements OnInit {
               file.path,
             )
           : await this.commands.git.commitFileDiff(this.repoPath(), this.detailRef, file.path);
+      if (seq !== this.diffSeq) {
+        return; // user already picked another file — drop the stale diff
+      }
       if (diff.binary) {
         this.notice.set(this.i18n.t('git.binary_file'));
       } else if (diff.tooLarge) {
@@ -1066,9 +1113,13 @@ export class GitWindowComponent implements OnInit {
         this.diffText.set(diff.content ?? '');
       }
     } catch (err: unknown) {
-      this.error.set(this.messageOf(err));
+      if (seq === this.diffSeq) {
+        this.error.set(this.messageOf(err));
+      }
     } finally {
-      this.detailLoading.set(false);
+      if (seq === this.diffSeq) {
+        this.detailLoading.set(false);
+      }
     }
   }
 
