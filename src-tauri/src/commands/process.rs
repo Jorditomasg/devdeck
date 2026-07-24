@@ -36,7 +36,7 @@ pub async fn start_service(
 ) -> CmdResult<()> {
     let config = load_config(&state);
     let repo = find_repo(&state, &service_id)?;
-    let env = java_env_from_config(&config, java_label.as_deref());
+    let env = java_env_from_config(&config, java_label.as_deref(), runs_in_wsl(&repo));
     let override_cmd = resolved_command_override(&config, &repo.name);
     let spec = build_service_spec(&repo, &service_id, override_cmd.as_deref(), env)?;
     state.process.start_service(spec).await?;
@@ -87,7 +87,7 @@ pub async fn restart_service(
 ) -> CmdResult<()> {
     let config = load_config(&state);
     let repo = find_repo(&state, &service_id)?;
-    let env = java_env_from_config(&config, java_label.as_deref());
+    let env = java_env_from_config(&config, java_label.as_deref(), runs_in_wsl(&repo));
     let override_cmd = resolved_command_override(&config, &repo.name);
     let spec = build_service_spec(&repo, &service_id, override_cmd.as_deref(), env)?;
     let delay = restart_delay(&repo);
@@ -149,7 +149,11 @@ pub async fn install_dependencies(
             ))
         })?;
 
-    let env = java_env_from_config(&load_config(&state), java_label.as_deref());
+    let env = java_env_from_config(
+        &load_config(&state),
+        java_label.as_deref(),
+        runs_in_wsl(&repo),
+    );
     state
         .process
         .install(InstallSpec {
@@ -245,13 +249,33 @@ fn load_config(state: &State<'_, AppState>) -> AppConfig {
     })
 }
 
+/// A repo addressed through a WSL UNC share runs its commands INSIDE the
+/// distro (`wsl.rs`), so Windows launch-env overrides must not cross.
+fn runs_in_wsl(repo: &RepoInfo) -> bool {
+    crate::wsl::wsl_path_for(Path::new(&repo.path)).is_some()
+}
+
 /// Resolve a JDK display label to launch-env overrides through the
 /// `java_versions` registry (ipc-contract.md §2.3 #3). Unknown labels mean
 /// system default → no overrides.
+///
+/// `wsl` short-circuits to NO overrides: `build_java_env` produces a WINDOWS
+/// `JAVA_HOME` and a `;`-separated Windows `PATH`, and `wsl::shell_script`
+/// exports both VERBATIM inside the distro — which wipes `/bin:/usr/bin` out
+/// of `PATH` and makes every Linux tool unreachable (`mvn: command not
+/// found`, exit 127). A Windows JDK cannot run in the distro anyway, so the
+/// distro's own `.bashrc` toolchain is the only correct answer there.
 pub(crate) fn java_env_from_config(
     config: &AppConfig,
     java_label: Option<&str>,
+    wsl: bool,
 ) -> HashMap<String, String> {
+    if wsl {
+        if let Some(label) = java_label.filter(|l| !l.is_empty()) {
+            log::info!("WSL run: ignoring the Windows Java selection '{label}'");
+        }
+        return HashMap::new();
+    }
     match java_label {
         Some(label) if !label.is_empty() => config
             .java_versions
@@ -403,11 +427,33 @@ mod tests {
             .java_versions
             .insert("Java 17 (jdk-17)".into(), "/nonexistent/jdk".into());
 
-        assert!(java_env_from_config(&config, None).is_empty());
-        assert!(java_env_from_config(&config, Some("Java 99")).is_empty());
+        assert!(java_env_from_config(&config, None, false).is_empty());
+        assert!(java_env_from_config(&config, Some("Java 99"), false).is_empty());
         // Known label but invalid dir → build_java_env returns empty
         // (unmodified environment).
-        assert!(java_env_from_config(&config, Some("Java 17 (jdk-17)")).is_empty());
+        assert!(java_env_from_config(&config, Some("Java 17 (jdk-17)"), false).is_empty());
+    }
+
+    /// A WSL-routed run must get NO Java overrides: `wsl::shell_script`
+    /// exports them verbatim into the distro, and a Windows `PATH`
+    /// (`C:\...;C:\...`) wipes `/bin:/usr/bin` — the "mvn: command not
+    /// found" / exit-127 bug.
+    #[test]
+    fn wsl_runs_get_no_windows_java_env() {
+        // A REAL dir, so build_java_env actually produces JAVA_HOME+PATH
+        // and the guard has something to suppress.
+        let home = std::env::temp_dir();
+        let mut config = AppConfig::default();
+        config
+            .java_versions
+            .insert("Java 17".into(), home.display().to_string());
+
+        assert_eq!(
+            java_env_from_config(&config, Some("Java 17"), false).len(),
+            2,
+            "native run keeps JAVA_HOME + PATH"
+        );
+        assert!(java_env_from_config(&config, Some("Java 17"), true).is_empty());
     }
 
     #[test]
