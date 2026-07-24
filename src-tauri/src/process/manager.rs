@@ -45,6 +45,7 @@ use crate::events::{
 use super::constants::{
     INSTALL_KILL_GRACE, INSTALL_WAIT_CAP, LINE_CHANNEL_CAPACITY, LOG_BATCH_FLUSH,
     LOG_BATCH_MAX_LINES, SERVICE_EXIT_WAIT_AFTER_EOF, SHUTDOWN_ALL_CAP, STOP_CMD_TIMEOUT,
+    WSL_PREAMBLE_CAP,
 };
 use super::error::ProcessError;
 use super::kill::{self, EscalationStep};
@@ -155,14 +156,14 @@ fn build_command(
 /// `service://log-line` event — flushed by the supervision loop every
 /// [`LOG_BATCH_FLUSH`] (75 ms) or when [`LOG_BATCH_MAX_LINES`] (64) is
 /// reached, whichever comes first (architecture-v2.md §3.2).
-struct LogBatcher {
+pub(crate) struct LogBatcher {
     name: String,
     stream: LogStream,
     lines: Vec<String>,
 }
 
 impl LogBatcher {
-    fn new(name: String, stream: LogStream) -> Self {
+    pub(crate) fn new(name: String, stream: LogStream) -> Self {
         Self {
             name,
             stream,
@@ -172,13 +173,13 @@ impl LogBatcher {
 
     /// Queue a line; `true` means the batch hit [`LOG_BATCH_MAX_LINES`] and
     /// the caller must flush now.
-    fn push(&mut self, line: String) -> bool {
+    pub(crate) fn push(&mut self, line: String) -> bool {
         self.lines.push(line);
         self.lines.len() >= LOG_BATCH_MAX_LINES
     }
 
     /// Emit the queued lines as one event (no-op when empty).
-    fn flush(&mut self, emitter: &dyn EventEmitter) {
+    pub(crate) fn flush(&mut self, emitter: &dyn EventEmitter) {
         if self.lines.is_empty() {
             return;
         }
@@ -778,22 +779,30 @@ impl ProcessManager {
         let drain = async move { while set.join_next().await.is_some() {} };
         if tokio::time::timeout(SHUTDOWN_ALL_CAP, drain).await.is_err() {
             // Cap exceeded (e.g. a slow stop_cmd) — force-kill survivors.
-            let leftovers: Vec<(
-                String,
-                u32,
-                Option<WslRun>,
-                Option<Arc<crate::process::job::ServiceJob>>,
-            )> = self
-                .inner
-                .services
-                .lock()
-                .await
-                .iter()
-                .map(|(id, e)| (id.clone(), e.pid, e.wsl.clone(), e.job.clone()))
-                .collect();
-            for (id, pid, wsl, job) in leftovers {
-                kill_run_tree(&id, pid, wsl.as_ref(), job.as_ref(), true).await;
-            }
+            self.force_kill_survivors().await;
+        }
+    }
+
+    /// Force-kill every still-registered run through the FULL tree-kill path
+    /// (Job Object on Windows, in-distro group kill for WSL) — never a raw
+    /// pid kill, which misses reparented grandchildren and only kills the
+    /// wsl.exe bridge for WSL runs. Used when a stop-all cap expires.
+    pub async fn force_kill_survivors(&self) {
+        let leftovers: Vec<(
+            String,
+            u32,
+            Option<WslRun>,
+            Option<Arc<crate::process::job::ServiceJob>>,
+        )> = self
+            .inner
+            .services
+            .lock()
+            .await
+            .iter()
+            .map(|(id, e)| (id.clone(), e.pid, e.wsl.clone(), e.job.clone()))
+            .collect();
+        for (id, pid, wsl, job) in leftovers {
+            kill_run_tree(&id, pid, wsl.as_ref(), job.as_ref(), true).await;
         }
     }
 }
@@ -955,7 +964,6 @@ async fn port_holder_diagnostic(port: u16) -> Option<String> {
 
     #[allow(clippy::items_after_statements)]
     async fn run_quiet(program: &str, args: &[&str]) -> Option<std::process::Output> {
-        use std::os::windows::process::CommandExt;
         let mut cmd = tokio::process::Command::new(program);
         cmd.args(args)
             .stdin(std::process::Stdio::null())
@@ -1048,6 +1056,12 @@ async fn supervise(
     flush_timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
 
     // ---- streaming phase: until both pipes EOF (§18) -----------------------
+    // WSL runs: everything printed BEFORE the PGID marker comes from the
+    // interactive shell init (~/.bashrc, ~/.profile — `brew update`, motd,
+    // fastfetch…), not from the service. Held back instead of dropped, so a
+    // run that dies before the marker (bad distro name, bashrc `exit`) still
+    // shows its output.
+    let mut preamble: Vec<String> = Vec::new();
     loop {
         tokio::select! {
             maybe_line = line_rx.recv() => match maybe_line {
@@ -1062,8 +1076,15 @@ async fn supervise(
                         if w.pgid.get().is_none() {
                             if let Some(pgid) = crate::wsl::parse_pid_line(&line) {
                                 let _ = w.pgid.set(pgid);
+                                preamble.clear(); // shell-init output, not the service's
                                 continue;
                             }
+                            // ponytail: capped so a chatty bashrc can't grow
+                            // unbounded; the tail is what a failure shows anyway.
+                            if preamble.len() < WSL_PREAMBLE_CAP {
+                                preamble.push(line);
+                            }
+                            continue;
                         }
                     }
                     let effects = analyzer.analyze(&line);
@@ -1086,6 +1107,10 @@ async fn supervise(
             },
             _ = flush_timer.tick() => batch.flush(emitter), // 75 ms cadence (§3.2)
         }
+    }
+    // Marker never arrived → the held lines are all the diagnostics there are.
+    for line in preamble.drain(..) {
+        batch.push(line);
     }
     batch.flush(emitter);
 

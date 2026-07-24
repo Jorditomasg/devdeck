@@ -74,6 +74,11 @@ pub const LOG_BATCH_MAX_LINES: usize = 64;
 /// Capacity of the per-service line channel (readers → supervision loop).
 pub const LINE_CHANNEL_CAPACITY: usize = 1024;
 
+/// Max lines a WSL run holds back before its PGID marker (interactive-shell
+/// init output: `brew update`, motd, fastfetch…). Dropped once the marker
+/// arrives; logged as-is if the run dies without ever printing it.
+pub const WSL_PREAMBLE_CAP: usize = 200;
+
 // ---------------------------------------------------------------------------
 // Windows process creation flags (§21.5: every spawn uses CREATE_NO_WINDOW;
 // long-lived services also CREATE_NEW_PROCESS_GROUP). Raw constants — no
