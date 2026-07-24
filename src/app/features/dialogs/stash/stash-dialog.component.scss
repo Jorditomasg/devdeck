@@ -61,7 +61,31 @@
 
 .stash__bulk {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
+  gap: 10px;
+}
+
+// Native <progress> — themed with accent-color, no pseudo-element pile.
+// The <label> wrapper is what gives the bar its accessible name.
+.stash__progress {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-md);
+
+  progress {
+    flex: 1;
+    height: 6px;
+    accent-color: var(--color-text-accent-bright);
+  }
+}
+
+.stash__progress-count {
+  font-family: var(--font-family-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 .stash__name {

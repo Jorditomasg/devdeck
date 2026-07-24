@@ -271,17 +271,18 @@ pub async fn git_create_branch(
     Ok(git::create_branch(&repo, &name, base.as_deref(), checkout, Some(&sink)).await)
 }
 
-/// #68 `git_delete_branch { repoPath, name, force }` → `OpOutput`.
+/// #68 `git_delete_branch { repoPath, names, force }` → `OpOutput`. Takes a
+/// LIST: one `git branch -d a b c` beats N spawns for a bulk sweep.
 #[tauri::command]
 pub async fn git_delete_branch(
     app: tauri::AppHandle,
     repo_path: String,
-    name: String,
+    names: Vec<String>,
     force: bool,
 ) -> CmdResult<OpOutput> {
     let repo = PathBuf::from(repo_path);
     let sink = op_log_sink(app, path_basename(&repo), LogStream::Git);
-    Ok(git::delete_branch(&repo, &name, force, Some(&sink)).await)
+    Ok(git::delete_branches(&repo, &names, force, Some(&sink)).await)
 }
 
 /// #69 `git_delete_remote_branch { repoPath, name }` → `OpOutput`.

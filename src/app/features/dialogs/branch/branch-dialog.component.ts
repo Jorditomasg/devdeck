@@ -454,9 +454,10 @@ export class BranchDialogComponent extends DialogBase {
   }
 
   /**
-   * Delete every checked branch with `-d` (non-force). Failures — including
-   * "not fully merged" — are logged and the branch stays checked; per-branch
-   * force prompts don't belong in a bulk sweep.
+   * Delete every checked branch in ONE `git branch -d a b c` (non-force) — a
+   * spawn per branch made a 40-branch sweep take seconds on WSL repos. git
+   * deletes what it can and names the refusals (e.g. "not fully merged") in the
+   * streamed log; per-branch force prompts still don't belong in a bulk sweep.
    */
   protected async deleteSelected(): Promise<void> {
     const names = [...this.selected()];
@@ -470,22 +471,10 @@ export class BranchDialogComponent extends DialogBase {
     if (!confirmed) {
       return;
     }
-    this.busy.set(true);
-    try {
-      for (const name of names) {
-        const result = await this.commands.git.deleteBranch(this.repoPath(), name, false);
-        this.appendLog(
-          result.ok
-            ? this.i18n.t('dialog.branch.done_deleted')
-            : this.i18n.t('dialog.branch.failed', { msg: result.message }),
-        );
-      }
-    } catch (err: unknown) {
-      this.appendLog(this.i18n.t('dialog.branch.failed', { msg: describe(err) }));
-    } finally {
-      this.busy.set(false);
-      await this.afterMutation();
-    }
+    await this.run(
+      () => this.commands.git.deleteBranches(this.repoPath(), names, false),
+      'dialog.branch.done_deleted',
+    );
   }
 
   protected async deleteLocal(branch: string): Promise<void> {
@@ -497,7 +486,7 @@ export class BranchDialogComponent extends DialogBase {
       return;
     }
     const result = await this.runRaw(() =>
-      this.commands.git.deleteBranch(this.repoPath(), branch, false),
+      this.commands.git.deleteBranches(this.repoPath(), [branch], false),
     );
     if (result === null) {
       return;
@@ -524,7 +513,7 @@ export class BranchDialogComponent extends DialogBase {
       return;
     }
     await this.run(
-      () => this.commands.git.deleteBranch(this.repoPath(), branch, true),
+      () => this.commands.git.deleteBranches(this.repoPath(), [branch], true),
       'dialog.branch.done_deleted',
     );
   }

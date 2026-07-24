@@ -237,7 +237,7 @@ Operation logs flow through `service://log-line` with `stream: "git"` and `name`
 | 65 | `git_stash_pop` | `{ repoPath: string, index: number }` | `OpOutput` | `git::stash_pop` — applies + drops |
 | 66 | `git_stash_drop` | `{ repoPath: string, index: number }` | `OpOutput` | `git::stash_drop` |
 | 67 | `git_create_branch` | `{ repoPath: string, name: string, base?: string, checkout: boolean }` | `OpOutput` | `git::create_branch` — `checkout -b` / `branch` |
-| 68 | `git_delete_branch` | `{ repoPath: string, name: string, force: boolean }` | `OpOutput` | `git::delete_branch` — `branch -d`/`-D` |
+| 68 | `git_delete_branch` | `{ repoPath: string, names: string[], force: boolean }` | `OpOutput` | `git::delete_branches` — one `branch -d`/`-D` for ALL names (bulk sweep = 1 spawn) |
 | 69 | `git_delete_remote_branch` | `{ repoPath: string, name: string }` | `OpOutput` | `git::delete_remote_branch` — `push origin --delete` |
 | 70 | `git_rename_branch` | `{ repoPath: string, from?: string, to: string }` | `OpOutput` | `git::rename_branch` — `branch -m` |
 | 71 | `git_publish_branch` | `{ repoPath: string, name: string }` | `OpOutput` | `git::publish_branch` — `push -u origin` |

@@ -50,7 +50,7 @@ pub use worktree::{
     ChangeEntry,
 };
 pub use branch::{
-    create_branch, delete_branch, delete_remote_branch, publish_branch, rename_branch,
+    create_branch, delete_branches, delete_remote_branch, publish_branch, rename_branch,
 };
 pub use types::{
     GitError, LogSink, MergeOutcome, MergeRequest, MergeStatus, OpOutput, OrderedBranches,

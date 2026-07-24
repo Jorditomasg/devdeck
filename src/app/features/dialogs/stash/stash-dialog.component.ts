@@ -166,6 +166,13 @@ const PAGE_SIZE = 15;
               </tr>
             </ui-filter-table>
             <div class="stash__bulk">
+              @if (progress(); as p) {
+                <label class="stash__progress">
+                  {{ 'dialog.stash.dropping' | t }}
+                  <progress [value]="p.done" [max]="p.total"></progress>
+                  <span class="stash__progress-count">{{ p.done }}/{{ p.total }}</span>
+                </label>
+              }
               <ui-button
                 variant="danger-deep"
                 [loading]="busy()"
@@ -214,6 +221,12 @@ export class StashDialogComponent extends DialogBase {
   protected readonly hasChanges = signal<boolean | null>(null);
   /** Indices checked for bulk drop — cleared on every reload (indices shift). */
   protected readonly selected = signal<ReadonlySet<number>>(new Set());
+  /**
+   * Bulk-drop progress; `null` when idle. `git stash drop` accepts exactly ONE
+   * ref, so a multi-drop is unavoidably N sequential calls — that's why this is
+   * a real counter and not the spinner the (batched) branch sweep gets.
+   */
+  protected readonly progress = signal<{ done: number; total: number } | null>(null);
   /** What the table currently shows (post-filter) — the select-all scope. */
   protected readonly visibleEntries = signal<readonly StashEntry[]>([]);
 
@@ -374,6 +387,7 @@ export class StashDialogComponent extends DialogBase {
       return;
     }
     this.busy.set(true);
+    this.progress.set({ done: 0, total: indices.length });
     try {
       for (const index of indices) {
         const result = await this.commands.git.stashDrop(this.repoPath(), index);
@@ -382,10 +396,12 @@ export class StashDialogComponent extends DialogBase {
             ? this.i18n.t('dialog.stash.done_dropped')
             : this.i18n.t('dialog.stash.failed', { msg: result.message }),
         );
+        this.progress.update((p) => (p ? { done: p.done + 1, total: p.total } : p));
       }
     } catch (err: unknown) {
       this.appendLog(this.i18n.t('dialog.stash.failed', { msg: describe(err) }));
     } finally {
+      this.progress.set(null);
       void this.repos.refreshBadge(this.repoPath());
       await this.reload();
       this.busy.set(false);

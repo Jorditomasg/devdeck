@@ -472,13 +472,17 @@ export class IpcCommands {
         checkout,
       }),
 
-    /** `force` uses `-D` (skips the merged check). */
-    deleteBranch: (
+    /**
+     * Delete one or MORE local branches in a single `git branch -d a b c`.
+     * `force` uses `-D` (skips the merged check). A partial failure comes back
+     * as `ok: false` with git naming the branches it refused.
+     */
+    deleteBranches: (
       repoPath: string,
-      name: string,
+      names: readonly string[],
       force: boolean,
     ): Promise<OpOutput> =>
-      this.bridge.invoke<OpOutput>(CMD.gitDeleteBranch, { repoPath, name, force }),
+      this.bridge.invoke<OpOutput>(CMD.gitDeleteBranch, { repoPath, names, force }),
 
     deleteRemoteBranch: (repoPath: string, name: string): Promise<OpOutput> =>
       this.bridge.invoke<OpOutput>(CMD.gitDeleteRemoteBranch, { repoPath, name }),

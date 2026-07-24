@@ -42,13 +42,29 @@ pub async fn create_branch(
     run_logged_op(repo, &args, T_BRANCH_OP, log).await
 }
 
-/// `git branch -d <name>` (or `-D` when `force` — drops the merged-check).
-pub async fn delete_branch(repo: &Path, name: &str, force: bool, log: Option<&LogSink>) -> OpOutput {
-    if let Some(rejected) = reject_option_like(name) {
-        return rejected;
+/// `git branch -d <a> <b> …` (or `-D` when `force` — drops the merged-check).
+/// git takes MANY names per invocation, so a bulk sweep is ONE process instead
+/// of one per branch — on a WSL repo each spawn otherwise pays a ~200-400 ms
+/// `wsl.exe` crossing (mutations bypass the persistent read session). Names git
+/// refuses (e.g. not fully merged) are named individually in stderr and the
+/// rest are still deleted, so the failed `OpOutput` still says which survived.
+pub async fn delete_branches(
+    repo: &Path,
+    names: &[String],
+    force: bool,
+    log: Option<&LogSink>,
+) -> OpOutput {
+    if names.is_empty() {
+        return OpOutput::fail("no branch names given");
     }
-    let flag = if force { "-D" } else { "-d" };
-    run_logged_op(repo, &["branch", flag, name], T_BRANCH_OP, log).await
+    let mut args: Vec<&str> = vec!["branch", if force { "-D" } else { "-d" }];
+    for name in names {
+        if let Some(rejected) = reject_option_like(name) {
+            return rejected;
+        }
+        args.push(name);
+    }
+    run_logged_op(repo, &args, T_BRANCH_OP, log).await
 }
 
 /// `git push origin --delete <name>` — removes the branch on the remote.
