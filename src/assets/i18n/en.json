@@ -530,6 +530,7 @@
       "error_no_new": "Enter the new branch name.",
       "log_label": "Progress",
       "error_same_branch": "You can't merge a branch into itself. Pick a source different from the destination.",
+      "starting": "Starting merge {merge}...",
       "done_ok": "Merge completed successfully.",
       "done_push_failed": "Merge OK, but push failed: {msg}",
       "done_conflict": "Conflict in {count} file(s). Resolve manually in your IDE and commit.",

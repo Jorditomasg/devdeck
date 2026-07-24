@@ -9,9 +9,9 @@
  * 2. Source list excludes the chosen destination in existing mode, with the
  *    recents separator adjusted (`sourceOptions`).
  * 3. Merge run: `git_capture_revert_point` ALWAYS precedes `git_merge`
- *    (ipc-contract §2.4 #19); progress log lines arrive via
- *    `service://log-line` (`stream: "git"`, name = repo) and mirror into the
- *    dialog's live log.
+ *    (ipc-contract §2.4 #19); progress lines arrive on this dialog's OWN
+ *    `service://log-line` subscription (`stream: "git"`, name = repo),
+ *    interleaved with the dialog's own notices.
  * 4. The 5 outcomes render distinct banners (`outcomeView`): ok /
  *    ok_push_failed / conflict are terminal (button → Close); blocked_dirty
  *    (with the dirty-file explanation, ≤20 files) and error reset the button
@@ -29,6 +29,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   afterNextRender,
   computed,
   inject,
@@ -40,9 +41,10 @@ import {
 import { TPipe } from '../../../core/i18n/t.pipe';
 import { TranslationService } from '../../../core/i18n/translation.service';
 import { IpcCommands } from '../../../core/ipc/commands';
+import { IpcEvents } from '../../../core/ipc/events';
+import type { UnlistenFn } from '../../../core/ipc/tauri-bridge';
 import type { RevertPoint } from '../../../core/ipc/tauri.types';
 import { ReposStore } from '../../../core/state/repos.store';
-import { ServicesStore } from '../../../core/state/services.store';
 import {
   ButtonComponent,
   DialogLogComponent,
@@ -301,7 +303,7 @@ export class MergeBranchDialogComponent extends DialogBase {
 
   private readonly commands = inject(IpcCommands);
   private readonly repos = inject(ReposStore);
-  private readonly services = inject(ServicesStore);
+  private readonly events = inject(IpcEvents);
   private readonly i18n = inject(TranslationService);
   private readonly shell = viewChild.required<DialogShellComponent>('shell');
 
@@ -330,9 +332,16 @@ export class MergeBranchDialogComponent extends DialogBase {
   protected readonly revertPoints = signal<readonly RevertEntry[]>([]);
   /** A merge was applied AND pushed — never reverted locally (v1 policy). */
   private pushedMerge = false;
-  private logBaseline = 0;
-  /** Local status lines appended below the streamed git lines. */
-  private readonly extraLog = signal<readonly string[]>([]);
+  /**
+   * Progress log of this dialog: the repo's `stream: "git"` lines straight off
+   * `service://log-line` plus the dialog's own notices, in arrival order.
+   *
+   * Owns its subscription instead of reading `ServicesStore.logsFor()`: that
+   * store is hydrated for the MAIN window's cards, and reading it from a
+   * dialog window left this panel empty (docs/migration/dialogs-as-windows.md
+   * — the log window subscribes directly for the same reason).
+   */
+  protected readonly logLines = signal<readonly string[]>([]);
   /** Optional name for the stash created from the blocked-dirty retry path. */
   protected readonly stashName = signal('');
   /** Guards the stash-and-retry window (the `merging` flag is only set once
@@ -351,16 +360,6 @@ export class MergeBranchDialogComponent extends DialogBase {
     this.loading() ? this.i18n.t('label.loading') : '',
   );
 
-  /** Dialog log = git-stream lines since the merge started + local notices. */
-  protected readonly logLines = computed<readonly string[]>(() => {
-    const streamed = this.services
-      .logsFor(this.repoName())()
-      .slice(this.logBaseline)
-      .filter((l) => l.stream === 'git')
-      .map((l) => l.line);
-    return [...streamed, ...this.extraLog()];
-  });
-
   /** Detach the live log into its own OS window (reuses `open_log_window`). */
   protected detachLog(): void {
     void this.commands
@@ -368,14 +367,28 @@ export class MergeBranchDialogComponent extends DialogBase {
       .catch((err: unknown) => console.error('open log window failed', err));
   }
 
-  /** Clear the dialog's view of the log (non-destructive: baseline bump). */
+  /** Clear the dialog's view of the log. */
   protected clearLog(): void {
-    this.logBaseline = this.services.logsFor(this.repoName())().length;
-    this.extraLog.set([]);
+    this.logLines.set([]);
   }
 
   constructor() {
     super();
+    const destroyRef = inject(DestroyRef);
+    let unlisten: UnlistenFn | undefined;
+    destroyRef.onDestroy(() => unlisten?.());
+    // `repoName` is bound after construction, so the filter reads it lazily —
+    // by the time any line arrives the input is set.
+    void this.events
+      .onServiceLogLine((e) => {
+        if (e.stream === 'git' && e.name === this.repoName()) {
+          this.logLines.update((lines) => [...lines, ...e.lines]);
+        }
+      })
+      .then((fn) => {
+        unlisten = fn;
+      })
+      .catch((err: unknown) => console.error('merge log subscription failed', err));
     // Inputs (repoName) are bound by the host AFTER construction, so defer the
     // first load to after the first render — otherwise repoPath() is empty and
     // the branch combos come back blank.
@@ -461,31 +474,33 @@ export class MergeBranchDialogComponent extends DialogBase {
     }
     this.inlineError.set('');
     this.outcome.set(null);
-    this.extraLog.set([]);
-    this.logBaseline = this.services.logsFor(this.repoName())().length;
     this.merging.set(true);
 
     const repoPath = this.repoPath();
     const request = buildMergeRequest(form, this.dirtyIgnore());
+    const target = form.mode === 'existing' ? form.destination : form.newBranch.trim();
+    const label = `${form.source} → ${target}`;
+    this.appendLog(this.i18n.t('dialog.merge.starting', { merge: label }));
+    let point: RevertPoint | null = null;
     try {
       // Revert point MUST be captured before the merge (ipc-contract §2.4 #19).
-      const point = await this.commands.git.captureRevertPoint(repoPath, request);
+      const captured = await this.commands.git.captureRevertPoint(repoPath, request);
+      point = captured;
       const result = await this.commands.git.merge(repoPath, request);
       const view = outcomeView(result);
       this.outcome.set(view);
       this.appendLog(this.i18n.t(view.logKey, view.params));
-      if (view.applied) {
+      // The undo offer is NOT limited to APPLIED merges: every outcome past
+      // the dirty guard may already have moved HEAD (destination checkout,
+      // new branch, ff pull, half-finished conflicted merge), and Cancel must
+      // be able to put the repo back where it was. `blocked_dirty` is the one
+      // outcome that mutates nothing — the guard runs first.
+      if (result.status !== 'blocked_dirty') {
         if (result.status === 'ok' && form.push) {
           this.pushedMerge = true; // pushed merges are never reverted (v1)
         } else {
-          const target =
-            form.mode === 'existing' ? form.destination : form.newBranch.trim();
-          this.revertPoints.update((entries) => [
-            ...entries,
-            { point, label: `${form.source} → ${target}` },
-          ]);
+          this.revertPoints.update((entries) => [...entries, { point: captured, label }]);
         }
-        void this.repos.refreshBadge(repoPath); // v1 on_complete refresh
       }
     } catch (err: unknown) {
       this.outcome.set({
@@ -497,8 +512,17 @@ export class MergeBranchDialogComponent extends DialogBase {
         files: [],
       });
       this.appendLog(this.i18n.t('dialog.merge.done_error', { msg: describe(err) }));
+      // Rejected mid-pipeline: the repo state is unknown, so offer the undo.
+      if (point) {
+        const captured = point;
+        this.revertPoints.update((entries) => [...entries, { point: captured, label }]);
+      }
     } finally {
       this.merging.set(false);
+      // Always, whatever the outcome: HEAD may have moved, so the cards' git
+      // state and this dialog's own pickers must not keep the stale branch.
+      void this.repos.refreshBadge(repoPath);
+      void this.loadBranches();
     }
   }
 
@@ -561,8 +585,10 @@ export class MergeBranchDialogComponent extends DialogBase {
       const result = await this.commands.git.revertMerge(this.repoPath(), entry.point);
       if (result.status === 'ok') {
         this.revertPoints.update((entries) => entries.filter((e) => e !== entry));
+        this.outcome.set(null); // undone → the action button offers Merge again
         this.appendLog(this.i18n.t('dialog.merge.revert_done'));
         void this.repos.refreshBadge(this.repoPath());
+        void this.loadBranches(); // back on the original branch (and -D'd branch gone)
         return true;
       }
       this.appendLog(
@@ -629,7 +655,7 @@ export class MergeBranchDialogComponent extends DialogBase {
   }
 
   private appendLog(line: string): void {
-    this.extraLog.update((lines) => [...lines, line]);
+    this.logLines.update((lines) => [...lines, line]);
   }
 }
 

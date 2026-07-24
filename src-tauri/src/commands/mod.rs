@@ -70,8 +70,27 @@ pub(crate) fn op_log_sink(
     })
 }
 
-/// Repo/card display name for a path — its final component, used as the
-/// `name` of operation log lines (matches `git::ops::repo_name` semantics).
+/// Card/log identity of the repo at `path`: the scanned `RepoInfo.name`,
+/// falling back to the basename when the path is not in the current scan
+/// (fresh clone, stale path).
+///
+/// Log lines MUST carry this name, NOT the bare basename: group scans
+/// disambiguate colliding basenames (`api (backend)` — see
+/// `detection::pipeline::disambiguate_names`) and the frontend keys its log
+/// buffers by `RepoInfo.name`, so a basename would route git output into a
+/// bucket no card or dialog ever reads (empty "Progress" panel).
+pub(crate) fn repo_log_name(app: &tauri::AppHandle, path: &std::path::Path) -> String {
+    use tauri::Manager;
+    let path_str = path.to_string_lossy();
+    app.state::<crate::state::AppState>()
+        .repos_snapshot()
+        .into_iter()
+        .find(|r| r.path == path_str)
+        .map(|r| r.name)
+        .unwrap_or_else(|| path_basename(path))
+}
+
+/// Final path component — the log/card name of repos outside the scan.
 pub(crate) fn path_basename(path: &std::path::Path) -> String {
     path.file_name()
         .map(|n| n.to_string_lossy().into_owned())

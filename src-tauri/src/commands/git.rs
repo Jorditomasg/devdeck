@@ -2,7 +2,8 @@
 //!
 //! All repo-addressed commands take the ABSOLUTE repo path
 //! (`RepoInfo.path`). Operation logs flow through `service://log-line` with
-//! `stream: "git"` and `name` = repo name (the path's basename).
+//! `stream: "git"` and `name` = the scanned `RepoInfo.name` (see `git_sink` /
+//! `repo_log_name` — the basename alone loses grouped-workspace repos).
 //!
 //! Mutating operations resolve with `OpOutput { ok, message }` instead of
 //! rejecting on domain failures — only infrastructure failures reject
@@ -14,13 +15,21 @@ use std::path::PathBuf;
 use tauri::State;
 
 use super::error::{AppError, CmdResult};
-use super::{op_log_sink, path_basename};
+use super::{op_log_sink, repo_log_name};
 use crate::events::LogStream;
 use crate::git::{
     self, MergeOutcome, MergeRequest, OpOutput, OrderedBranches, RevertOutcome, RevertPoint,
     StashEntry, StatusSummary, DEFAULT_BRANCH_RECENCY_LIMIT,
 };
 use crate::state::AppState;
+
+/// Git operation log sink for a repo path — routed under the repo's DISPLAY
+/// name (`repo_log_name`), which is what the cards and the git dialogs key
+/// their log buffers by.
+fn git_sink(app: tauri::AppHandle, repo: &std::path::Path) -> git::LogSink {
+    let name = repo_log_name(&app, repo);
+    op_log_sink(app, name, LogStream::Git)
+}
 
 /// Acquire a permit from one of the git semaphores. The semaphores are never
 /// closed, so failure here is a programming error surfaced as `kind: "git"`
@@ -78,7 +87,7 @@ pub async fn git_checkout(
     branch: String,
 ) -> CmdResult<OpOutput> {
     let repo = PathBuf::from(repo_path);
-    let sink = op_log_sink(app, path_basename(&repo), LogStream::Git);
+    let sink = git_sink(app, &repo);
     Ok(git::checkout(&repo, &branch, Some(&sink)).await)
 }
 
@@ -86,7 +95,7 @@ pub async fn git_checkout(
 #[tauri::command]
 pub async fn git_pull(app: tauri::AppHandle, repo_path: String) -> CmdResult<OpOutput> {
     let repo = PathBuf::from(repo_path);
-    let sink = op_log_sink(app, path_basename(&repo), LogStream::Git);
+    let sink = git_sink(app, &repo);
     Ok(git::pull(&repo, Some(&sink)).await)
 }
 
@@ -100,7 +109,7 @@ pub async fn git_fetch(
 ) -> CmdResult<OpOutput> {
     let _permit = acquire(&state.fetch_semaphore).await?;
     let repo = PathBuf::from(repo_path);
-    let sink = op_log_sink(app, path_basename(&repo), LogStream::Git);
+    let sink = git_sink(app, &repo);
     Ok(git::fetch(&repo, Some(&sink)).await)
 }
 
@@ -117,7 +126,7 @@ pub async fn git_clone(
     dest_path: String,
 ) -> CmdResult<OpOutput> {
     let dest = PathBuf::from(dest_path);
-    let sink = op_log_sink(app, path_basename(&dest), LogStream::Git);
+    let sink = git_sink(app, &dest);
     Ok(git::clone(&url, &dest, Some(&sink), None).await)
 }
 
@@ -126,7 +135,7 @@ pub async fn git_clone(
 #[tauri::command]
 pub async fn git_clean(app: tauri::AppHandle, repo_path: String) -> CmdResult<OpOutput> {
     let repo = PathBuf::from(repo_path);
-    let sink = op_log_sink(app, path_basename(&repo), LogStream::Git);
+    let sink = git_sink(app, &repo);
     Ok(git::clean_repo(&repo, Some(&sink)).await)
 }
 
@@ -165,7 +174,7 @@ pub async fn git_merge(
     request: MergeRequest,
 ) -> CmdResult<MergeOutcome> {
     let repo = PathBuf::from(repo_path);
-    let sink = op_log_sink(app, path_basename(&repo), LogStream::Git);
+    let sink = git_sink(app, &repo);
     Ok(git::merge_branch(&repo, &request, Some(&sink)).await)
 }
 
@@ -177,7 +186,7 @@ pub async fn git_revert_merge(
     revert_point: RevertPoint,
 ) -> CmdResult<RevertOutcome> {
     let repo = PathBuf::from(repo_path);
-    let sink = op_log_sink(app, path_basename(&repo), LogStream::Git);
+    let sink = git_sink(app, &repo);
     Ok(git::revert_merge(&repo, &revert_point, Some(&sink)).await)
 }
 
@@ -213,7 +222,7 @@ pub async fn git_stash_push(
     include_untracked: bool,
 ) -> CmdResult<OpOutput> {
     let repo = PathBuf::from(repo_path);
-    let sink = op_log_sink(app, path_basename(&repo), LogStream::Git);
+    let sink = git_sink(app, &repo);
     Ok(git::stash_push(&repo, message.as_deref(), include_untracked, Some(&sink)).await)
 }
 
@@ -225,7 +234,7 @@ pub async fn git_stash_apply(
     index: usize,
 ) -> CmdResult<OpOutput> {
     let repo = PathBuf::from(repo_path);
-    let sink = op_log_sink(app, path_basename(&repo), LogStream::Git);
+    let sink = git_sink(app, &repo);
     Ok(git::stash_apply(&repo, index, Some(&sink)).await)
 }
 
@@ -237,7 +246,7 @@ pub async fn git_stash_pop(
     index: usize,
 ) -> CmdResult<OpOutput> {
     let repo = PathBuf::from(repo_path);
-    let sink = op_log_sink(app, path_basename(&repo), LogStream::Git);
+    let sink = git_sink(app, &repo);
     Ok(git::stash_pop(&repo, index, Some(&sink)).await)
 }
 
@@ -249,7 +258,7 @@ pub async fn git_stash_drop(
     index: usize,
 ) -> CmdResult<OpOutput> {
     let repo = PathBuf::from(repo_path);
-    let sink = op_log_sink(app, path_basename(&repo), LogStream::Git);
+    let sink = git_sink(app, &repo);
     Ok(git::stash_drop(&repo, index, Some(&sink)).await)
 }
 
@@ -267,7 +276,7 @@ pub async fn git_create_branch(
     checkout: bool,
 ) -> CmdResult<OpOutput> {
     let repo = PathBuf::from(repo_path);
-    let sink = op_log_sink(app, path_basename(&repo), LogStream::Git);
+    let sink = git_sink(app, &repo);
     Ok(git::create_branch(&repo, &name, base.as_deref(), checkout, Some(&sink)).await)
 }
 
@@ -281,7 +290,7 @@ pub async fn git_delete_branch(
     force: bool,
 ) -> CmdResult<OpOutput> {
     let repo = PathBuf::from(repo_path);
-    let sink = op_log_sink(app, path_basename(&repo), LogStream::Git);
+    let sink = git_sink(app, &repo);
     Ok(git::delete_branches(&repo, &names, force, Some(&sink)).await)
 }
 
@@ -293,7 +302,7 @@ pub async fn git_delete_remote_branch(
     name: String,
 ) -> CmdResult<OpOutput> {
     let repo = PathBuf::from(repo_path);
-    let sink = op_log_sink(app, path_basename(&repo), LogStream::Git);
+    let sink = git_sink(app, &repo);
     Ok(git::delete_remote_branch(&repo, &name, Some(&sink)).await)
 }
 
@@ -306,7 +315,7 @@ pub async fn git_rename_branch(
     to: String,
 ) -> CmdResult<OpOutput> {
     let repo = PathBuf::from(repo_path);
-    let sink = op_log_sink(app, path_basename(&repo), LogStream::Git);
+    let sink = git_sink(app, &repo);
     Ok(git::rename_branch(&repo, from.as_deref(), &to, Some(&sink)).await)
 }
 
@@ -318,7 +327,7 @@ pub async fn git_publish_branch(
     name: String,
 ) -> CmdResult<OpOutput> {
     let repo = PathBuf::from(repo_path);
-    let sink = op_log_sink(app, path_basename(&repo), LogStream::Git);
+    let sink = git_sink(app, &repo);
     Ok(git::publish_branch(&repo, &name, Some(&sink)).await)
 }
 
@@ -494,7 +503,7 @@ pub async fn git_stage_file(
     path: String,
 ) -> CmdResult<OpOutput> {
     let repo = PathBuf::from(repo_path);
-    let sink = op_log_sink(app, path_basename(&repo), LogStream::Git);
+    let sink = git_sink(app, &repo);
     Ok(git::stage_file(&repo, &path, Some(&sink)).await)
 }
 
@@ -507,7 +516,7 @@ pub async fn git_unstage_file(
     path: String,
 ) -> CmdResult<OpOutput> {
     let repo = PathBuf::from(repo_path);
-    let sink = op_log_sink(app, path_basename(&repo), LogStream::Git);
+    let sink = git_sink(app, &repo);
     Ok(git::unstage_file(&repo, &path, Some(&sink)).await)
 }
 
@@ -522,7 +531,7 @@ pub async fn git_discard_file(
     untracked: bool,
 ) -> CmdResult<OpOutput> {
     let repo = PathBuf::from(repo_path);
-    let sink = op_log_sink(app, path_basename(&repo), LogStream::Git);
+    let sink = git_sink(app, &repo);
     Ok(git::discard_file(&repo, &path, untracked, Some(&sink)).await)
 }
 

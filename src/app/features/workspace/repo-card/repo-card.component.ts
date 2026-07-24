@@ -195,6 +195,8 @@ export class RepoCardComponent {
   private readonly depsInstalled = signal<boolean | null>(null);
 
   private lastLogRef: readonly LogLine[] | null = null;
+  /** Last branch seen in a badge event — change detector for the list reload. */
+  private lastBadgeBranch = '';
   private lastStatus: ServiceStatus | null = null;
   private depsQueried = false;
   private cmdProfilesLoaded = false;
@@ -496,6 +498,27 @@ export class RepoCardComponent {
     effect(() => {
       const branch = this.branch();
       untracked(() => this.branchDisplay.set(branch));
+    });
+
+    // The badge poll (30 s + every explicit refresh) is the ONLY signal that
+    // the branch moved outside this card — a merge/checkout in a dialog or git
+    // window, or plain `git checkout` in a terminal. The cached list would
+    // otherwise stay stale (missing the new branch, wrong current) until the
+    // user hit Reload. Efficient by construction: it re-queries only when the
+    // badge reports a branch the cache does not have, so a steady repo costs
+    // nothing.
+    effect(() => {
+      const fresh = this.badge()?.branch ?? '';
+      if (fresh === '' || fresh === this.lastBadgeBranch) {
+        return;
+      }
+      this.lastBadgeBranch = fresh;
+      untracked(() => {
+        const state = this.state();
+        if (state.branchesLoaded && state.branch !== fresh) {
+          void this.actions.loadBranches(this.repo());
+        }
+      });
     });
 
     // §6/§7 deps state: query `is_installed` once on card create (repos with

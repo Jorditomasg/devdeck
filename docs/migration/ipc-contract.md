@@ -213,7 +213,10 @@ Terminal `error` statuses carry `error: "error pattern matched"` or
 ### 2.4 Git (`git/`)
 
 All repo-addressed commands take the **absolute repo path** (`RepoInfo.path`).
-Operation logs flow through `service://log-line` with `stream: "git"` and `name` = repo name.
+Operation logs flow through `service://log-line` with `stream: "git"` and `name` = the
+scanned `RepoInfo.name` of the repo at that path (disambiguated `api (backend)` names
+included — NOT the bare basename, which no card or dialog log buffer is keyed by).
+Paths outside the current scan (e.g. a clone destination) fall back to the basename.
 
 | # | Command | Args | Returns | Backing |
 |---|---|---|---|---|

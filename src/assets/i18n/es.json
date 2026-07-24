@@ -530,6 +530,7 @@
       "error_no_new": "Escribí el nombre de la rama nueva.",
       "log_label": "Progreso",
       "error_same_branch": "No podés mergear una rama consigo misma. Elegí un origen distinto al destino.",
+      "starting": "Iniciando merge {merge}...",
       "done_ok": "Merge completado correctamente.",
       "done_push_failed": "Merge OK, pero el push falló: {msg}",
       "done_conflict": "Conflicto en {count} fichero(s). Resolvé manualmente en tu IDE y commiteá.",
