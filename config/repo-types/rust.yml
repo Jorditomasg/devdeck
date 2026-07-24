@@ -8,7 +8,10 @@ run:
   install: { default: "cargo build" }
   start: { default: "cargo run" }
 logs:
-  ready: "Listening on|listening on|Server (?:started|running)|Running|Started"
+  # NOT "Running|Started": cargo itself prints "Running `target/debug/…`" at
+  # spawn (stderr merges into the same line channel), which flipped every Rust
+  # service to ready before the server had bound its port.
+  ready: "Listening on|listening on|Server (?:started|running)"
   error: "^error(\\[|:)|panicked at"
   ports:
     - "(?:listening on|bound to|running on).*?:(\\d+)"

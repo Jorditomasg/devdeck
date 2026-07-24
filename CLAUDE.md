@@ -12,7 +12,7 @@ DevDeck is a standalone app with no legacy/migration obligations — do NOT add 
 
 - **Rust core** (`src-tauri/`): ALL side effects — process supervision (tokio), repo detection, git (CLI shell-outs), java discovery, profiles, docker compose, config persistence in OS dirs, tray, single-instance.
 - **Angular 22 frontend** (`src/`): zoneless, signals, standalone components, strict TS. Pure UI over a typed IPC contract — no business logic.
-- **IPC**: 101 commands + 7 events, documented in `docs/migration/ipc-contract.md` (the authoritative count assertion lives in `src/app/core/ipc/commands.spec.ts`). The Rust command names are snake_case; arg keys camelCase on the wire. Error envelope: `{ kind, message }`.
+- **IPC**: 112 commands + 12 events, documented in `docs/migration/ipc-contract.md` (the authoritative count assertion lives in `src/app/core/ipc/commands.spec.ts`). The Rust command names are snake_case; arg keys camelCase on the wire. Error envelope: `{ kind, message }`.
 
 ## Commands
 

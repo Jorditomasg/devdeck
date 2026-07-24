@@ -7,8 +7,10 @@ detect:
     match: ["docker-compose*.yml", "docker-compose*.yaml"]
 run:
   install: { default: "" }
-  start: { default: "docker-compose up -d" }
-  stop: { default: "docker-compose down" }
+  # v2 plugin syntax — the legacy docker-compose v1 shim no longer ships with
+  # docker-ce (the Rust compose layer already auto-detects/assumes v2).
+  start: { default: "docker compose up -d" }
+  stop: { default: "docker compose down" }
   restart_delay_ms: 2000
 config:
   writer: "raw"

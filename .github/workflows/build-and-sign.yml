@@ -60,10 +60,13 @@ jobs:
       - name: Setup Rust stable
         uses: dtolnay/rust-toolchain@stable
 
+      # shared-key matches ci.yml so the registry/git-deps cache saved on
+      # master pushes is restored here (tag refs never save caches).
       - name: Cache cargo build
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+          shared-key: release-windows
 
       - name: Install frontend dependencies
         run: npm ci
@@ -129,10 +132,13 @@ jobs:
       - name: Setup Rust stable
         uses: dtolnay/rust-toolchain@stable
 
+      # shared-key matches ci.yml so the registry/git-deps cache saved on
+      # master pushes is restored here (tag refs never save caches).
       - name: Cache cargo build
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+          shared-key: release-linux
 
       # Tauri 2 Linux system deps: webkit2gtk (webview), ayatana-appindicator
       # (tray — the only working tray backend on Linux), librsvg (icons),
