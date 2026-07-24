@@ -9,16 +9,17 @@
 
 [package]
 name = "devdeck"
-version = "3.7.1"
+version = "3.8.0"
 description = "DevDeck — desktop app for managing local development services"
 authors = ["Jorditomasg"]
 edition = "2021"
 
 [lib]
 # Library target so the binary stays a thin shim (src/main.rs) and the core is
-# testable / reusable from mobile entry points if ever needed.
+# testable. Desktop consumes only the rlib; restore "staticlib"/"cdylib" here
+# if mobile entry points ever materialize (they only slowed every build).
 name = "devdeck_lib"
-crate-type = ["staticlib", "cdylib", "rlib"]
+crate-type = ["rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2.6", features = [] }
@@ -45,6 +46,11 @@ dirs = "6.0"
 # SPIKE GATE: this must link under the `cargo-xwin` Windows cross-compile from
 # WSL (see CLAUDE.md build recipe) before the full subsystem is built on top.
 portable-pty = "0.8"
+
+# test-util enables `#[tokio::test(start_paused = true)]` (virtual-clock
+# tests, e.g. wait_port_free) — test builds only, ships nothing in release.
+[dev-dependencies]
+tokio = { version = "1.52", features = ["test-util"] }
 
 # Unix-only: process-GROUP signalling (`killpg`) for `process/kill.rs` — the
 # v1 POSIX self-kill fix (inventory-backend.md §22.1, architecture-v2.md §7.1)

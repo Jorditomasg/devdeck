@@ -1,6 +1,6 @@
 {
   "name": "devdeck",
-  "version": "3.7.1",
+  "version": "3.8.0",
   "private": true,
   "license": "MIT",
   "description": "DevDeck - Tauri 2 + Angular desktop app for managing local development services",
@@ -8,6 +8,8 @@
     "start": "ng serve",
     "build": "ng build",
     "test": "vitest run",
+    "check:i18n": "node scripts/check-i18n-keys.mjs",
+    "check:cycles": "npx madge --circular --extensions ts src/app",
     "tauri": "tauri"
   },
   "dependencies": {
@@ -29,7 +31,6 @@
     "@codemirror/language": "^6.12.4",
     "@codemirror/state": "^6.7.0",
     "@codemirror/view": "^6.43.4",
-    "@lezer/highlight": "^1.2.3",
     "@tauri-apps/api": "^2.11.0",
     "@tauri-apps/plugin-autostart": "^2.0.0",
     "@xterm/addon-fit": "^0.10.0",

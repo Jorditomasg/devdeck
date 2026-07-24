@@ -5,6 +5,46 @@ All notable changes to DevDeck are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.8.0] - 2026-07-24
+
+### Added
+
+- The workspace toolbar is now a single command row: the selection lives next
+  to Start / Stop / Restart as a tri-state checkbox with an `n/N` counter, the
+  batch git actions collapse into one dropdown, and every action label carries
+  the number of repos it will touch.
+- Batch operations show real progress instead of just greying the buttons out —
+  Pull All is sequential and can take minutes. Stop now asks for confirmation,
+  counting only the services actually running.
+
+### Changed
+
+- Install All installs only the repos that are actually missing their
+  dependencies, and Pull All fetches first and then pulls only the repos that
+  are behind — no per-repo confirmation, the batch itself is the confirmation.
+- The red error dot is now an unread-failure marker: expanding a card, focusing
+  it, or opening its log (from the card or the tray) clears it, across every
+  window and on the tray icon.
+- Docker Compose repos use the `docker compose` v2 syntax; the legacy
+  `docker-compose` shim no longer ships with Docker.
+- Deleting several branches at once runs as a single git call, and dropping
+  stashes in bulk shows a progress bar.
+
+### Fixed
+
+- WSL services start again: DevDeck no longer exports the Windows Java
+  environment into the distro, which wiped the Linux `PATH` and made every
+  in-distro tool unreachable (`mvn: command not found`).
+- Shell start-up noise (`~/.bashrc` output, MOTD, package-manager notices) no
+  longer pollutes the logs of WSL services.
+- The merge dialog shows its progress log when opened in its own window, Cancel
+  now undoes a merge that failed or conflicted (not only one that applied), and
+  the branch and branch list refresh without pressing Reload.
+- Git operation logs are attributed to the scanned repo name, so repos
+  disambiguated by a group scan (`api (backend)`) keep their log lines.
+- Rust services no longer flip to "ready" the moment Cargo prints its own
+  `Running \`target/…\`` line — readiness waits for the server to listen.
+
 ## [3.7.1] - 2026-07-17
 
 ### Fixed
