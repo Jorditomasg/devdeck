@@ -172,8 +172,12 @@ export class RepoActionsService {
    * Pull flow (§12 "Pull"): blocked with an error listing up to 10 dirty
    * files (ignoring `env_pull_ignore_patterns`); confirmed when commits are
    * pending; silent pull otherwise. Returns true when a pull ran.
+   *
+   * `confirm: false` skips the pending-commits confirmation — the batch
+   * pull-all already fetched, filtered to the repos actually behind and asked
+   * once, so re-asking per repo would mean one dialog per repo.
    */
-  async pull(repo: RepoInfo): Promise<boolean> {
+  async pull(repo: RepoInfo, confirm = true): Promise<boolean> {
     if (this._pulling().has(repo.name)) {
       return false;
     }
@@ -197,7 +201,7 @@ export class RepoActionsService {
       }
       const badge = this.repos.badges()[repo.name];
       const behind = badge?.behind ?? 0;
-      if (behind > 0) {
+      if (confirm && behind > 0) {
         const ok = await this.dialogs.confirm(
           this.i18n.t('dialog.pull.confirm_title'),
           this.i18n.t('dialog.pull.confirm_msg', {

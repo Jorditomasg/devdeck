@@ -19,3 +19,4 @@ config:
 ui:
   icon: "🔥"
   color: "#dd4814"
+  install_check_dirs: ["vendor"]

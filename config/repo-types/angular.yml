@@ -19,3 +19,4 @@ config:
 ui:
   icon: "🅰"
   color: "#ef4444"
+  install_check_dirs: ["node_modules"]

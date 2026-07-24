@@ -20,3 +20,4 @@ config:
 ui:
   icon: "🐘"
   color: "#ff2d20"
+  install_check_dirs: ["vendor"]

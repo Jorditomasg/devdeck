@@ -20,8 +20,9 @@ logs:
     - "Listening on.*?(\\d+)"
 config:
   writer: "angular"
-  dir: "apps/default/src/environments"
+  dir: "apps/{main_app}/src/environments"
   patterns: ["environment*.ts", ".env", ".env.*"]
 ui:
   icon: "🅰"
   color: "#ef4444"
+  install_check_dirs: ["node_modules"]

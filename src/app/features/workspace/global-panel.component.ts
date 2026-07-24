@@ -192,7 +192,13 @@ export class GlobalPanelComponent {
     }
   }
 
-  /** Pull all (§3): strictly sequential over the selected repos. */
+  /**
+   * Pull all (§3): fetch the selected repos (cap 3), then pull ONLY the ones
+   * actually behind, strictly sequential. The fetch is what makes the filter
+   * honest — `behind` in the badge is relative to the LAST fetch, so a repo
+   * that was never fetched reads 0 and would be skipped with remote commits
+   * waiting. Per-repo confirmation is off: this batch already is the confirm.
+   */
   protected async onPullAll(): Promise<void> {
     const selected = await this.requireSelected();
     if (!selected) {
@@ -200,30 +206,67 @@ export class GlobalPanelComponent {
     }
     this.busy.set(true);
     try {
-      await runBatch(selected, PULL_ALL_CONCURRENCY, (repo) =>
-        this.actions.pull(repo),
+      const behind: RepoInfo[] = [];
+      await runBatch(selected, GIT_BATCH_CONCURRENCY, async (repo) => {
+        await this.commands.git.fetch(repo.path).catch(() => undefined);
+        const badge = await this.commands.git
+          .statusSummary(repo.path)
+          .catch(() => null);
+        if ((badge?.behind ?? 0) > 0) {
+          behind.push(repo);
+        }
+      });
+      if (behind.length === 0) {
+        await this.dialogs.info(
+          this.i18n.t('btn.pull_all'),
+          this.i18n.t('log.global_all_up_to_date'),
+        );
+        return;
+      }
+      await runBatch(behind, PULL_ALL_CONCURRENCY, (repo) =>
+        this.actions.pull(repo, false),
       );
     } finally {
       this.busy.set(false);
     }
   }
 
-  /** Install all (§3): selected repos with an install command, cap 3. */
+  /**
+   * Install all (§3): selected repos with an install command that are NOT
+   * already installed (`is_installed` over the type's `install_check_dirs`),
+   * cap 3. A type without check dirs can't be probed → it still installs,
+   * same as before (skipping it would make the button a silent no-op).
+   */
   protected async onInstallAll(): Promise<void> {
     const selected = await this.requireSelected();
     if (!selected) {
       return;
     }
-    const targets = selected.filter((r) => r.runInstallCmd);
-    if (targets.length === 0) {
-      await this.dialogs.info(
-        this.i18n.t('btn.install_all'),
-        this.i18n.t('log.global_all_installed'),
-      );
-      return;
-    }
     this.busy.set(true);
     try {
+      const targets: RepoInfo[] = [];
+      await runBatch(
+        selected.filter((r) => r.runInstallCmd),
+        INSTALL_ALL_CONCURRENCY,
+        async (repo) => {
+          const dirs = repo.uiConfig.install_check_dirs ?? [];
+          const installed =
+            dirs.length > 0 &&
+            (await this.commands.process
+              .isInstalled(repo.path, dirs)
+              .catch(() => false));
+          if (!installed) {
+            targets.push(repo);
+          }
+        },
+      );
+      if (targets.length === 0) {
+        await this.dialogs.info(
+          this.i18n.t('btn.install_all'),
+          this.i18n.t('log.global_all_installed'),
+        );
+        return;
+      }
       await runBatch(targets, INSTALL_ALL_CONCURRENCY, (repo) =>
         this.actions.install(repo, false),
       );
