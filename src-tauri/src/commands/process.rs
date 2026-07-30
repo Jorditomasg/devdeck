@@ -12,7 +12,7 @@ use std::time::Duration;
 use tauri::State;
 
 use super::error::{AppError, CmdResult};
-use crate::config::AppConfig;
+use crate::config::{config_key, AppConfig};
 use crate::domain::RepoInfo;
 use crate::java;
 use crate::process::constants::SHUTDOWN_ALL_CAP;
@@ -36,7 +36,8 @@ pub async fn start_service(
 ) -> CmdResult<()> {
     let config = load_config(&state);
     let repo = find_repo(&state, &service_id)?;
-    let env = java_env_from_config(&config, java_label.as_deref(), runs_in_wsl(&repo));
+    let mut env = java_env_from_config(&config, java_label.as_deref(), runs_in_wsl(&repo));
+    env.extend(spring_profile_env(&config, &repo));
     let override_cmd = resolved_command_override(&config, &repo.name);
     let spec = build_service_spec(&repo, &service_id, override_cmd.as_deref(), env)?;
     state.process.start_service(spec).await?;
@@ -87,7 +88,8 @@ pub async fn restart_service(
 ) -> CmdResult<()> {
     let config = load_config(&state);
     let repo = find_repo(&state, &service_id)?;
-    let env = java_env_from_config(&config, java_label.as_deref(), runs_in_wsl(&repo));
+    let mut env = java_env_from_config(&config, java_label.as_deref(), runs_in_wsl(&repo));
+    env.extend(spring_profile_env(&config, &repo));
     let override_cmd = resolved_command_override(&config, &repo.name);
     let spec = build_service_spec(&repo, &service_id, override_cmd.as_deref(), env)?;
     let delay = restart_delay(&repo);
@@ -286,6 +288,37 @@ pub(crate) fn java_env_from_config(
     }
 }
 
+/// Activate the environment selected on the card, for `spring` repos.
+///
+/// The selection is only a NAME until Spring is told to load it: the writer
+/// keeps each environment in its own `application-{name}.{ext}`
+/// (`config::writers::SpringWriter`), and Spring ignores that file unless the
+/// profile is active. `SPRING_PROFILES_ACTIVE` is the activation that works on
+/// BOTH rails without touching the command line: native runs get it in the
+/// spawned process env, WSL runs get it `export`ed by `wsl::shell_script`, and
+/// `spring-boot:run` forks a JVM that inherits it. A user command-profile
+/// override (`-Dspring-boot.run.profiles=…`) still wins — that is a JVM system
+/// property, and Spring ranks it above the env var.
+///
+/// `default` (and the unset case) yields NOTHING: that environment is the base
+/// file itself, and activating a profile named `default` would send Spring
+/// looking for an `application-default.yml` nobody wrote.
+///
+/// ponytail: first selected module wins — a spring repo has one resources dir
+/// in practice, and per-module profiles would need per-module run commands
+/// anyway. Install/reinstall is deliberately NOT given the profile: those build,
+/// they do not boot an app.
+fn spring_profile_env(config: &AppConfig, repo: &RepoInfo) -> Option<(String, String)> {
+    if repo.env_config_writer_type != "spring" {
+        return None;
+    }
+    repo.modules.iter().find_map(|module| {
+        let name = config.active_config(&config_key(&repo.name, &module.key))?;
+        (!name.is_empty() && name != "default")
+            .then(|| ("SPRING_PROFILES_ACTIVE".to_string(), name.to_string()))
+    })
+}
+
 /// Resolve the active command-profile line for a repo (`None` = repo default).
 fn resolved_command_override(config: &AppConfig, repo_name: &str) -> Option<String> {
     let name = config.repo_state.get(repo_name)?.command_profile.as_ref()?;
@@ -407,6 +440,59 @@ mod tests {
         assert_eq!(spec.command, "npm start");
         assert_eq!(spec.id, "api");
         assert_eq!(spec.known_port, Some(8080));
+    }
+
+    /// A spring repo whose single module is the resources dir.
+    fn spring_repo(name: &str) -> RepoInfo {
+        RepoInfo {
+            name: name.into(),
+            env_config_writer_type: "spring".into(),
+            modules: vec![crate::domain::RepoModule {
+                key: "src/main/resources".into(),
+                dir: "src/main/resources".into(),
+                ..Default::default()
+            }],
+            ..repo(name)
+        }
+    }
+
+    fn config_with_active(config_key: &str, name: &str) -> AppConfig {
+        let mut config = AppConfig::default();
+        config
+            .active_configs
+            .insert(config_key.to_string(), name.to_string());
+        config
+    }
+
+    #[test]
+    fn spring_profile_env_activates_the_selected_environment() {
+        let repo = spring_repo("api");
+        let config = config_with_active("api::src/main/resources", "local");
+        assert_eq!(
+            spring_profile_env(&config, &repo),
+            Some(("SPRING_PROFILES_ACTIVE".into(), "local".into()))
+        );
+    }
+
+    #[test]
+    fn spring_profile_env_skips_default_and_unselected() {
+        let repo = spring_repo("api");
+        // `default` IS the base file — activating it would send Spring after a
+        // non-existent application-default.yml.
+        assert_eq!(
+            spring_profile_env(&config_with_active("api::src/main/resources", "default"), &repo),
+            None
+        );
+        // Nothing selected at all.
+        assert_eq!(spring_profile_env(&AppConfig::default(), &repo), None);
+    }
+
+    #[test]
+    fn spring_profile_env_ignores_non_spring_writers() {
+        let mut repo = spring_repo("web");
+        repo.env_config_writer_type = "angular".into();
+        let config = config_with_active("web::src/main/resources", "prod");
+        assert_eq!(spring_profile_env(&config, &repo), None);
     }
 
     #[test]

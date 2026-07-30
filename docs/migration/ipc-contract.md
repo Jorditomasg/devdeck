@@ -286,7 +286,7 @@ Paths outside the current scan (e.g. a clone destination) fall back to the basen
 | 33 | `read_config_file` | `{ path: string }` | `string` | `config::read_config_file_raw` |
 | 34 | `write_config_file` | `{ path: string, content: string }` | `void` | `config::write_config_file_raw` |
 | 35 | `apply_environment` | `{ writerType: string, targetFile: string, profile: string, content: string }` | `void` | `config::write_active_environment` (`spring` validates YAML + targets profile file; `angular`/`raw` write verbatim, inventory-config-ci.md §1.5) |
-| 111 | `read_active_environment` | `{ writerType: string, targetFile: string, profile: string }` | `string` | `config::read_active_environment` — current content of the file `apply_environment` writes for `profile` (`spring` reads the BASE `application.{ext}` — Model B; `angular`/`raw` read the target); missing → `""`. Drives env-file drift deselection (§10). |
+| 111 | `read_active_environment` | `{ writerType: string, targetFile: string, profile: string }` | `string` | `config::read_active_environment` — current content of the file `apply_environment` writes for `profile` (`spring` reads the profile's own `application-{profile}.{ext}`, or the base `application.{ext}` for `default`; `angular`/`raw` read the target); missing → `""`. Drives env-file drift deselection (§10). |
 | 58 | `set_last_profile` | `{ group: string \| null, name: string \| null }` | `void` | `ConfigStore::update` — persists `last_profile_by_group[group or "Default"] = name`; `name: null` clears the entry (inventory-backend.md §8.3) |
 
 ### 2.6 Java (`java/`)

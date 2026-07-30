@@ -1,7 +1,19 @@
 # Env-file drift deselection — design
 
 **Date:** 2026-07-05
-**Status:** approved (pending spec review)
+**Status:** approved (pending spec review) — **Model B superseded 2026-07-30**
+
+> **Model B (spring writer → base `application.{ext}`) is no longer in effect.**
+> Stamping every environment into the base file treated a Spring profile file
+> as a REPLACEMENT for the base when it is a LAYER over it, so selecting a
+> partial `application-{p}.yml` silently deleted every base-only key. A user
+> repo lost its security properties this way and the Spring context refused to
+> start (`required a bean … that could not be found`, 2026-07-27). The `spring`
+> writer now writes each environment to its OWN `application-{profile}.{ext}`
+> and the selection is ACTIVATED with `SPRING_PROFILES_ACTIVE` in the run env
+> (`commands::process::spring_profile_env`). Everything below about drift
+> detection still holds — it reads through `resolve_active_file`, which follows
+> the writer.
 
 ## Problem
 
