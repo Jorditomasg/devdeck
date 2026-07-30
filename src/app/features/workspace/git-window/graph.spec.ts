@@ -295,7 +295,7 @@ describe('unnamed merge-lane backfill', () => {
     expect(rows[3].label).toBe('develop');
   });
 
-  it('leaves a fan-out run with no naming signal unnamed instead of lying', () => {
+  it('names a fan-out run with no naming signal after its PR, never the target', () => {
     const rows = computeGraph([
       {
         sha: 'm',
@@ -307,8 +307,19 @@ describe('unnamed merge-lane backfill', () => {
       { sha: 'x', parents: ['gone'], source: 'develop' }, // deleted branch, no signal
       { sha: 'c', parents: [], source: 'develop' },
     ]);
-    expect(rows[1].label).toBeUndefined(); // was "develop" — the lie
-    expect(rows[1].labelLive).toBe(false);
+    expect(rows[1].label).toBe('PR 1'); // never "develop" — that was the lie
+    expect(rows[1].labelLive).toBe(false); // display-only: not a walkable ref
+  });
+
+  it('lets a real branch name found down the run beat the PR number', () => {
+    const rows = computeGraph([
+      { sha: 'm', parents: ['c', 'x'], refs: ['develop'], subject: 'Merged PR 1: t' },
+      { sha: 'x', parents: ['x2'], source: 'develop' },
+      { sha: 'x2', parents: ['c'], subject: "Merge branch 'develop' into feature/a" },
+      { sha: 'c', parents: [] },
+    ]);
+    expect(rows[1].label).toBe('feature/a');
+    expect(rows[0].labels[1]).toBe('feature/a');
   });
 
   it('leaves lanes already named by the merge subject alone', () => {
@@ -350,9 +361,23 @@ describe('assignBranchColors', () => {
       { sha: 'd1', parents: [], source: 'develop' },
     ]);
     const palette = assignBranchColors(rows);
-    expect(rows[1].label).toBeUndefined(); // still honestly unnamed…
-    expect(palette.get(rows[1].key)).toBeDefined(); // …but it OWNS a color
+    expect(rows[1].key).toBe('@f1'); // no branch name → its own run identity
+    expect(palette.get(rows[1].key)).toBeDefined(); // …and it OWNS a color
     expect(palette.get(rows[1].key)).not.toBe(palette.get('develop'));
+  });
+
+  it('keeps ONE color when a run switches between origin/x and x', () => {
+    // 2026-07-30: the tip carried the remote decoration, the commits below
+    // inherited the bare name from an `into <branch>` subject — same line,
+    // two palette identities, color flipped halfway down.
+    const rows = computeGraph([
+      { sha: 'b', parents: ['a'], refs: ['origin/feature/a'] },
+      { sha: 'a', parents: [], subject: "Merge branch 'develop' into feature/a" },
+    ]);
+    const palette = assignBranchColors(rows);
+    expect(rows[0].label).toBe('origin/feature/a'); // chip still shows the ref
+    expect(rows[1].label).toBe('feature/a');
+    expect(palette.get(rows[0].key)).toBe(palette.get(rows[1].key));
   });
 
   it('keeps one color per line across its whole run', () => {

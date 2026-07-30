@@ -159,9 +159,20 @@ interface LaneSlot {
   run: string;
 }
 
+/**
+ * Palette identity of a NAME. `origin/x` and `x` are the SAME line: the tip
+ * carries the remote decoration while the commits below inherit the bare name
+ * from an `into <branch>` subject, so the identical first-parent chain changed
+ * color halfway down (user 2026-07-30, boa2-frontend rows 34-41:
+ * origin/feature/BOA26-1780 red, feature/BOA26-1780 cyan).
+ */
+function paletteKey(label: string): string {
+  return label.replace(/^origin\//, '');
+}
+
 /** Palette identity of a lane: its branch name, else its run. */
 function keyOf(slot: LaneSlot): string {
-  return slot.label ?? `@${slot.run}`;
+  return slot.label === undefined ? `@${slot.run}` : paletteKey(slot.label);
 }
 
 /**
@@ -181,6 +192,8 @@ export function computeGraph(
   const lanes: (LaneSlot | null)[] = [];
   const rows: GraphRow[] = [];
   const loaded = new Set(commits.map((c) => c.sha));
+  /** Run key → the PR that merged it, for runs nothing else can name. */
+  const prNames = new Map<string, string>();
 
   for (const commit of commits) {
     const topActive = lanes.map((s) => s !== null);
@@ -228,7 +241,7 @@ export function computeGraph(
             : label !== undefined;
     // Lanes nobody was waiting for START a run here (page tip / fork point).
     const run = inherited?.run ?? commit.sha;
-    const key = label ?? `@${run}`;
+    const key = label === undefined ? `@${run}` : paletteKey(label);
     // Converged children free their lanes (the dot's own lane is reused).
     for (const j of waiting) {
       if (j !== lane) {
@@ -287,6 +300,12 @@ export function computeGraph(
           // The merged-in branch: its tip usually lost its ref (deleted
           // after merge), but the merge subject names it (2nd parent only).
           const mergedName = n === 0 ? mergedBranchOf(commit.subject) : undefined;
+          if (mergedName === undefined) {
+            const pr = prOf(commit.subject);
+            if (pr !== undefined) {
+              prNames.set(`@${parent}`, pr);
+            }
+          }
           const slot: LaneSlot = {
             sha: parent,
             label: mergedName,
@@ -348,7 +367,60 @@ export function computeGraph(
     });
   }
   backfillUnnamedLanes(rows);
+  nameOrphanRuns(rows, prNames);
   return rows;
+}
+
+/**
+ * Pull request that merged a branch in, when the subject names no branch:
+ * Azure DevOps ("Merged PR 9613: alg fixes to 21") and GitHub squash merges
+ * ("alg fixes to 21 (#9613)").
+ */
+export function prOf(subject: string | undefined): string | undefined {
+  if (!subject) {
+    return undefined;
+  }
+  const m = /^Merged PR (\d+):/.exec(subject) ?? /\(#(\d+)\)\s*$/.exec(subject);
+  return m ? `PR ${m[1]}` : undefined;
+}
+
+/**
+ * LAST-resort name for runs nothing could name. An Azure DevOps PR merge
+ * carries no branch name anywhere — the ref is deleted, the subject is
+ * "Merged PR N: <title>" and `%S` names the TARGET — so the whole merged-in
+ * run stayed label-less: no hover text and no chip, and the click fell
+ * through to the commit (user 2026-07-30). The PR number is the only true
+ * name left, so it is display-only (`labelLive` stays false: not a walkable
+ * ref, nothing to filter by).
+ *
+ * Runs AFTER [`backfillUnnamedLanes`] deliberately: a real branch name found
+ * further down the run (`Merge … into feature/x`) must always win.
+ * Palette keys are left alone — a nameless run already owns `@<run>`.
+ */
+function nameOrphanRuns(rows: GraphRow[], prNames: ReadonlyMap<string, string>): void {
+  if (prNames.size === 0) {
+    return;
+  }
+  const fill = (labels: readonly (string | undefined)[], keys: readonly (string | undefined)[]) => {
+    keys.forEach((key, i) => {
+      if (key !== undefined && labels[i] === undefined) {
+        const pr = prNames.get(key);
+        if (pr !== undefined) {
+          (labels as (string | undefined)[])[i] = pr;
+        }
+      }
+    });
+  };
+  for (const row of rows) {
+    if (row.label === undefined) {
+      const pr = prNames.get(row.key);
+      if (pr !== undefined) {
+        (row as { label?: string }).label = pr;
+      }
+    }
+    fill(row.labels, row.keys);
+    fill(row.topLabels, row.topKeys);
+  }
 }
 
 /**
@@ -431,7 +503,7 @@ function computeLinear(commits: readonly GraphInput[]): GraphRow[] {
     const solidDown = hasParents && next !== undefined && commit.parents.includes(next.sha);
     // Only a solid edge continues a run; a stub starts a fresh one.
     const run = prevSolid ? prevRun : commit.sha;
-    const key = label ?? `@${run}`;
+    const key = label === undefined ? `@${run}` : paletteKey(label);
 
     rows.push({
       lane: 0,
