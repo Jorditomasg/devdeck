@@ -5,6 +5,28 @@ All notable changes to DevDeck are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.8.1] - 2026-07-30
+
+### Fixed
+
+- Selecting a Spring environment no longer overwrites `application.yml`.
+  DevDeck now writes each environment to the profile file it owns
+  (`application-{profile}.yml`) and activates it through
+  `SPRING_PROFILES_ACTIVE`, so the profile layers over your base config instead
+  of replacing it. Previously, picking an environment stamped its partial
+  overrides over the base file and silently dropped every key that only lived
+  there — enough to break startup with `APPLICATION FAILED TO START` when a
+  `@ConfigurationProperties` bean lost its properties.
+- The command a terminal is opened with now lands in the shell's own history,
+  so `↑` recalls it. It is typed once the shell is ready rather than pushed at
+  the pty on spawn, which PowerShell's line editor never recorded.
+- In the git window, a branch keeps ONE color down its whole line: `origin/x`
+  and `x` are no longer painted as two different branches, so a chain no longer
+  changes color halfway down. Branches whose ref was deleted after merging are
+  now labeled with the pull request that merged them (Azure DevOps
+  `Merged PR 1234:` and GitHub `(#1234)` squash merges) instead of being left
+  unnamed.
+
 ## [3.8.0] - 2026-07-24
 
 ### Added
