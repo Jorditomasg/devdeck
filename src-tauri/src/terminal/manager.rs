@@ -47,6 +47,8 @@ impl TerminalManager {
     }
 
     /// Spawn a PTY session under `id` (buffering output until `attach`).
+    /// `command`, when set, is typed into the shell once it is ready — see
+    /// [`Session::spawn`] for why it is not written straight after spawn.
     pub fn open(
         &self,
         id: &str,
@@ -54,8 +56,9 @@ impl TerminalManager {
         cwd: &Path,
         cols: u16,
         rows: u16,
+        command: Option<String>,
     ) -> Result<(), TerminalError> {
-        let session = Session::spawn(shell, cwd, cols, rows)?;
+        let session = Session::spawn(shell, cwd, cols, rows, command)?;
         self.sessions
             .lock()
             .expect("terminal sessions poisoned")

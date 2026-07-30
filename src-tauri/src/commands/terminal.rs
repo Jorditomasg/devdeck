@@ -24,9 +24,9 @@ const DEFAULT_ROWS: u16 = 24;
 /// somehow already exists) a detached `term-<id>` window loading
 /// `?terminal=<id>`. Returns the new terminal id. Mirrors `open_log_window`.
 ///
-/// When `command` is a non-empty string it is typed-ahead into the PTY
-/// (`<command>\r`) right after spawn — the tty buffers the line until the
-/// shell is ready, the command stays visible in the terminal, and Ctrl+C
+/// When `command` is a non-empty string it is typed into the PTY
+/// (`<command>\r`) once the shell is ready — the command stays visible in the
+/// terminal, lands in the shell's own history (so `↑` recalls it), and Ctrl+C
 /// leaves the user in a live interactive shell (design doc 2026-07-05).
 #[tauri::command]
 pub async fn open_terminal_window(
@@ -42,16 +42,19 @@ pub async fn open_terminal_window(
     // back to the per-platform default when unset/empty or config is unreadable.
     let override_shell = state.config.load().ok().and_then(|c| c.terminal_shell);
     let shell = resolve_shell(override_shell.as_deref());
+    let command = command
+        .as_deref()
+        .map(str::trim)
+        .filter(|c| !c.is_empty())
+        .map(str::to_string);
     state.terminals.open(
         &id,
         &shell,
         std::path::Path::new(&cwd),
         DEFAULT_COLS,
         DEFAULT_ROWS,
+        command,
     )?;
-    if let Some(cmd) = command.as_deref().map(str::trim).filter(|c| !c.is_empty()) {
-        state.terminals.write(&id, format!("{cmd}\r").as_bytes())?;
-    }
 
     let label = window_label("term", &id);
     let url = format!("index.html?terminal={}", urlencode_component(&id));

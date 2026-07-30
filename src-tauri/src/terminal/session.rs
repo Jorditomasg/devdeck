@@ -14,7 +14,9 @@
 use std::collections::VecDeque;
 use std::io::{Read, Write};
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 use tauri::ipc::{Channel, InvokeResponseBody};
 
@@ -24,6 +26,15 @@ use super::pty::Pty;
 /// Bytes buffered before the webview attaches. Generous enough for a shell's
 /// startup banner + first prompt; oldest bytes are dropped past the cap.
 const PRE_ATTACH_BUFFER_CAP: usize = 256 * 1024;
+
+/// How long the launch-command injector waits for the shell's first output
+/// (its prompt) before typing anyway. A cold `pwsh.exe` needs ~1 s.
+const SHELL_READY_TIMEOUT: Duration = Duration::from_secs(3);
+
+/// Quiet period after the first output before typing the launch command.
+/// The first chunk can be a banner rather than the prompt; letting the shell
+/// settle keeps the line arriving at a live line editor.
+const SHELL_SETTLE: Duration = Duration::from_millis(250);
 
 /// PTY output destination: a bounded buffer until the webview attaches, then
 /// the live channel.
@@ -62,28 +73,39 @@ pub struct Session {
 impl Session {
     /// Spawn `shell` in a PTY rooted at `cwd`, start the reader thread, and
     /// return the session buffering output until [`Session::attach`].
+    ///
+    /// `command`, when set, is typed into the shell ONCE IT IS READY (first
+    /// output seen + a short settle) rather than written straight after spawn.
+    /// Writing it early works on bash (the tty buffers the line and readline
+    /// still records it) but is lost to PSReadLine, which only builds history
+    /// from lines it edits itself — so `↑` never recalled the very command the
+    /// terminal was opened with.
     pub fn spawn(
         shell: &str,
         cwd: &Path,
         cols: u16,
         rows: u16,
+        command: Option<String>,
     ) -> Result<Self, TerminalError> {
         let pty = Pty::spawn(shell, cwd, cols, rows)?;
         let pid = pty.pid();
         let writer = Arc::new(Mutex::new(pty.writer()?));
         let mut reader = pty.reader()?;
         let sink = Arc::new(Mutex::new(Sink::Buffering(VecDeque::new())));
+        let saw_output = Arc::new(AtomicBool::new(false));
 
         // Reader thread: blocking reads off the PTY master (the reader/writer
         // from `portable-pty` are blocking std IO — never drive them on the
         // async runtime). Ends on EOF (shell exit) or read error.
         let reader_sink = Arc::clone(&sink);
+        let reader_flag = Arc::clone(&saw_output);
         std::thread::spawn(move || {
             let mut chunk = [0u8; 8192];
             loop {
                 match reader.read(&mut chunk) {
                     Ok(0) | Err(_) => break,
                     Ok(n) => {
+                        reader_flag.store(true, Ordering::Relaxed);
                         if let Ok(mut sink) = reader_sink.lock() {
                             sink.push(&chunk[..n]);
                         }
@@ -91,6 +113,18 @@ impl Session {
                 }
             }
         });
+
+        if let Some(command) = command {
+            let injector_writer = Arc::clone(&writer);
+            std::thread::spawn(move || {
+                wait_for(&saw_output, SHELL_READY_TIMEOUT);
+                std::thread::sleep(SHELL_SETTLE);
+                if let Ok(mut writer) = injector_writer.lock() {
+                    let _ = writer.write_all(format!("{command}\r").as_bytes());
+                    let _ = writer.flush();
+                }
+            });
+        }
 
         Ok(Session {
             pty,
@@ -132,5 +166,42 @@ impl Session {
     /// PID of the shell — the handle the kill ladder signals on close.
     pub fn pid(&self) -> Option<u32> {
         self.pid
+    }
+}
+
+/// Block until `flag` is set or `timeout` elapses; `true` when the flag won.
+/// ponytail: a 20 ms poll, not a Condvar — this runs once per terminal.
+fn wait_for(flag: &AtomicBool, timeout: Duration) -> bool {
+    let deadline = Instant::now() + timeout;
+    while !flag.load(Ordering::Relaxed) {
+        if Instant::now() >= deadline {
+            return false;
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn wait_for_returns_when_the_flag_is_set() {
+        let flag = Arc::new(AtomicBool::new(false));
+        let setter = Arc::clone(&flag);
+        std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(40));
+            setter.store(true, Ordering::Relaxed);
+        });
+        assert!(wait_for(&flag, Duration::from_secs(2)));
+    }
+
+    #[test]
+    fn wait_for_gives_up_at_the_timeout() {
+        let flag = AtomicBool::new(false);
+        let started = Instant::now();
+        assert!(!wait_for(&flag, Duration::from_millis(60)));
+        assert!(started.elapsed() >= Duration::from_millis(60));
     }
 }
