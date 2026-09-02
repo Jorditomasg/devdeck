@@ -65,6 +65,25 @@ describe('ServicesStore', () => {
     expect(store.services()['api']?.port).toBe(8080);
   });
 
+  it('hydrate() clears a stale active status the registry no longer reports', async () => {
+    const bridge = new FakeTauriBridge().whenInvoked(CMD.listServices, []);
+    const store = makeStore(bridge);
+    await store.init();
+
+    // Optimistic flip whose confirming event never arrives (a restart whose
+    // start phase failed) — the tray panel re-hydrates on focus and must not
+    // stay pinned on `stopping`.
+    bridge.emit(EVT.serviceStatusChanged, statusEvent({ name: 'api', status: 'stopping', pid: 42 }));
+    await store.hydrate();
+    expect(store.statusFor('api')).toBe('stopped');
+    expect(store.services()['api']?.pid).toBeUndefined();
+
+    // An errored run is ALSO absent from the registry — its red marker stays.
+    bridge.emit(EVT.serviceStatusChanged, statusEvent({ name: 'web', status: 'error', error: 'boom' }));
+    await store.hydrate();
+    expect(store.statusFor('web')).toBe('error');
+  });
+
   it('acknowledges the error marker when a log window opens, keeping the port', async () => {
     const bridge = new FakeTauriBridge().whenInvoked(CMD.listServices, []);
     const store = makeStore(bridge);

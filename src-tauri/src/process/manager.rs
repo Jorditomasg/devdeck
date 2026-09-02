@@ -1670,6 +1670,36 @@ mod tests {
             assert_eq!(terminal["error"], "exited while starting, code 0");
         }
 
+        /// The restart-gets-stuck regression. `setsid` puts the grandchild in
+        /// its OWN session, so it survives the process-group kill and keeps
+        /// the inherited stdout pipe open — the supervisor never reaches EOF
+        /// and would hold the registry entry forever, making every later
+        /// start of that id fail with `AlreadyRunning`. Linux-only: macOS has
+        /// no `setsid(1)`. Takes the full ladder (~15 s) by design.
+        #[cfg(target_os = "linux")]
+        #[tokio::test]
+        async fn stop_evicts_a_run_whose_supervisor_never_sees_eof() {
+            let (emitter, mgr) = collecting_manager();
+            mgr.start_service(svc("wedged", "setsid sleep 30 & sleep 30"))
+                .await
+                .unwrap();
+            assert!(mgr.is_running("wedged").await);
+            assert_eq!(mgr.stop("wedged").await.unwrap(), StopOutcome::Stopped);
+            assert!(
+                !mgr.is_running("wedged").await,
+                "the wedged entry must be evicted, or the id is unstartable forever"
+            );
+            assert_eq!(
+                emitter.statuses_for("wedged").last().map(String::as_str),
+                Some("stopped"),
+                "eviction must announce the terminal state itself"
+            );
+            // The whole point: a restart can spawn the id again.
+            mgr.start_service(svc("wedged", "echo back"))
+                .await
+                .expect("restart after a wedged stop must not be refused");
+        }
+
         #[tokio::test]
         async fn shutdown_all_is_idempotent_and_blocks_new_spawns() {
             let (_, mgr) = collecting_manager();

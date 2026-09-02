@@ -3,9 +3,10 @@
 //! Port of the file-IO half of `core/config_manager.py`:
 //! - Spring config IO (§8.4 backend): `write_spring_config` targets
 //!   `application.yml` / `application-{profile}.yml` (the low-level per-profile
-//!   writer, still used for reads). NOTE: the ACTIVE-write path (`SpringWriter`)
-//!   now stamps the selected env into the BASE running file only — see its doc
-//!   (Model B, design doc 2026-07-05-env-drift-deselection);
+//!   writer, still used for READS and for env auto-import). NOTE: the
+//!   ACTIVE-write path (`SpringWriter`) stamps EVERY selected env into the base
+//!   running file — one `application.{ext}`, no profile activation. See its doc
+//!   for the contract that makes that safe;
 //! - raw config-file IO (§8.5): used by the `angular` and `raw`
 //!   `config_writer_type`s, which write the saved-environment content
 //!   verbatim into `main_config_filename` (inventory-config-ci.md §1.5);
@@ -125,24 +126,38 @@ impl ConfigWriter for AngularWriter {
     }
 }
 
-/// `spring` — writes the selected environment to ITS OWN profile file
-/// (`application-{profile}.{ext}`, or the base `application.{ext}` for the
-/// `default` environment) inside the resources dir (the parent of
-/// `target_file`).
+/// `spring` — writes EVERY selected environment to the ONE base config file,
+/// `application.{ext}` in the resources dir (the parent of `target_file`).
+/// The profile name is a LABEL for the snapshot, never part of the filename,
+/// and no Spring profile is ever activated: the app always boots on the
+/// implicit `default` profile reading that single file.
 ///
-/// This replaces Model B (design doc 2026-07-05-env-drift-deselection), which
-/// stamped EVERY environment into the base `application.{ext}` because
-/// `mvn spring-boot:run` loads the base by default and a profile file "had no
-/// runtime effect". The diagnosis was right, the remedy was not: in Spring a
-/// profile file is a LAYER over the base, not a replacement, so overwriting
-/// the base with a partial overlay DELETES every key that lived only in the
-/// base. Real-world break (user report 2026-07-27): selecting `local` wrote
-/// `application-local.yml`'s overrides over `application.yml`, dropping the
-/// security properties behind a `@ConfigurationProperties` bean — the app died
-/// with `APPLICATION FAILED TO START` / "required a bean ... that could not be
-/// found". The profile is now ACTIVATED instead, via `SPRING_PROFILES_ACTIVE`
-/// in the run env (`commands::process::spring_profile_env`), which is what
-/// makes the selection take effect while leaving the base intact.
+/// # Why this shape (owner decision, 2026-09-02)
+///
+/// A saved environment here is a WHOLE `application.{ext}`, not an overlay.
+/// The user wants one file they can swap wholesale per launch, so "select env
+/// X" means "make `application.yml` be X" — the same mental model as the
+/// `raw`/`angular` writers, which is why this writer now differs from them
+/// only in the YAML validation.
+///
+/// # The invariant that makes it safe — do NOT break it
+///
+/// **Every saved environment must be a COMPLETE config, never a partial
+/// overlay.** In Spring an `application-{p}.yml` is a LAYER over the base, so
+/// stamping one of those files over `application.yml` deletes every key that
+/// lived only in the base. That is not theory: on 2026-07-27 selecting `local`
+/// wrote `application-local.yml`'s overrides over `application.yml`, dropped
+/// the security properties behind a `@ConfigurationProperties` bean, and the
+/// app died with `APPLICATION FAILED TO START` / "required a bean ... that
+/// could not be found". 9888a3c fixed that by writing per-profile files and
+/// activating `SPRING_PROFILES_ACTIVE`; the owner reverted to this model
+/// deliberately, accepting the invariant instead of the layering.
+///
+/// So the hazard is UNCHANGED, it has just moved: a repo that still carries
+/// `application-{p}.{ext}` layer files will have them auto-imported as
+/// environments (`auto_import_configs`), and selecting one WILL flatten the
+/// base. Keep a single `application.{ext}` per module, or make each saved env
+/// self-contained.
 ///
 /// The FORMAT is honored: a `.properties` target is written verbatim (properties
 /// are NOT YAML — validating them broke petclinic-style repos, user report
@@ -152,7 +167,7 @@ impl ConfigWriter for SpringWriter {
     fn name(&self) -> &'static str {
         "spring"
     }
-    fn active_path(&self, target_file: &Path, profile: &str) -> DomainResult<PathBuf> {
+    fn active_path(&self, target_file: &Path, _profile: &str) -> DomainResult<PathBuf> {
         let resources_dir = target_file.parent().ok_or_else(|| {
             DomainError::Configuration(format!(
                 "spring target '{}' has no parent dir",
@@ -168,9 +183,9 @@ impl ConfigWriter for SpringWriter {
         } else {
             "yml"
         };
-        // The file the profile OWNS: `default`/`""` → the base (that env was
-        // auto-imported FROM the base), anything else → `application-{p}.{ext}`.
-        Ok(resources_dir.join(spring_profile_filename(profile, ext)))
+        // ALWAYS the base file — the profile names the snapshot, not the file.
+        // The ext follows the target so a `.properties` repo keeps its format.
+        Ok(resources_dir.join(spring_profile_filename("default", ext)))
     }
     fn write_active(&self, target_file: &Path, profile: &str, content: &str) -> DomainResult<()> {
         let path = self.active_path(target_file, profile)?;
@@ -218,9 +233,9 @@ pub fn writer_exists(name: &str) -> bool {
 
 /// Write the ACTIVE saved-environment content through the repo type's
 /// `config_writer_type` (inventory-config-ci.md §1.5), dispatching through the
-/// writers registry: `spring` validates YAML and targets the profile file
-/// inside the resources dir; `angular`/`raw` (and any unknown type) write
-/// verbatim to `target_file` (`environment.ts` / `.env`).
+/// writers registry: `spring` validates YAML and targets the ONE base
+/// `application.{ext}` inside the resources dir; `angular`/`raw` (and any
+/// unknown type) write verbatim to `target_file` (`environment.ts` / `.env`).
 pub fn write_active_environment(
     writer_type: &str,
     target_file: &Path,
@@ -231,9 +246,9 @@ pub fn write_active_environment(
 }
 
 /// Resolve the file that [`write_active_environment`] writes for `profile`
-/// (the single source of truth for that mapping). `spring` targets the profile
-/// file inside the resources dir; `angular`/`raw` (and unknown types) → the
-/// target file itself.
+/// (the single source of truth for that mapping). `spring` targets the base
+/// `application.{ext}` inside the resources dir for EVERY profile;
+/// `angular`/`raw` (and unknown types) → the target file itself.
 pub fn resolve_active_file(
     writer_type: &str,
     target_file: &Path,
@@ -391,11 +406,14 @@ mod tests {
 
         let resources = dir.join("src/main/resources");
         fs::create_dir_all(&resources).unwrap();
-        // spring: writes the PROFILE's own file, never the base.
+        // spring: writes the ONE base file, never a per-profile file.
         write_active_environment("spring", &resources.join("application.yml"), "dev", "a: 1")
             .unwrap();
-        assert!(resources.join("application-dev.yml").is_file());
-        assert!(!resources.join("application.yml").exists());
+        assert_eq!(
+            fs::read_to_string(resources.join("application.yml")).unwrap(),
+            "a: 1"
+        );
+        assert!(!resources.join("application-dev.yml").exists());
         let _ = fs::remove_dir_all(dir);
     }
 
@@ -409,68 +427,66 @@ mod tests {
         // unknown writer falls back to raw → target.
         assert_eq!(resolve_active_file("toml", &env, "x").unwrap(), env);
 
-        // spring: each profile resolves to the file it OWNS; only `default`
-        // (the auto-imported base) resolves to application.{ext}. The ext
-        // follows the target file's extension.
+        // spring: EVERY profile resolves to the one base application.{ext};
+        // the ext follows the target file's extension.
         let resources = dir.join("src/main/resources");
         fs::create_dir_all(&resources).unwrap();
         let yml_target = resources.join("application.yml");
-        assert_eq!(
-            resolve_active_file("spring", &yml_target, "dev").unwrap(),
-            resources.join("application-dev.yml")
-        );
-        assert_eq!(
-            resolve_active_file("spring", &yml_target, "default").unwrap(),
-            resources.join("application.yml")
-        );
-        // The ext comes from the TARGET, the name from the profile.
+        for profile in ["dev", "default", ""] {
+            assert_eq!(
+                resolve_active_file("spring", &yml_target, profile).unwrap(),
+                resources.join("application.yml"),
+                "profile {profile:?} must resolve to the base file"
+            );
+        }
+        // A `.properties` repo keeps its format — base name, target's ext.
         let props_target = resources.join("application-mysql.properties");
         assert_eq!(
             resolve_active_file("spring", &props_target, "mysql").unwrap(),
-            resources.join("application-mysql.properties")
+            resources.join("application.properties")
         );
 
-        // read_active_environment reads the profile's own file; missing → "".
+        // read_active_environment reads that same base file, whatever the
+        // selected profile is called — so drift compares like with like.
         write_active_environment("spring", &yml_target, "dev", "a: 1\n").unwrap();
-        assert_eq!(
-            read_active_environment("spring", &yml_target, "dev").unwrap(),
-            "a: 1\n"
-        );
-        // A DIFFERENT profile is a different file — nothing written there yet.
-        assert_eq!(
-            read_active_environment("spring", &yml_target, "prod").unwrap(),
-            ""
-        );
+        for profile in ["dev", "prod", "default"] {
+            assert_eq!(
+                read_active_environment("spring", &yml_target, profile).unwrap(),
+                "a: 1\n"
+            );
+        }
         assert_eq!(read_active_environment("raw", &env, "local").unwrap(), "");
         let _ = fs::remove_dir_all(dir);
     }
 
-    /// The 2026-07-27 regression: applying a profile environment must LEAVE THE
-    /// BASE ALONE. Model B overwrote `application.yml` with the overlay's
-    /// partial content, deleting every base-only key (the security properties
-    /// behind a `@ConfigurationProperties` bean) and killing the Spring context.
+    /// The single-file contract (owner decision 2026-09-02): selecting an
+    /// environment REPLACES the one `application.{ext}` wholesale and spawns no
+    /// per-profile file, so the app boots on the implicit `default` profile
+    /// reading exactly what was selected. Re-selecting another env swaps it
+    /// back — that only round-trips because each saved env is a COMPLETE
+    /// config (see `SpringWriter`; a partial overlay here is data loss).
     #[test]
-    fn applying_a_profile_never_touches_the_base_file() {
-        let dir = temp_dir("spring-base-intact");
+    fn applying_an_environment_replaces_the_single_base_file() {
+        let dir = temp_dir("spring-base-swap");
         let resources = dir.join("src/main/resources");
         fs::create_dir_all(&resources).unwrap();
         let base = resources.join("application.yml");
-        let base_content = "boa2:\n  security:\n    realm: prod\nserver:\n  port: 8080\n";
-        fs::write(&base, base_content).unwrap();
+        let original = "boa2:\n  security:\n    realm: prod\nserver:\n  port: 8080\n";
+        fs::write(&base, original).unwrap();
 
-        // Selecting "local" — its content is an OVERLAY, not a whole config.
-        write_active_environment("spring", &base, "local", "server:\n  port: 9090\n").unwrap();
+        // Selecting "local" — a WHOLE config, not an overlay.
+        let local = "boa2:\n  security:\n    realm: local\nserver:\n  port: 9090\n";
+        write_active_environment("spring", &base, "local", local).unwrap();
 
-        assert_eq!(
-            fs::read_to_string(&base).unwrap(),
-            base_content,
-            "the base config must survive verbatim"
+        assert_eq!(fs::read_to_string(&base).unwrap(), local);
+        assert!(
+            !resources.join("application-local.yml").exists(),
+            "no per-profile file — one application.yml is the whole contract"
         );
-        assert_eq!(
-            fs::read_to_string(resources.join("application-local.yml")).unwrap(),
-            "server:\n  port: 9090\n",
-            "the overlay lands in the profile's own file"
-        );
+
+        // Swapping back to the auto-imported `default` snapshot restores it.
+        write_active_environment("spring", &base, "default", original).unwrap();
+        assert_eq!(fs::read_to_string(&base).unwrap(), original);
         let _ = fs::remove_dir_all(dir);
     }
 
@@ -482,8 +498,8 @@ mod tests {
         // Real-world properties content that is NOT valid YAML (petclinic's
         // `#---` document separators broke the YAML validation, 2026-07-03).
         let content = "database=mysql\nspring.datasource.url=${MYSQL_URL:jdbc:mysql://x/y}\n#---\nspring.sql.init.mode=always\n";
-        // Selecting "mysql" writes application-mysql.properties verbatim — no
-        // YAML validation, and the base application.properties is untouched.
+        // Selecting "mysql" writes the base application.properties verbatim —
+        // no YAML validation. The ext comes from the target, the name never does.
         write_active_environment(
             "spring",
             &resources.join("application-mysql.properties"),
@@ -492,13 +508,13 @@ mod tests {
         )
         .unwrap();
         assert_eq!(
-            fs::read_to_string(resources.join("application-mysql.properties")).unwrap(),
+            fs::read_to_string(resources.join("application.properties")).unwrap(),
             content,
-            "verbatim into the profile's .properties file, no YAML validation"
+            "verbatim into the base .properties file, no YAML validation"
         );
         assert!(
-            !resources.join("application.properties").exists(),
-            "the base file is never written on apply"
+            !resources.join("application-mysql.properties").exists(),
+            "no per-profile file is ever created"
         );
         let _ = fs::remove_dir_all(dir);
     }

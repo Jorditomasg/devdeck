@@ -134,11 +134,28 @@ export class ServicesStore {
     await this.hydrate();
   }
 
-  /** Re-read the registry snapshot (e.g. after a frontend reload). */
+  /**
+   * Re-read the registry snapshot (frontend reload, tray-panel focus).
+   *
+   * AUTHORITATIVE, not additive: an id the Rust registry does not report is
+   * not running, so any locally-ACTIVE status for it is stale and gets reset
+   * to `stopped`. Merging only (the old behaviour) meant an optimistic
+   * `starting`/`stopping` whose confirming event never arrived stayed pinned
+   * forever — and the tray panel, whose ONLY sync mechanism is this call on
+   * focus, could never recover. `error` survives on purpose: the supervisor
+   * deregisters a dead run, so an errored service is always absent here and
+   * its red "unread failure" marker must outlive the snapshot (`clearError`).
+   */
   async hydrate(): Promise<void> {
     const snapshots = await this.commands.process.listServices();
     this._services.update((current) => {
       const next: Record<ServiceId, ServiceRuntime> = { ...current };
+      const live = new Set(snapshots.map((s) => s.id));
+      for (const [id, runtime] of Object.entries(next)) {
+        if (!live.has(id) && ACTIVE_STATUSES.includes(runtime.status)) {
+          next[id] = { ...runtime, status: 'stopped', pid: undefined };
+        }
+      }
       for (const snap of snapshots) {
         next[snap.id] = {
           ...next[snap.id],
