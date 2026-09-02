@@ -37,9 +37,9 @@ import { ServicesStore, type LogLine } from '../../../core/state/services.store'
 import { SettingsStore } from '../../../core/state/settings.store';
 import { DialogService } from '../../dialogs/dialog.service';
 import { OpenerService } from '../opener.service';
-import { RepoActionsService, isDockerRepo } from '../state/repo-actions.service';
+import { RepoActionsService } from '../state/repo-actions.service';
 import { WorkspaceStore } from '../state/workspace.store';
-import { composeDisplayName } from '../workspace-logic';
+import { composeDisplayName, isDockerRepo } from '../workspace-logic';
 import { CardExpandComponent, type CardExpandText, type CardExpandVm } from './card-expand.component';
 import { CardHeaderComponent, type CardHeaderText } from './card-header.component';
 import { CardLogComponent, type CardLogText } from './card-log.component';

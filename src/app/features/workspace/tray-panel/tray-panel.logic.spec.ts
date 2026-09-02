@@ -12,7 +12,23 @@ import {
 
 /** Minimal RepoInfo stub — only the fields the panel logic reads. */
 function repo(name: string, extra: Partial<RepoInfo> = {}): RepoInfo {
-  return { name, path: `/ws/${name}`, repoType: 'spring', ...extra } as unknown as RepoInfo;
+  return {
+    name,
+    path: `/ws/${name}`,
+    repoType: 'spring',
+    features: [],
+    dockerComposeFiles: [],
+    ...extra,
+  } as unknown as RepoInfo;
+}
+
+/** A docker-managed repo: the `docker_checkboxes` feature + compose files. */
+function dockerRepo(name: string, files = [`/ws/${name}/docker-compose.yml`]): RepoInfo {
+  return repo(name, {
+    repoType: 'docker-infra',
+    features: ['docker_checkboxes'],
+    dockerComposeFiles: files,
+  });
 }
 
 const SELECTION: SelectionMap = {
@@ -64,5 +80,24 @@ describe('buildPanelServices', () => {
     const rows = buildPanelServices(repos, SELECTION, status, port);
     expect(runningIds(rows)).toEqual(['api']);
     expect(stoppedIds(rows)).toEqual(['web']);
+  });
+
+  it('takes a docker repo status from the container count, not the process registry', () => {
+    const rows = buildPanelServices([dockerRepo('stack')], {}, status, port, { stack: 2 });
+    // `status()` would say `stopped` — a docker repo has no supervised process.
+    expect(rows[0]).toMatchObject({ status: 'running' });
+    expect(rows[0]?.composeFiles).toEqual(['/ws/stack/docker-compose.yml']);
+    expect(runningIds(rows)).toEqual(['stack']);
+  });
+
+  it('reports a docker repo with no running containers as stopped', () => {
+    const rows = buildPanelServices([dockerRepo('stack')], {}, status, port, {});
+    expect(rows[0]).toMatchObject({ status: 'stopped' });
+    expect(stoppedIds(rows)).toEqual(['stack']);
+  });
+
+  it('leaves composeFiles empty for a process repo, so it keeps the process branch', () => {
+    const rows = buildPanelServices([repo('api')], {}, status, port);
+    expect(rows[0]?.composeFiles).toEqual([]);
   });
 });

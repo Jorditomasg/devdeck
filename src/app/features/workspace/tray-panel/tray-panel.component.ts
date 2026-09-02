@@ -20,6 +20,8 @@ import { StatusDotComponent } from '../../../ui/status-dot/status-dot.component'
 import { TooltipDirective } from '../../../ui/tooltip/tooltip.directive';
 import { OpenerService } from '../opener.service';
 import { dotStatusFor } from '../repo-card/card-visibility';
+import { isDockerRepo } from '../workspace-logic';
+import { DOCKER_RESTART_DELAY_MS } from '../workspace.constants';
 import {
   buildPanelServices,
   isRunning,
@@ -93,14 +95,14 @@ import {
                   variant="danger"
                   size="sm"
                   [uiTooltip]="i18n.t('tooltip.stop_btn')"
-                  (clicked)="stop(svc.id)"
+                  (clicked)="stop(svc)"
                   ><ui-icon name="square" [size]="14"
                 /></ui-icon-button>
                 <ui-icon-button
                   variant="warning"
                   size="sm"
                   [uiTooltip]="i18n.t('tooltip.restart_btn')"
-                  (clicked)="restart(svc.id)"
+                  (clicked)="restart(svc)"
                   ><ui-icon name="refresh" [size]="14"
                 /></ui-icon-button>
               } @else {
@@ -108,7 +110,7 @@ import {
                   variant="start"
                   size="sm"
                   [uiTooltip]="i18n.t('tooltip.start_btn')"
-                  (clicked)="start(svc.id)"
+                  (clicked)="start(svc)"
                   ><ui-icon name="play" [size]="14"
                 /></ui-icon-button>
               }
@@ -149,6 +151,8 @@ export class TrayPanelComponent implements OnDestroy {
 
   private readonly _repos = signal<readonly RepoInfo[]>([]);
   private readonly _selection = signal<SelectionMap>({});
+  /** Running container count per docker repo (`docker_compose_status` poll). */
+  private readonly _dockerRunning = signal<Readonly<Record<string, number>>>({});
   private focusUnlisten?: UnlistenFn;
 
   /** Selected services with live status + port. */
@@ -158,6 +162,7 @@ export class TrayPanelComponent implements OnDestroy {
       this._selection(),
       (id) => this.services.statusFor(id),
       (id) => this.services.services()[id]?.port,
+      this._dockerRunning(),
     ),
   );
 
@@ -195,32 +200,130 @@ export class TrayPanelComponent implements OnDestroy {
       ]);
       this._repos.set(repos);
       this._selection.set(config.repo_state ?? {});
+      await this.refreshDockerStatus(repos);
     } catch (err: unknown) {
       console.error('tray panel refresh', err);
     }
   }
 
-  protected start(id: string): void {
-    void this.services.start(id).catch((err: unknown) => console.error('tray start', err));
+  /**
+   * Poll the container status of every docker repo. They have no supervised
+   * process, so `list_services` says nothing about them — without this the
+   * rows would sit on `stopped` forever and only ever offer a Start button.
+   *
+   * ponytail: queries EVERY compose file of the repo, ignoring the
+   * profile-selected subset (`CardState.dockerActive`), because that lives in
+   * `WorkspaceStore` — a store this window never initializes, fed only by an
+   * applied profile. Matches the card's own no-profile-loaded behaviour. Wire
+   * the active profile in here if per-file selection ever matters from the tray.
+   */
+  private async refreshDockerStatus(repos: readonly RepoInfo[]): Promise<void> {
+    const docker = repos.filter(isDockerRepo);
+    if (docker.length === 0) {
+      this._dockerRunning.set({});
+      return;
+    }
+    const counts: Record<string, number> = {};
+    await Promise.all(
+      docker.map(async (repo) => {
+        const perFile = await Promise.all(
+          repo.dockerComposeFiles.map((file) =>
+            this.commands.docker.composeStatus(file, []).catch(() => ({})),
+          ),
+        );
+        counts[repo.name] = perFile.reduce<number>(
+          (running, states) =>
+            running + Object.values(states).filter((s) => s === 'running').length,
+          0,
+        );
+      }),
+    );
+    this._dockerRunning.set(counts);
   }
 
-  protected stop(id: string): void {
-    void this.services.stop(id).catch((err: unknown) => console.error('tray stop', err));
+  /**
+   * Re-poll now and once more after the containers have had time to settle —
+   * the card's 0/3000/7000 ms cadence trimmed to two, since the panel also
+   * re-polls on every focus (i.e. every time the tray shows it).
+   */
+  private scheduleDockerRefresh(): void {
+    void this.refreshDockerStatus(this._repos());
+    setTimeout(() => void this.refreshDockerStatus(this._repos()), 3000);
   }
 
-  protected restart(id: string): void {
-    void this.services.restart(id).catch((err: unknown) => console.error('tray restart', err));
+  /**
+   * Compose up/down every file of a docker repo, sequentially (the card does
+   * the same: compose serializes on the project anyway).
+   */
+  private async compose(svc: PanelService, up: boolean): Promise<void> {
+    try {
+      for (const file of svc.composeFiles) {
+        await (up
+          ? this.commands.docker.composeUp(file)
+          : this.commands.docker.composeDown(file));
+      }
+    } catch (err: unknown) {
+      console.error('tray docker compose', err);
+    }
+    this.scheduleDockerRefresh();
+  }
+
+  protected start(svc: PanelService): void {
+    if (svc.composeFiles.length > 0) {
+      void this.compose(svc, true);
+      return;
+    }
+    void this.services
+      .start(svc.id, this.startOverrides(svc.id))
+      .catch((err: unknown) => console.error('tray start', err));
+  }
+
+  protected stop(svc: PanelService): void {
+    if (svc.composeFiles.length > 0) {
+      void this.compose(svc, false);
+      return;
+    }
+    void this.services.stop(svc.id).catch((err: unknown) => console.error('tray stop', err));
+  }
+
+  protected restart(svc: PanelService): void {
+    // Docker has no `restart_service` equivalent: down, then up after the
+    // documented card restart delay (§28), exactly like RepoActionsService.
+    if (svc.composeFiles.length > 0) {
+      void this.compose(svc, false).then(() => {
+        setTimeout(() => void this.compose(svc, true), DOCKER_RESTART_DELAY_MS);
+      });
+      return;
+    }
+    void this.services
+      .restart(svc.id, this.startOverrides(svc.id))
+      .catch((err: unknown) => console.error('tray restart', err));
+  }
+
+  /**
+   * The card's JDK override, read straight from the persisted config this
+   * panel already fetches (`repo_state[name].java_version`) — otherwise a
+   * start/restart from the tray would launch on a different JDK than the same
+   * button on the card.
+   */
+  private startOverrides(id: string): { javaLabel?: string } {
+    const javaLabel = this._selection()[id]?.java_version;
+    return javaLabel ? { javaLabel } : {};
   }
 
   protected startAll(): void {
-    for (const id of stoppedIds(this.rows())) {
-      this.start(id);
+    for (const svc of this.rows()) {
+      if (!isRunning(svc.status)) {
+        this.start(svc);
+      }
     }
   }
 
   protected stopAll(): void {
-    for (const id of runningIds(this.rows())) {
-      this.stop(id);
+    for (const svc of this.rows()) {
+      if (isRunning(svc.status)) {
+        this.stop(svc);
+      }
     }
   }
 

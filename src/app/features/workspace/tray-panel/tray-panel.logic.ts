@@ -6,12 +6,21 @@
  * tested directly. The component wires signals into these functions.
  */
 import type { RepoInfo, ServiceStatus } from '../../../core/ipc/tauri.types';
-import { serviceUrl } from '../repo-card/card-logic';
+import { dockerCardStatus, serviceUrl } from '../repo-card/card-logic';
 import { orderedRepos } from '../workspace-list.logic';
+import { isDockerRepo } from '../workspace-logic';
 
 /** Minimal selection shape read from `SettingsStore.repoStates()`. */
 export type SelectionMap = Readonly<
-  Record<string, { readonly selected?: boolean; readonly order?: number }>
+  Record<
+    string,
+    {
+      readonly selected?: boolean;
+      readonly order?: number;
+      /** Selected JDK label — the card's start/restart override (§7 row 2b). */
+      readonly java_version?: string;
+    }
+  >
 >;
 
 /** One row in the tray panel — a selected repo with its live runtime view. */
@@ -23,6 +32,13 @@ export interface PanelService {
   readonly port?: number;
   /** Clickable browser URL — only set while running with a known port. */
   readonly url: string | null;
+  /**
+   * Compose files of a docker-managed repo, EMPTY for a process repo. Both the
+   * status source and the lifecycle branch hang off this: a non-empty list
+   * means the row is driven by compose up/down and polled through
+   * `docker_compose_status`, never through the process registry.
+   */
+  readonly composeFiles: readonly string[];
 }
 
 /**
@@ -52,16 +68,25 @@ export function selectedRepos(
  * Build the panel rows from repos + selection + the live runtime lookups.
  * Rows follow the main window's display order (persisted `repo_state.order`
  * over the FULL repo list, alphabetical baseline), then drop deselected repos.
+ *
+ * A docker-managed repo takes its status from `dockerRunning` (running
+ * container count, from `docker_compose_status`) exactly like the card does —
+ * it has no supervised process, so `statusFor` would report it `stopped`
+ * forever and the row would only ever offer a Start button.
  */
 export function buildPanelServices(
   repos: readonly RepoInfo[],
   selection: SelectionMap,
   statusFor: (id: string) => ServiceStatus,
   portFor: (id: string) => number | undefined,
+  dockerRunning: Readonly<Record<string, number>> = {},
 ): readonly PanelService[] {
   const ordered = orderedRepos(repos, (name) => selection[name]?.order);
   return selectedRepos(ordered, selection).map((repo) => {
-    const status = statusFor(repo.name);
+    const docker = isDockerRepo(repo);
+    const status = docker
+      ? dockerCardStatus(dockerRunning[repo.name] ?? 0)
+      : statusFor(repo.name);
     const port = portFor(repo.name);
     return {
       id: repo.name,
@@ -69,6 +94,7 @@ export function buildPanelServices(
       status,
       port,
       url: isRunning(status) ? serviceUrl(port, repo.contextPath) : null,
+      composeFiles: docker ? repo.dockerComposeFiles : [],
     };
   });
 }

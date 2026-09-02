@@ -2,8 +2,29 @@
  * Pure workspace-screen logic, extracted for unit testing:
  * - topbar path↔group-selector swap rule (inventory-gui.md §2)
  * - profile combo display name with the dirty marker (§24/§26)
+ * - the docker-managed-repo predicate (§11/§12)
  */
+import type { RepoInfo } from '../../core/ipc/tauri.types';
 import { PROFILE_DIRTY_SUFFIX } from './workspace.constants';
+
+/**
+ * A repo whose lifecycle is docker-compose, not a supervised process: it has
+ * the `docker_checkboxes` enrichment AND at least one compose file. Such a
+ * repo NEVER goes through `start_service` / `restart_service` — it is driven
+ * by compose up/down, and its status comes from container polling, not from
+ * the process registry.
+ *
+ * Deliberately homed in this DIRECTORY-NEUTRAL leaf rather than beside its
+ * main consumer (`state/RepoActionsService`) or in `repo-card/card-logic.ts`:
+ * all three of `state/`, `repo-card/` and `tray-panel/` branch on it, and
+ * neither of the other two homes lets them do that without one directory
+ * importing into another's own logic module. The tray panel in particular
+ * must NOT reach `repo-actions.service.ts`, which would drag `DialogService`
+ * into that window's ESM graph — the shape behind the blank-window crash.
+ */
+export function isDockerRepo(repo: RepoInfo): boolean {
+  return repo.features.includes('docker_checkboxes') && repo.dockerComposeFiles.length > 0;
+}
 
 /**
  * Topbar swap rule (§2 `_update_topbar_group_ui`): show the group selector —

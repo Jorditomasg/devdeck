@@ -25,12 +25,7 @@ import {
   PULL_ERROR_MAX_FILES,
 } from '../workspace.constants';
 import { WorkspaceStore, configKeyFor } from './workspace.store';
-import { driftedModules, type EnvDriftInput } from '../workspace-logic';
-
-/** v1 gate for docker-managed cards (§12 step 1): the `docker_checkboxes` feature. */
-export function isDockerRepo(repo: RepoInfo): boolean {
-  return repo.features.includes('docker_checkboxes') && repo.dockerComposeFiles.length > 0;
-}
+import { driftedModules, isDockerRepo, type EnvDriftInput } from '../workspace-logic';
 
 function basename(path: string): string {
   return path.replace(/\\/g, '/').split('/').pop() ?? path;
