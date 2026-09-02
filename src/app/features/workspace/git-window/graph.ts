@@ -157,6 +157,16 @@ interface LaneSlot {
    * lands on a different lane index. See [`GraphRow.key`].
    */
   run: string;
+  /**
+   * Row index the lane's run was opened at. When two lanes converge on the
+   * same commit, the OLDEST run owns the dot — the newest lane is the side
+   * branch joining it. Picking `waiting[0]` (lowest index) instead handed a
+   * release line's fork commit to the little feature lane that happened to
+   * reuse a lower slot, so the release branch's color and name stopped one
+   * row early and the merge read backwards (user 2026-09-02, boa2-frontend
+   * row 8: "Merged PR 9588" drawn as PR 9643).
+   */
+  opened: number;
 }
 
 /**
@@ -195,7 +205,9 @@ export function computeGraph(
   /** Run key → the PR that merged it, for runs nothing else can name. */
   const prNames = new Map<string, string>();
 
+  let rowIndex = -1;
   for (const commit of commits) {
+    rowIndex++;
     const topActive = lanes.map((s) => s !== null);
     const topLabels = lanes.map((s) => s?.label);
     const topKeys = lanes.map((s) => (s === null ? undefined : keyOf(s)));
@@ -209,7 +221,9 @@ export function computeGraph(
 
     let lane: number;
     if (waiting.length > 0) {
-      lane = waiting[0];
+      lane = waiting.reduce((a, b) =>
+        (lanes[b] as LaneSlot).opened < (lanes[a] as LaneSlot).opened ? b : a,
+      );
     } else {
       const free = lanes.indexOf(null);
       lane = free !== -1 ? free : lanes.length;
@@ -241,6 +255,7 @@ export function computeGraph(
             : label !== undefined;
     // Lanes nobody was waiting for START a run here (page tip / fork point).
     const run = inherited?.run ?? commit.sha;
+    const opened = inherited?.opened ?? rowIndex;
     const key = label === undefined ? `@${run}` : paletteKey(label);
     // Converged children free their lanes (the dot's own lane is reused).
     for (const j of waiting) {
@@ -278,6 +293,7 @@ export function computeGraph(
           // A still-unnamed fan-out run keeps suppressing %S downward.
           fanout: label === undefined && inherited?.fanout === true,
           run,
+          opened,
         };
         toBottom.push(lane);
       }
@@ -314,6 +330,7 @@ export function computeGraph(
             live: mergedName !== undefined && mergedName === commit.source,
             fanout: mergedName === undefined,
             run: parent, // the merged-in branch's tip — its run starts here
+            opened: rowIndex,
           };
           const free = lanes.indexOf(null);
           const k = free !== -1 ? free : lanes.length;

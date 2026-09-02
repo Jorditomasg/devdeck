@@ -473,4 +473,35 @@ describe('labelLive (click provenance)', () => {
     expect(rows[1].label).toBe('1.5.x');
     expect(rows[1].labelLive).toBe(true); // inherited name === source
   });
+
+  it('gives a fork commit to the older line, not the lane that reused a low slot', () => {
+    // boa2-frontend rows 5-8 (user 2026-09-02): a feature lane converges into
+    // develop and frees index 1; the release line keeps flowing at index 2 and
+    // its next PR merge fans the merged-in branch out into that freed index 1.
+    // Both then converge on the fork commit. `waiting[0]` handed the dot to
+    // the feature lane, so the release branch's name and color stopped one row
+    // early and "Merged PR 9588" was drawn as PR 9643.
+    const rows = computeGraph([
+      { sha: 'top', parents: ['dev', 'mid'], refs: ['develop'] },
+      { sha: 'mid', parents: ['m2', 'rel'], subject: "Merge branch 'z' into feature/f" },
+      { sha: 'm2', parents: ['dev'] }, // frees lane 1
+      {
+        sha: 'rel',
+        parents: ['fork', 'feat'],
+        refs: ['origin/releases/19'],
+        subject: 'Merged PR 9643: x',
+      },
+      { sha: 'feat', parents: ['fork'] }, // fans out into the freed lane 1
+      { sha: 'fork', parents: ['older'], subject: 'Merged PR 9588: y' },
+      { sha: 'dev', parents: [] },
+      { sha: 'older', parents: [] },
+    ]);
+    expect(rows[3].lane).toBe(2); // release line
+    expect(rows[4].lane).toBe(1); // feature fan-out reused the freed slot
+    expect(rows[5].fromTop).toEqual([1, 2]); // both converge on the fork
+    expect(rows[5].lane).toBe(2); // …and the OLDER release lane owns the dot
+    expect(rows[5].label).toBe('origin/releases/19');
+    expect(rows[5].key).toBe(rows[3].key); // one line → one color
+    expect(rows[4].label).toBe('PR 9643'); // the side branch keeps its own name
+  });
 });
