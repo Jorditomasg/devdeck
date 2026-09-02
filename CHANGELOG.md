@@ -5,6 +5,53 @@ All notable changes to DevDeck are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.9.0] - 2026-09-02
+
+### Changed
+
+- **BREAKING — selecting a Spring environment now overwrites `application.yml`
+  again.** DevDeck stamps the environment you pick into the base
+  `application.{yml,yaml,properties}` for every profile, and no longer activates
+  a Spring profile at all: `SPRING_PROFILES_ACTIVE` is gone and your app boots
+  on its implicit default. The profile name is now just a label for the
+  snapshot, never part of a filename. **This reverses the fix shipped in
+  3.8.1.**
+
+  What this means for you: every saved environment must be a COMPLETE
+  configuration, not a partial overlay. If a repo still carries
+  `application-{profile}.yml` layer files, DevDeck imports them as
+  environments — and selecting one will flatten your base file, dropping any
+  key that only lived there. Back up `application.yml` before you pick an
+  environment for the first time after updating.
+- A flatter, denser look across every window and dialog. Cards, panels and
+  dialogs use tighter corners and a single hairline border instead of soft
+  filled surfaces, and buttons are now outlined in their action's colour
+  rather than filled with it — a screen of controls reads as one system
+  instead of twenty blocks of colour. Repo rows are more compact (approximately
+  three more fit on screen), the repo name is set in monospace, and branch,
+  environment and command read as labelled columns instead of a run of symbols.
+  Your theme is untouched: all six palettes keep exactly the colours they had.
+- The repo search box and the reorder toggle moved up into the command bar
+  above the list, so there is one toolbar over the repos instead of two.
+- A service's status word now shows only while something is happening —
+  starting, installing, or after an error. A stopped service shows just its
+  grey dot; its status is still announced to screen readers.
+
+### Fixed
+
+- Restarting a service no longer gets stuck. A start phase that fails now
+  reports an error instead of leaving the card pinned on "stopping", a service
+  whose process never signals exit is released when you stop it so it can be
+  started again, and the card list is re-synced from what is actually running.
+- Docker repos in the tray panel are now started and stopped through Compose,
+  the same way the main window does it, instead of going through the process
+  supervisor.
+- In the git window, a fork now continues in the oldest lane it belongs to
+  rather than the first free column, so a branch line no longer jumps sideways
+  in the graph.
+- The command a service is launched with is now printed in its log when it
+  starts, so you can see exactly what ran.
+
 ## [3.8.1] - 2026-07-30
 
 ### Fixed
