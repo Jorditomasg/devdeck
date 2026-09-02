@@ -404,6 +404,15 @@ impl ProcessManager {
             cwd: cwd.clone(),
             env: env.clone(),
         });
+        // v1 announced the run in the log before any output arrived
+        // (`[repo] ▶ {cmd}` + the JAVA_HOME line, inventory-gui.md §12
+        // "Start"). v2 had dropped it for services (install kept its own), so
+        // the panel jumped straight to raw output with no clue what was
+        // launched.
+        let mut intro = vec![format!("[svc] ▶ {command}")];
+        if let Some(home) = env.get("JAVA_HOME") {
+            intro.push(format!("[svc] Using JAVA_HOME: {home}"));
+        }
         self.spawn_run(
             id,
             command,
@@ -412,7 +421,7 @@ impl ProcessManager {
             stop_cmd,
             RunKind::Service,
             analyzer,
-            Vec::new(),
+            intro,
         )
         .await
     }
@@ -711,11 +720,59 @@ impl ProcessManager {
                         );
                     }
                     kill_run_tree(id, pid, wsl.as_ref(), job.as_ref(), true).await;
-                    let _ = wait_terminal(state_rx.clone(), wait).await;
+                    if !wait_terminal(state_rx.clone(), wait).await {
+                        self.evict_wedged(id, pid, port, &state_tx).await;
+                    }
                 }
             }
         }
         Ok(StopOutcome::Stopped)
+    }
+
+    /// Last resort of the escalation ladder: the tree was force-killed but
+    /// the supervisor never observed the exit, so it is still parked in its
+    /// streaming loop waiting for an EOF that will never come — a grandchild
+    /// that escaped the process group / job object still holds the stdout
+    /// pipe. That supervisor is the only thing that ever deregisters the run,
+    /// so without this the entry lives forever and EVERY later start of the
+    /// same id is refused with `AlreadyRunning` — silently, since the refusal
+    /// happens inside `restart_service`'s detached task. That is the
+    /// "restart from the tray does nothing / the row stays on Stopping"
+    /// bug: `stop()` reported `Stopped`, the relaunch never happened.
+    ///
+    /// So evict the entry ourselves (pid-guarded, so a fresh run of the same
+    /// id can never be evicted by a late stop) and announce the terminal
+    /// state. The wedged supervisor stays quiet when it eventually wakes:
+    /// its own terminal emit is guarded on still owning the entry.
+    async fn evict_wedged(
+        &self,
+        id: &str,
+        pid: u32,
+        port: Option<u16>,
+        state_tx: &watch::Sender<RuntimeState>,
+    ) {
+        {
+            let mut services = self.inner.services.lock().await;
+            if services.get(id).map(|e| e.pid) != Some(pid) {
+                return; // already gone, or replaced by a newer run
+            }
+            services.remove(id);
+        }
+        log::warn!("'{id}': supervisor never saw the exit after force-kill (a process outside the tree still holds its output pipe) — evicting the registry entry so the service can start again");
+        let _ = state_tx.send(RuntimeState {
+            status: ServiceStatus::Stopped,
+            port,
+            exit_code: None,
+        });
+        emit_status(
+            self.inner.emitter.as_ref(),
+            id,
+            ServiceStatus::Stopped,
+            port,
+            Some(pid),
+            None,
+            None,
+        );
     }
 
     /// Run a repo-type `stop_cmd` for an UNTRACKED repo. Needed because
@@ -1180,26 +1237,35 @@ async fn supervise(
     // Deregister FIRST (pid-guarded so a fresh respawn of the same id can
     // never be removed by this finished supervisor), then broadcast the
     // terminal state — stop() waiters hold their own receiver clones.
-    {
+    let owned_entry = {
         let mut services = inner.services.lock().await;
-        if services.get(&id).map(|e| e.pid) == Some(pid) {
+        let ours = services.get(&id).map(|e| e.pid) == Some(pid);
+        if ours {
             services.remove(&id);
         }
-    }
+        ours
+    };
     let _ = state_tx.send(RuntimeState {
         status: final_status,
         port: analyzer.port(),
         exit_code,
     });
-    emit_status(
-        emitter,
-        &id,
-        final_status,
-        analyzer.port(),
-        Some(pid),
-        exit_code,
-        error_message,
-    );
+    // Only the supervisor that still OWNED the entry announces the terminal
+    // status. When it is gone, this run was either evicted by `stop()`
+    // (which already emitted `stopped`) or replaced by a fresh run of the
+    // same id — in both cases emitting here would overwrite the live state
+    // of something else with a stale terminal event.
+    if owned_entry {
+        emit_status(
+            emitter,
+            &id,
+            final_status,
+            analyzer.port(),
+            Some(pid),
+            exit_code,
+            error_message,
+        );
+    }
 }
 
 /// Run a repo-type `stop_cmd` through the platform shell with the service's
@@ -1492,6 +1558,25 @@ mod tests {
                 .log_lines_for("echoer")
                 .iter()
                 .any(|l| l == "hello-from-test"));
+        }
+
+        #[tokio::test]
+        async fn service_start_announces_the_command_before_output() {
+            let (emitter, mgr) = collecting_manager();
+            let mut spec = svc("echoer", "echo hello-from-test");
+            spec.env.insert("JAVA_HOME".into(), "/opt/java/17".into());
+            mgr.start_service(spec).await.unwrap();
+            wait_finished(&mgr, "echoer").await;
+            let lines = emitter.log_lines_for("echoer");
+            assert_eq!(
+                lines.first().map(String::as_str),
+                Some("[svc] \u{25b6} echo hello-from-test"),
+                "the run must be announced before any process output"
+            );
+            assert_eq!(
+                lines.get(1).map(String::as_str),
+                Some("[svc] Using JAVA_HOME: /opt/java/17")
+            );
         }
 
         #[tokio::test]
