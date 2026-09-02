@@ -29,20 +29,26 @@ describe('repoTypeLabel (§6 type badge)', () => {
 });
 
 describe('headerHint (§6 hint fragments)', () => {
-  it('joins all three fragments with three spaces', () => {
-    expect(headerHint('develop', 'local', 'npm start')).toBe(
-      '⎇ develop   ⚙ local   $ npm start',
-    );
+  const labels = { branch: 'BR', env: 'ENV', cmd: 'CMD' };
+
+  it('pairs every fragment with its micro-label, in column order', () => {
+    expect(headerHint('develop', 'local', 'npm start', labels)).toEqual([
+      { label: 'BR', value: 'develop' },
+      { label: 'ENV', value: 'local' },
+      { label: 'CMD', value: 'npm start' },
+    ]);
   });
 
   it('drops empty fragments', () => {
-    expect(headerHint('main', '', '')).toBe('⎇ main');
-    expect(headerHint('', 'qa', '')).toBe('⚙ qa');
-    expect(headerHint('', '', 'mvn spring-boot:run')).toBe('$ mvn spring-boot:run');
+    expect(headerHint('main', '', '', labels)).toEqual([{ label: 'BR', value: 'main' }]);
+    expect(headerHint('', 'qa', '', labels)).toEqual([{ label: 'ENV', value: 'qa' }]);
+    expect(headerHint('', '', 'mvn spring-boot:run', labels)).toEqual([
+      { label: 'CMD', value: 'mvn spring-boot:run' },
+    ]);
   });
 
-  it('returns empty string with nothing to show', () => {
-    expect(headerHint('', '', '')).toBe('');
+  it('returns no fragments with nothing to show', () => {
+    expect(headerHint('', '', '', labels)).toEqual([]);
   });
 });
 

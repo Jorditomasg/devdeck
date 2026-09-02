@@ -33,7 +33,9 @@
   background-color: var(--color-card); // v1 dialog root bg
   border: var(--geo-border-width) solid var(--color-border-card);
   border-radius: var(--geo-corner-card);
-  box-shadow: 0 12px 40px rgb(0 0 0 / 60%);
+  // Tightened with the flat pass: enough separation from the backdrop to
+  // read as a floating panel, without the wide soft glow.
+  box-shadow: 0 8px 24px rgb(0 0 0 / 65%);
   outline: none;
 
   // Blocked-click "knock": subtle shake + border flash (§13.7).

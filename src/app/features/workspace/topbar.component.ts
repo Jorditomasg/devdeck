@@ -82,6 +82,9 @@ export function profileGroupArg(groupName: string | undefined): string | undefin
         [uiTooltip]="i18n.t('tooltip.workspace_dir', { path: workspacePath() })"
         (click)="onPathClick()"
       >{{ workspacePath() }}</button>
+      <!-- The path chip sizes to its content now, so the spacer is what keeps
+           the right action group pinned right. -->
+      <span class="topbar__gap"></span>
     }
 
     <!-- right group reserves space (§33) -->

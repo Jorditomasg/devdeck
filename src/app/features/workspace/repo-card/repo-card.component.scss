@@ -9,13 +9,15 @@
   border: var(--geo-border-width) solid var(--color-border-card);
   border-radius: var(--geo-corner-card);
   transition:
-    box-shadow 150ms ease-out,
+    background-color 150ms ease-out,
     border-color 150ms ease-out;
 
-  // SourceTree-level hover affordance: subtle lift, accent border.
+  // Hover affordance without elevation: the shell reads flat, so a lifting
+  // shadow would be the only floating thing on screen. The border brightens
+  // and the surface warms instead.
   &:hover {
     border-color: var(--color-border-default);
-    box-shadow: 0 4px 14px rgb(0 0 0 / 40%);
+    background-color: var(--color-card-hover);
   }
 
   // Unmarked (deselected) repos recede: marked ones read as the focus set.
@@ -24,7 +26,7 @@
   &.card--dimmed {
     opacity: 0.72;
     transition:
-      box-shadow 150ms ease-out,
+      background-color 150ms ease-out,
       border-color 150ms ease-out,
       opacity 150ms ease-out;
 

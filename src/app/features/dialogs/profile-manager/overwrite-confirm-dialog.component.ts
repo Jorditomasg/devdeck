@@ -56,7 +56,7 @@ import { FIELD_LABEL_KEYS } from './profile-manager.logic';
       font-size: 12px;
       font-weight: 600;
       padding: 2px 9px;
-      border-radius: 999px;
+      border-radius: var(--geo-corner-badge);
       border: 1px solid currentColor;
       line-height: 1.6;
     }
@@ -86,7 +86,7 @@ import { FIELD_LABEL_KEYS } from './profile-manager.logic';
       background: var(--color-section-alt);
       border: 1px solid var(--color-border-subtle);
       border-left: 3px solid var(--color-border-subtle);
-      border-radius: 8px;
+      border-radius: var(--geo-corner-panel);
       padding: 9px 12px;
     }
     .ow__repo--changed { border-left-color: var(--color-text-warning-badge); }
@@ -104,7 +104,7 @@ import { FIELD_LABEL_KEYS } from './profile-manager.logic';
       justify-content: center;
       width: 20px;
       height: 20px;
-      border-radius: 6px;
+      border-radius: var(--geo-corner-badge);
       flex: none;
       color: #fff;
     }

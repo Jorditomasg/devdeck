@@ -105,12 +105,12 @@
   height: 8px;
   overflow: hidden;
   background-color: var(--color-section-alt);
-  border-radius: 4px;
+  border-radius: 2px;
 }
 
 .import__bar-fill {
   height: 100%;
   background-color: var(--color-status-running);
-  border-radius: 4px;
+  border-radius: 2px;
   transition: width 150ms ease;
 }

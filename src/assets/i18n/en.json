@@ -52,6 +52,9 @@
     "in_progress": "Installing..."
   },
   "label": {
+    "hint_branch": "BR",
+    "hint_env": "ENV",
+    "hint_cmd": "CMD",
     "app_title": "DevDeck",
     "no_profile": "— No profile —",
     "branch": "Branch:",

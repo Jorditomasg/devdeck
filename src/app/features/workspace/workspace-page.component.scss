@@ -83,79 +83,6 @@
   }
 }
 
-// Repo-list toolbar — search + reorder encapsulated in one subtle bar so they
-// read as a single grouped control above the list.
-.page__toolbar {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  gap: 6px;
-  margin: 6px 10px 2px;
-  padding: 2px 4px 2px 10px;
-  border: var(--geo-border-width) solid var(--color-border-card);
-  border-radius: var(--geo-corner-card);
-  background-color: color-mix(in srgb, var(--color-card) 55%, transparent);
-
-  // The search input inside has no border of its own — the bar carries its
-  // focus cue.
-  &:focus-within {
-    border-color: var(--color-border-default);
-  }
-}
-
-.page__search {
-  flex: 1 1 0;
-  min-width: 0;
-  padding: 5px 2px;
-  border: none;
-  background-color: transparent;
-  color: var(--color-text-primary);
-  font-size: var(--font-size-md);
-
-  &:focus {
-    outline: none;
-  }
-
-  &::placeholder {
-    color: var(--color-text-faint);
-  }
-}
-
-.page__search-count {
-  flex-shrink: 0;
-  color: var(--color-text-muted);
-  font-family: var(--font-family-mono);
-  font-size: var(--font-size-sm);
-}
-
-// Reorder-mode toggle — sits inside the toolbar bar, divided from the search.
-.page__reorder {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  gap: 6px;
-  margin-left: 2px;
-  padding: 5px 10px;
-  border: none;
-  border-left: var(--geo-border-width) solid var(--color-divider);
-  border-radius: 0 var(--geo-corner-btn) var(--geo-corner-btn) 0;
-  background-color: transparent;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-  white-space: nowrap;
-  cursor: pointer;
-
-  &:hover {
-    color: var(--color-text-primary);
-    background-color: color-mix(in srgb, var(--color-text-primary) 6%, transparent);
-  }
-
-  &--on {
-    background-color: color-mix(in srgb, var(--color-text-accent) 18%, transparent);
-    color: var(--color-text-accent);
-  }
-}
-
 // Drag slot — a dedicated grip handle keeps the card itself fully interactive
 // (a draggable=true card would block text selection in its log panel).
 .page__slot {
@@ -252,12 +179,13 @@
   align-items: center;
   gap: 12px;
   height: 24px;
-  padding: 0 10px;
+  padding: 0 12px;
   border-top: var(--geo-border-width) solid var(--color-divider);
   // Opaque so the background pattern never sits behind the status text.
   background-color: var(--color-app);
-  color: var(--color-text-accent);
-  font-size: var(--font-size-md);
+  color: var(--color-text-accent-bright);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
 }
 
 .page__status {
@@ -273,12 +201,9 @@
   white-space: nowrap;
   text-overflow: ellipsis;
   color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
 }
 
 .page__counts {
   flex-shrink: 0;
-  color: var(--color-text-muted);
-  font-family: var(--font-family-mono);
-  font-size: var(--font-size-sm);
+  color: var(--color-text-faint);
 }

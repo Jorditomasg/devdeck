@@ -265,6 +265,11 @@ export class RepoCardComponent {
         state.selectedCommandProfile,
         repo.runCommand,
       ),
+      {
+        branch: this.i18n.t('label.hint_branch'),
+        env: this.i18n.t('label.hint_env'),
+        cmd: this.i18n.t('label.hint_cmd'),
+      },
     );
   });
 

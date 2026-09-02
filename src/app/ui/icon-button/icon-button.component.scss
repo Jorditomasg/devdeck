@@ -13,7 +13,9 @@
   align-items: center;
   justify-content: center;
   border-radius: var(--geo-corner-btn);
-  color: var(--color-text-white);
+  // Base ink only — every variant re-colours it to its own hue
+  // (tokens.btn-variant paints outlined, not filled).
+  color: var(--color-text-primary);
   font-size: var(--font-size-lg);
   line-height: 1;
 

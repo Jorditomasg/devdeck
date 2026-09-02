@@ -50,57 +50,63 @@ $btn-variants: (
 // read as part of the current theme. Two hues per palette:
 //   $accent — standard stylistic actions (blue family + log actions)
 //   $strong — louder actions (clean / branches / stash / merge / seed / java)
-// Dark palettes tint the hue over --color-app so white text stays legible;
-// $solid:true paints the vivid hue directly (for the light palette).
-// Called once per palette from _themes.scss — emits nothing on its own.
+// OUTLINED, like every other variant: the hue lives in the border and the
+// glyph, the fill stays transparent until hover. Palette-agnostic — the text
+// colour is mixed against `--color-text-primary`, which the light palette
+// flips, so no per-palette override is needed (that block is gone).
 // ponytail: color-mix derives every shade from ONE hue, so a new palette is
 // one line — no per-button colour tables. Safe on the app's Chromium WebView2.
 $btn-accent-classes: ('blue', 'blue-active', 'log-action');
 $btn-accent-strong-classes: ('purple', 'purple-alt', 'purple-global');
 
-@mixin accent-buttons($scope, $accent, $strong, $solid: false) {
+@mixin accent-buttons($scope, $accent, $strong) {
   @each $name in $btn-accent-classes {
-    // 'blue-active' (pull with commits behind) sits a touch brighter as a cue.
-    $bg: 22%;
+    // 'blue-active' (pull with commits behind) keeps a standing tint as its
+    // cue — the only accent button that is filled at rest.
+    $rest: transparent;
+    $edge: color-mix(in srgb, #{$accent} 55%, transparent);
     @if $name == 'blue-active' {
-      $bg: 42%;
+      $rest: color-mix(in srgb, #{$accent} 22%, transparent);
+      $edge: #{$accent};
     }
     #{$scope} .btn.btn--#{$name},
     #{$scope} .icon-btn.icon-btn--#{$name} {
-      border: var(--geo-border-width) solid #{$accent};
-      @if $solid {
-        background-color: #{$accent};
-        &:hover:not(:disabled) {
-          background-color: color-mix(in srgb, #{$accent} 78%, #000);
-        }
-      } @else {
-        background-color: color-mix(in srgb, #{$accent} #{$bg}, var(--color-app));
-        &:hover:not(:disabled) {
-          background-color: color-mix(in srgb, #{$accent} 52%, var(--color-app));
-        }
+      background-color: #{$rest};
+      border: var(--geo-border-width) solid #{$edge};
+      color: color-mix(in srgb, #{$accent} 72%, var(--color-text-primary));
+
+      &:hover:not(:disabled) {
+        background-color: color-mix(in srgb, #{$accent} 20%, transparent);
+        border-color: #{$accent};
+        color: color-mix(in srgb, #{$accent} 88%, var(--color-text-primary));
       }
     }
   }
   @each $name in $btn-accent-strong-classes {
     #{$scope} .btn.btn--#{$name},
     #{$scope} .icon-btn.icon-btn--#{$name} {
-      border: var(--geo-border-width) solid #{$strong};
-      @if $solid {
-        background-color: #{$strong};
-        &:hover:not(:disabled) {
-          background-color: color-mix(in srgb, #{$strong} 78%, #000);
-        }
-      } @else {
-        background-color: color-mix(in srgb, #{$strong} 22%, var(--color-app));
-        &:hover:not(:disabled) {
-          background-color: color-mix(in srgb, #{$strong} 52%, var(--color-app));
-        }
+      background-color: transparent;
+      border: var(--geo-border-width) solid color-mix(in srgb, #{$strong} 55%, transparent);
+      color: color-mix(in srgb, #{$strong} 72%, var(--color-text-primary));
+
+      &:hover:not(:disabled) {
+        background-color: color-mix(in srgb, #{$strong} 20%, transparent);
+        border-color: #{$strong};
+        color: color-mix(in srgb, #{$strong} 88%, var(--color-text-primary));
       }
     }
   }
 }
 
-/// Apply a v1 button variant (background, border, hover background).
+/// Apply a button variant OUTLINED: transparent fill, the variant's hue in
+/// the border and the label, a tint of that hue on hover. The old solid
+/// `fg` fills are intentionally unused — twenty saturated blocks per screen
+/// read as noise at this density. `fg`/`hover` stay in the map because the
+/// hue relationships are the palette's record; only `border` is painted.
+///
+/// Palette-agnostic by construction: the label mixes the hue against
+/// `--color-text-primary`, which the light palette flips to a dark ink, so a
+/// green stays readable on both #0f0e26 and #ffffff with no override.
 /// @param {String} $name - one of the $btn-variants keys, e.g. 'start'.
 @mixin btn-variant($name) {
   $variant: map.get($btn-variants, $name);
@@ -110,11 +116,16 @@ $btn-accent-strong-classes: ('purple', 'purple-alt', 'purple-global');
       "Valid: #{map.keys($btn-variants)}";
   }
 
-  background-color: map.get($variant, fg);
-  border: var(--geo-border-width) solid map.get($variant, border);
+  $hue: map.get($variant, border);
+
+  background-color: transparent;
+  border: var(--geo-border-width) solid color-mix(in srgb, #{$hue} 55%, transparent);
+  color: color-mix(in srgb, #{$hue} 72%, var(--color-text-primary));
 
   &:hover:not(:disabled) {
-    background-color: map.get($variant, hover);
+    background-color: color-mix(in srgb, #{$hue} 20%, transparent);
+    border-color: #{$hue};
+    color: color-mix(in srgb, #{$hue} 88%, var(--color-text-primary));
   }
 }
 

@@ -1,7 +1,14 @@
 /**
- * Global panel container — a ONE-ROW command bar over the selected repo cards
- * (inventory-gui.md §3): the batch-git menu (left), live batch progress
- * (centre) and the selection readout + start / stop / restart (right).
+ * Global panel container — THE command bar over the repo list (inventory-gui
+ * §3 + §4 toolbar, merged): the batch-git menu, the live repo search and the
+ * reorder toggle (left), batch progress (centre), and the selection readout +
+ * start / stop / restart (right).
+ *
+ * The search and reorder controls used to live in a second bar of their own
+ * directly underneath. Two stacked strips of chrome between the topbar and
+ * the first card cost ~44px and read as two unrelated toolbars; they govern
+ * the same list, so they are one bar. `WorkspaceStore` already owned both
+ * pieces of state, which is why the move needed no new plumbing.
  *
  * Layout rationale: the checkbox sits immediately left of the buttons it
  * governs (it used to live a full row away), the section title is an
@@ -38,6 +45,7 @@ import {
 import { DialogService } from '../dialogs/dialog.service';
 import { runBatch } from './batch';
 import { activeAmong, selectionCounts } from './global-panel.logic';
+import { filterRepos } from './workspace-list.logic';
 import { RepoActionsService } from './state/repo-actions.service';
 import { WorkspaceStore } from './state/workspace.store';
 import {
@@ -76,6 +84,36 @@ interface BatchProgress {
       <ui-icon name="chevron-down" [size]="12" />
     </ui-button>
 
+    <span class="panel__sep"></span>
+
+    <!-- Live name search (§4). Borderless input inside a framed slot: the
+         slot carries the focus cue, so focusing does not shift the row. -->
+    <label class="panel__search">
+      <ui-icon name="search" [size]="13" />
+      <input
+        class="panel__search-input"
+        type="search"
+        [placeholder]="i18n.t('placeholder.search_repos')"
+        [value]="ws.repoFilter()"
+        (input)="ws.setRepoFilter($any($event.target).value)"
+      />
+      @if (ws.repoFilter().trim()) {
+        <span class="panel__count">{{ filteredCount() }}/{{ counts().total }}</span>
+      }
+    </label>
+
+    <button
+      type="button"
+      class="panel__reorder"
+      [class.panel__reorder--on]="ws.reorderMode()"
+      [attr.aria-pressed]="ws.reorderMode()"
+      [attr.title]="i18n.t('tooltip.reorder_mode')"
+      (click)="ws.setReorderMode(!ws.reorderMode())"
+    >
+      <ui-icon name="grip-vertical" [size]="13" />
+      {{ ws.reorderMode() ? i18n.t('btn.reorder_done') : i18n.t('btn.reorder') }}
+    </button>
+
     <!-- The <label> wrapper is what names the bar (same as the stash dialog). -->
     @if (progress(); as p) {
       <label class="panel__progress">
@@ -86,6 +124,7 @@ interface BatchProgress {
     }
 
     <span class="panel__spacer"></span>
+    <span class="panel__sep"></span>
 
     <label class="panel__select-all" [uiTooltip]="i18n.t('tooltip.select_all')">
       <input
@@ -144,6 +183,12 @@ export class GlobalPanelComponent {
    * the git actions already dialog-warn; these used to no-op silently). */
   protected readonly anySelected = computed(() => this.counts().selected > 0);
 
+  /** Repos surviving the name filter — the `12` in the search readout. Same
+   *  pure filter the page uses for the list, so the two can never disagree. */
+  protected readonly filteredCount = computed(
+    () => filterRepos(this.repos.repos(), this.ws.repoFilter()).length,
+  );
+
   /** ` (3)` appended to the action labels — never a bare "Start" over 12 repos. */
   protected readonly countSuffix = computed(() => {
     const selected = this.counts().selected;
@@ -153,7 +198,7 @@ export class GlobalPanelComponent {
   constructor(
     protected readonly i18n: TranslationService,
     private readonly repos: ReposStore,
-    private readonly ws: WorkspaceStore,
+    protected readonly ws: WorkspaceStore,
     private readonly services: ServicesStore,
     private readonly actions: RepoActionsService,
     private readonly dialogs: DialogService,

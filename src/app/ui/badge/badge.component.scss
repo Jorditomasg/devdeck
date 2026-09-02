@@ -30,15 +30,25 @@
   font-weight: 400;
 }
 
-// Repo type pill: white xs bold on ui_config.color bg, height 18, radius badge.
+// Repo type pill: white xs bold on ui_config.color bg. The ONE solid colour
+// left in the card row — it is an identity tag, not an action, so keeping it
+// filled is what lets the outlined controls around it read as controls.
 :host(.badge--solid) {
   color: var(--color-text-white);
+  font-family: var(--font-family-mono);
   font-size: var(--font-size-xs);
   font-weight: 700;
-  height: 18px;
-  padding: 0 6px;
+  height: 17px;
+  padding: 0 5px;
   border-radius: var(--geo-corner-badge);
-  text-transform: capitalize;
+}
+
+// Uppercase ONLY the non-mono solid pill (the repo-type tag). The mono solid
+// pill carries git ref names — `origin/feature/git-window` is an identifier
+// and upper-casing it would misrepresent the branch.
+:host(.badge--solid:not(.badge--mono)) {
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
 :host(.badge--mono) {

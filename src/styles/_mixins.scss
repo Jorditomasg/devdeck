@@ -55,7 +55,9 @@
   background-color: var(--color-card);
   border: var(--geo-border-width) solid var(--color-border-default);
   border-radius: var(--geo-corner-combo);
-  box-shadow: 0 6px 24px rgb(0 0 0 / 55%);
+  // Tight, not diffuse: popups must read as ABOVE the surface without
+  // being the only soft-edged thing in a flat shell.
+  box-shadow: 0 4px 14px rgb(0 0 0 / 55%);
 }
 
 /// Standard text input (dialogs + ui-filter-table search). Moved here from

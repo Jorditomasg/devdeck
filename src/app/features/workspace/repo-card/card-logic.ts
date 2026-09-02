@@ -19,26 +19,37 @@ export function repoTypeLabel(repoType: string): string {
 }
 
 /**
- * Header hint (§6 `_branch_hint`): up to three fragments separated by three
- * spaces — `⎇ <branch>`, `⚙ <profile>`, `$ <command>`; empty fragments are
- * dropped.
+ * Header hint (§6 `_branch_hint`): up to three key/value fragments — branch,
+ * env/profile, run command; empty ones are dropped. Returns STRUCTURE, not a
+ * joined string: the header renders each as a micro-label + value pair, which
+ * is what makes the row scannable by column instead of by glyph (⎇ ⚙ $ were
+ * the old separators and read as decoration at 9px).
+ *
+ * Labels arrive already translated — i18n stays in the container.
  */
+export interface HintPart {
+  /** Already-translated micro-label ("BR", "ENV", "CMD"). */
+  readonly label: string;
+  readonly value: string;
+}
+
 export function headerHint(
   branch: string,
   profileValue: string,
   command: string,
-): string {
-  const parts: string[] = [];
+  labels: { readonly branch: string; readonly env: string; readonly cmd: string },
+): HintPart[] {
+  const parts: HintPart[] = [];
   if (branch) {
-    parts.push(`⎇ ${branch}`);
+    parts.push({ label: labels.branch, value: branch });
   }
   if (profileValue) {
-    parts.push(`⚙ ${profileValue}`);
+    parts.push({ label: labels.env, value: profileValue });
   }
   if (command) {
-    parts.push(`$ ${command}`);
+    parts.push({ label: labels.cmd, value: command });
   }
-  return parts.join('   ');
+  return parts;
 }
 
 /**

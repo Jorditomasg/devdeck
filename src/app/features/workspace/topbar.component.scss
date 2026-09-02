@@ -15,27 +15,44 @@
 .topbar__logo {
   flex-shrink: 0;
   color: var(--color-text-primary);
-  font-size: var(--font-size-h1);
+  font-size: var(--font-size-h2);
   font-weight: 700;
+  letter-spacing: -0.02em;
   white-space: nowrap;
 }
 
-// Workspace path — mono accent, click opens the explorer (§2).
+// Workspace path — a framed mono chip, click opens the explorer (§2). Framed
+// rather than loose text so it reads as the clickable thing it is; it used to
+// look like a caption.
 .topbar__path {
   @include mx.control-reset;
   @include mx.ellipsis;
-  @include mx.transition(color);
-  flex: 1 1 0;
+  @include mx.transition(color, border-color, background-color);
+  flex: 0 1 auto;
   min-width: 0;
-  color: var(--color-text-accent);
+  height: 26px;
+  padding: 0 9px;
+  border: var(--geo-border-width) solid var(--color-border-card);
+  border-radius: var(--geo-corner-btn);
+  background-color: var(--color-section);
+  color: var(--color-text-accent-bright);
   font-family: var(--font-family-mono);
-  font-size: var(--font-size-base);
+  font-size: var(--font-size-md);
+  line-height: 24px;
   text-align: left;
   cursor: pointer;
 
   &:hover {
-    color: var(--color-text-accent-bright);
+    border-color: var(--color-border-default);
+    background-color: var(--color-card-hover);
   }
+}
+
+// Keeps the right action group pinned right now that the path no longer
+// stretches (it used to be the flex-grow element).
+.topbar__gap {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 // Group selector area (replaces the path label per the §2 swap rule).
@@ -47,10 +64,14 @@
   min-width: 0;
 }
 
-.topbar__group-label {
+.topbar__group-label,
+.topbar__profile-label {
   flex-shrink: 0;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-base);
+  color: var(--color-text-faint);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .topbar__group-select {
@@ -63,12 +84,6 @@
   flex-shrink: 0;
   align-items: center;
   gap: 6px;
-}
-
-.topbar__profile-label {
-  flex-shrink: 0;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-base);
 }
 
 // Profile dropdown — default theme border (matches the env selectors); dirty =
@@ -118,4 +133,15 @@
     transform: scale(1.35);
     opacity: 0.65;
   }
+}
+
+// Topbar actions in the mono micro register (Clonar / Reescanear). Scoped to
+// the topbar deliberately: applying uppercase + tracking to every ui-button
+// would grow dialog labels like "Gestionar Versiones Java" by ~25%.
+:host ::ng-deep .btn {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
 }

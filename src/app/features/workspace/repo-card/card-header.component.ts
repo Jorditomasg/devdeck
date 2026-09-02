@@ -17,6 +17,7 @@ import {
   StatusDotComponent,
   TooltipDirective,
 } from '../../../ui';
+import type { HintPart } from './card-logic';
 import type { DotStatus, HeaderButtonVisibility } from './card-visibility';
 
 /** Every translated string the header renders (built in the container). */
@@ -131,12 +132,28 @@ export interface CardHeaderText {
         </ui-badge>
       }
 
-      <!-- §6 item 5: grey hint (⎇ branch  ⚙ profile  $ cmd), fills the gap -->
-      <span class="header__hint">{{ hint() }}</span>
+      <!-- §6 item 5: hint fragments as micro-label + value pairs (BR / ENV /
+           CMD), filling the gap. Structured, not a glyph-joined string: the
+           row is scanned by column, and the last value ellipsizes alone
+           instead of truncating the whole run. -->
+      <span class="header__hint">
+        @for (part of hint(); track part.label) {
+          <span class="header__kv">
+            <i class="header__kv-key">{{ part.label }}</i>
+            <b class="header__kv-val">{{ part.value }}</b>
+          </span>
+        }
+      </span>
 
       <!-- §6 right group: status text, port, actions (flex-shrink: 0) -->
       <div class="header__right" (click)="$event.stopPropagation()">
-        <span class="header__status header__status--{{ dot() }}">{{ statusText() }}</span>
+        <!-- The worded status appears ONLY while something is happening. A
+             stopped service is the resting case and says nothing beyond its
+             grey dot — the text still reaches assistive tech through the
+             dot's own label/aria, so nothing is lost. -->
+        @if (dot() !== 'stopped') {
+          <span class="header__status header__status--{{ dot() }}">{{ statusText() }}</span>
+        }
         @if (port(); as p) {
           <span class="header__port">:{{ p }}</span>
         }
@@ -213,8 +230,8 @@ export class CardHeaderComponent {
   readonly danger = input(false);
   /** Deps-missing warning visible (§6). */
   readonly depsWarning = input(false);
-  /** Grey hint fragments, pre-joined (`headerHint`). */
-  readonly hint = input('');
+  /** Hint fragments as label/value pairs (`headerHint`). */
+  readonly hint = input<readonly HintPart[]>([]);
   /** §6 visibility/enable matrix (pre-computed via card-visibility.ts). */
   readonly vis = input.required<HeaderButtonVisibility>();
   readonly text = input.required<CardHeaderText>();

@@ -52,6 +52,9 @@
     "in_progress": "Instalando..."
   },
   "label": {
+    "hint_branch": "RAMA",
+    "hint_env": "ENV",
+    "hint_cmd": "CMD",
     "app_title": "DevDeck",
     "no_profile": "— Sin perfil —",
     "branch": "Rama:",

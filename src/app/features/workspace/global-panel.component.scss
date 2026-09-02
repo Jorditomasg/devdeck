@@ -1,6 +1,6 @@
-// Global panel (inventory-gui §3) — ONE-ROW card-styled command bar.
-// Token values only. The section title lives in the host's aria-label, not in
-// a row of pixels, so the bar is a single line tall.
+// Global panel (inventory-gui §3 + the §4 list toolbar, merged) — ONE-ROW
+// command bar. Token values only. The section title lives in the host's
+// aria-label, not in a row of pixels, so the bar is a single line tall.
 
 :host {
   display: flex;
@@ -8,8 +8,8 @@
   align-items: center;
   gap: 6px;
   min-height: var(--geo-btn-height-md);
-  margin: 10px 10px 6px;
-  padding: 8px 12px;
+  margin: 8px 10px 6px;
+  padding: 6px 8px;
   background-color: var(--color-card);
   border: var(--geo-border-width) solid var(--color-border-card);
   border-radius: var(--geo-corner-card);
@@ -17,6 +17,89 @@
 
 .panel__spacer {
   flex: 1 1 0;
+}
+
+// Hairline group separator: batch-git | list controls | selection + actions.
+// Three groups in one bar need a divider or they read as one long row.
+.panel__sep {
+  flex-shrink: 0;
+  width: var(--geo-border-width);
+  height: 20px;
+  background-color: var(--color-divider);
+}
+
+// Framed slot around a borderless input — the slot owns the focus cue, so
+// focusing never changes the row's metrics.
+.panel__search {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  height: var(--geo-btn-height-md);
+  padding: 0 9px;
+  border: var(--geo-border-width) solid var(--color-border-card);
+  border-radius: var(--geo-corner-btn);
+  background-color: var(--color-app);
+  color: var(--color-text-faint);
+
+  &:focus-within {
+    border-color: var(--color-border-default);
+  }
+}
+
+.panel__search-input {
+  flex: 1 1 0;
+  min-width: 0;
+  appearance: none;
+  border: none;
+  margin: 0;
+  padding: 0;
+  background: none;
+  color: var(--color-text-primary);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-md);
+
+  &:focus {
+    outline: none;
+  }
+
+  &::placeholder {
+    color: var(--color-text-faint);
+  }
+}
+
+// Reorder toggle — outlined like the buttons it sits beside; the accent tint
+// is reserved for the ON state, where a standing fill is the point.
+.panel__reorder {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  height: var(--geo-btn-height-md);
+  padding: 0 9px;
+  border: var(--geo-border-width) solid transparent;
+  border-radius: var(--geo-corner-btn);
+  background-color: transparent;
+  color: var(--color-text-muted);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--color-text-primary);
+    border-color: var(--color-border-card);
+  }
+
+  &--on {
+    background-color: color-mix(in srgb, var(--color-text-accent) 16%, transparent);
+    border-color: color-mix(in srgb, var(--color-text-accent) 55%, transparent);
+    color: var(--color-text-accent-bright);
+  }
 }
 
 // Native <progress> — themed with accent-color, no pseudo-element pile.
@@ -62,7 +145,9 @@
 
 // tabular-nums so 9/12 → 10/12 does not nudge the buttons.
 .panel__count {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
   font-family: var(--font-family-mono);
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-sm);
   font-variant-numeric: tabular-nums;
 }

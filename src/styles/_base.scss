@@ -59,7 +59,8 @@ samp {
 
 ::-webkit-scrollbar-thumb {
   background-color: var(--color-divider);
-  border-radius: 5px;
+  // A bar, not a pill — matches the tightened corner scale.
+  border-radius: 2px;
   border: 2px solid transparent;
   background-clip: content-box;
 

@@ -23,11 +23,16 @@
   }
 }
 
+// Same micro-label register as the header's BR / ENV / CMD keys, so the
+// collapsed and expanded halves of a card read as one document.
 .row__label {
   flex-shrink: 0;
-  width: 50px;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-base);
+  width: 54px;
+  color: var(--color-text-faint);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   text-align: right;
 }
 
@@ -88,20 +93,25 @@
   padding: 0 10px;
   border-radius: var(--geo-corner-btn);
   color: var(--color-text-primary);
-  font-size: var(--font-size-md);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
 
+  // Outlined like every other control: the stack's state is carried by the
+  // border hue alone, which is what the --color-docker-border-* tokens were
+  // always for. The --color-docker-btn-*-fg fills are no longer painted (the
+  // light palette had to lighten them just to keep its own text legible).
   &--running {
-    background-color: var(--color-docker-btn-active-fg);
+    background-color: transparent;
     border: var(--geo-border-width) solid var(--color-docker-border-running);
   }
 
   &--active {
-    background-color: var(--color-docker-btn-active-fg);
+    background-color: transparent;
     border: var(--geo-border-width) solid var(--color-docker-border-active);
   }
 
   &--stopped {
-    background-color: var(--color-docker-btn-stopped-fg);
+    background-color: transparent;
     border: var(--geo-border-width) solid var(--color-docker-border-stopped);
   }
 

@@ -89,30 +89,8 @@ import {
       </div>
     }
 
-    <!-- Repo-list toolbar: live name search (drag-reorder pauses while filtering). -->
-    <div class="page__toolbar">
-      <input
-        class="page__search"
-        type="search"
-        [placeholder]="i18n.t('placeholder.search_repos')"
-        [value]="ws.repoFilter()"
-        (input)="ws.setRepoFilter($any($event.target).value)"
-      />
-      @if (ws.repoFilter().trim()) {
-        <span class="page__search-count">{{ visibleRepos().length }}</span>
-      }
-      <button
-        type="button"
-        class="page__reorder"
-        [class.page__reorder--on]="ws.reorderMode()"
-        [attr.aria-pressed]="ws.reorderMode()"
-        [attr.title]="i18n.t('tooltip.reorder_mode')"
-        (click)="ws.setReorderMode(!ws.reorderMode())"
-      >
-        <ui-icon name="grip-vertical" [size]="15" />
-        {{ ws.reorderMode() ? i18n.t('btn.reorder_done') : i18n.t('btn.reorder') }}
-      </button>
-    </div>
+    <!-- The repo-list toolbar (search + reorder) now lives inside
+         <app-global-panel>: same list, one bar. -->
 
     <!-- §4 scrollable card list. While a (re)scan runs, the stale card list
          is hidden entirely — only the spinner shows (§4 rescan semantics). -->

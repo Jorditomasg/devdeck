@@ -11,8 +11,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 40px;
-  padding: 4px 10px;
+  min-height: 38px;
+  padding: 0 10px;
   border-radius: var(--geo-corner-card);
   cursor: pointer;
 
@@ -35,22 +35,35 @@
   }
 }
 
+// The repo name is an identifier, so it is set as one: mono, tight, and a
+// step DOWN from the old 16px — at 38px rows a 16px proportional name
+// out-shouted the status column it sits next to.
 .header__name {
   @include mx.ellipsis;
   flex-shrink: 0;
   max-width: 260px;
   color: var(--color-text-primary);
-  font-size: var(--font-size-h2);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-lg);
   font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
-// Pull / changes badges — frame them (border + faint accent fill) so the
-// clickable git-state counts read as buttons, not loose text.
+// Pull / changes badges — outlined so the clickable git-state counts read as
+// controls, not loose text. No fill: they sit beside the outlined action
+// buttons and must belong to the same family.
 .header__git-badge {
-  padding: 3px 6px;
-  border: 1px solid color-mix(in srgb, var(--color-text-accent) 40%, transparent);
-  border-radius: var(--geo-corner-badge, 4px);
-  background: color-mix(in srgb, var(--color-text-accent) 12%, transparent);
+  padding: 1px 5px;
+  border: var(--geo-border-width) solid
+    color-mix(in srgb, var(--color-text-accent) 50%, transparent);
+  border-radius: var(--geo-corner-badge);
+  background: transparent;
+  font-family: var(--font-family-mono);
+
+  &:hover {
+    border-color: var(--color-text-accent);
+    background: color-mix(in srgb, var(--color-text-accent) 16%, transparent);
+  }
 }
 
 // "|" between the danger and deps badges (same warning highlight color).
@@ -60,14 +73,42 @@
   opacity: 0.6;
 }
 
-// Grey hint fragments (⎇ branch  ⚙ profile  $ cmd) — fills remaining space.
+// Hint fragments (BR / ENV / CMD) — fills the remaining space. A flex run
+// with `gap`, not glyph-separated text: fragments keep their own boxes, so
+// only the LAST one ellipsizes when the row tightens.
 .header__hint {
-  @include mx.ellipsis;
+  display: flex;
   flex: 1 1 0;
+  align-items: center;
+  gap: 10px;
   min-width: 0;
-  color: var(--color-text-faint);
+  overflow: hidden;
+}
+
+.header__kv {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
   font-family: var(--font-family-mono);
   font-size: var(--font-size-xs);
+}
+
+// Keys are signposts, not content: faint, uppercase, tracked out so two
+// letters still read as a label rather than as a truncated word.
+.header__kv-key {
+  flex-shrink: 0;
+  color: var(--color-text-faint);
+  font-style: normal;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.header__kv-val {
+  @include mx.ellipsis;
+  min-width: 0;
+  color: var(--color-text-muted);
+  font-weight: 400;
 }
 
 // Right group packed "first" (§33): never shrinks, labels can't push it out.
@@ -79,13 +120,17 @@
   cursor: default;
 }
 
+// Shown only for non-resting states (see the template) — a mono micro-label
+// in the state's own colour, matching the hint keys' typographic register.
 .header__status {
-  font-size: var(--font-size-md);
-  font-weight: 600;
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 
   &--running { color: var(--color-status-running); }
   &--starting { color: var(--color-status-starting); }
-  &--stopped { color: var(--color-status-stopped); }
   &--error { color: var(--color-status-error); }
   &--installing { color: var(--color-status-installing); }
 }

@@ -36,12 +36,15 @@
   --font-size-h1: 22px;
 
   // ─── Geometry (14) ─────────────────────────────────────────────────────────
-  --geo-corner-btn: 6px; // button / entry corner radius
-  --geo-corner-card: 10px; // main card radius
-  --geo-corner-panel: 8px; // expanded accordion panel radius
-  --geo-corner-badge: 4px; // small inline badges
-  --geo-corner-combo: 6px; // combobox radius
-  --geo-corner-tooltip: 6px; // tooltip outer radius
+  // Radii are deliberately TIGHT: the shell reads as an engineering tool, not
+  // a consumer app. Softer corners were tried and made the dense 38px card
+  // rows look like chat bubbles. Change these together — they are one scale.
+  --geo-corner-btn: 5px; // button / entry corner radius
+  --geo-corner-card: 6px; // main card radius
+  --geo-corner-panel: 5px; // expanded accordion panel radius
+  --geo-corner-badge: 3px; // small inline badges
+  --geo-corner-combo: 5px; // combobox radius
+  --geo-corner-tooltip: 5px; // tooltip outer radius
   --geo-border-width: 1px; // standard border width
   --geo-btn-height-sm: 24px; // small buttons (log actions)
   --geo-btn-height-md: 28px; // standard buttons
@@ -49,7 +52,7 @@
   --geo-topbar-height: 56px; // top bar height
   --geo-checkbox-size: 18px; // standard checkbox
   --geo-checkbox-size-sm: 16px; // small (select-all) checkbox
-  --geo-checkbox-corner: 4px; // checkbox radius
+  --geo-checkbox-corner: 3px; // checkbox radius
 
   // ─── Backgrounds (7) ───────────────────────────────────────────────────────
   --color-app: #0f0e26; // root window / topbar / log textbox

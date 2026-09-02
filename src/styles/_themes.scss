@@ -10,7 +10,6 @@
 // Imported ONCE from `styles.scss`. Emits CSS — do NOT `@use` from components.
 // ═══════════════════════════════════════════════════════════════════════════
 
-@use 'sass:map';
 @use 'tokens';
 
 // ─── Slate — neutral blue-grey, low saturation (IDE-sober) ───────────────────
@@ -126,25 +125,11 @@
   --color-selected-fg: #1e293b; // …with dark text
 }
 
-// Light mode: button + icon-button variants ship dark-on-dark `fg` backgrounds
-// (Sass map in _tokens.scss) that look muddy on white. Re-base each to its
-// vivid `hover` colour (and a touch stronger on :hover). `.btn.btn--x` /
-// `.icon-btn.icon-btn--x` keep specificity above the components' scoped rules.
-// `toggle-expand` is skipped — it's a transparent chevron (accent-bright text).
-[data-palette='light'] {
-  @each $name, $variant in tokens.$btn-variants {
-    @if $name != 'toggle-expand' {
-      .btn.btn--#{$name},
-      .icon-btn.icon-btn--#{$name} {
-        background-color: map.get($variant, hover);
-
-        &:hover:not(:disabled) {
-          background-color: map.get($variant, border);
-        }
-      }
-    }
-  }
-}
+// Light mode needs NO button override any more. `tokens.btn-variant` paints
+// outlined buttons whose label is `color-mix(hue, --color-text-primary)`, and
+// this palette flips that token to a dark ink — so every variant re-tunes
+// itself for white. The old block re-filled each button with its vivid hue
+// and would now fight the outlined model; it was deleted, not disabled.
 
 // ─── Themeable accent buttons — one hue pair per palette ──────────────────────
 // blue/log family ($accent) + clean/merge/seed family ($strong). The `:root`
@@ -156,4 +141,4 @@
 @include tokens.accent-buttons('[data-palette="emerald"]', #06b6d4, #84cc16);
 @include tokens.accent-buttons('[data-palette="crimson"]', #f97316, #fbbf24);
 @include tokens.accent-buttons('[data-palette="rose"]', #d946ef, #f472b6);
-@include tokens.accent-buttons('[data-palette="light"]', #2563eb, #7c3aed, $solid: true);
+@include tokens.accent-buttons('[data-palette="light"]', #2563eb, #7c3aed);
