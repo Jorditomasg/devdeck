@@ -1,36 +1,28 @@
 # Env-file drift deselection — design
 
 **Date:** 2026-07-05
-**Status:** approved (pending spec review) — **Model B superseded 2026-07-30,
-reinstated by owner decision 2026-09-02**
+**Status:** approved (pending spec review) — **Model B superseded 2026-07-30**
+(briefly reinstated 2026-09-02 in v3.9.0, superseded again 2026-09-30)
 
-> **Model B (spring writer → base `application.{ext}`) is in effect again, on
-> purpose.** Read both halves of this note before changing the writer a third
-> time.
->
-> **Why it was dropped (2026-07-30, v3.8.1).** Stamping every environment into
-> the base file treats a Spring profile file as a REPLACEMENT for the base when
-> Spring loads it as a LAYER over it, so selecting a partial
-> `application-{p}.yml` silently deleted every base-only key. A user repo lost
-> its security properties this way and the Spring context refused to start
-> (`required a bean … that could not be found`, 2026-07-27). The writer moved to
-> per-profile files activated with `SPRING_PROFILES_ACTIVE`.
->
-> **Why it is back (2026-09-02, owner decision).** The owner does not want
-> layering. The intended model is ONE `application.{ext}` per module, swapped
-> wholesale at each launch, with the app always booting on the implicit
-> `default` profile. `SpringWriter` therefore writes every environment to the
-> base file and `commands::process` activates NO profile —
-> `spring_profile_env` is gone.
->
-> **The invariant this rests on:** every saved environment must be a COMPLETE
-> config, never a partial overlay. The 2026-07-27 hazard is not fixed, it is
-> traded away — a repo that still carries `application-{p}.{ext}` layer files
-> will have them auto-imported as environments, and selecting one WILL flatten
-> the base. Keep one `application.{ext}` per module.
->
-> Everything below about drift detection still holds — it reads through
-> `resolve_active_file`, which follows the writer (now always the base file).
+> **2026-09-30 — final call: the IntelliJ model.** v3.9.0 went back to Model B
+> and the same boa2 repo died with the same `required a bean … that could not be
+> found`. DevDeck now mirrors IntelliJ's Spring Boot run configuration: config
+> files keep Spring's native layering and the launch only NAMES the profile
+> (IntelliJ's "Active profiles" → `-Dspring.profiles.active`; DevDeck →
+> `SPRING_PROFILES_ACTIVE`, because a `-D` on `mvn` never reaches the JVM that
+> `spring-boot:run` forks). Do not go back to Model B.
+
+> **Model B (spring writer → base `application.{ext}`) is no longer in effect.**
+> Stamping every environment into the base file treated a Spring profile file
+> as a REPLACEMENT for the base when it is a LAYER over it, so selecting a
+> partial `application-{p}.yml` silently deleted every base-only key. A user
+> repo lost its security properties this way and the Spring context refused to
+> start (`required a bean … that could not be found`, 2026-07-27). The `spring`
+> writer now writes each environment to its OWN `application-{profile}.{ext}`
+> and the selection is ACTIVATED with `SPRING_PROFILES_ACTIVE` in the run env
+> (`commands::process::spring_profile_env`). Everything below about drift
+> detection still holds — it reads through `resolve_active_file`, which follows
+> the writer.
 
 ## Problem
 
