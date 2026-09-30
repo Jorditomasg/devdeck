@@ -214,6 +214,9 @@ const LANGUAGE_CODES: readonly LanguageCode[] = ['en', 'es'];
             <ui-button variant="neutral" (clicked)="openChangelog()">
               {{ 'dialog.settings.view_changelog' | t }}
             </ui-button>
+            <ui-button variant="neutral" (clicked)="replayTour()">
+              {{ 'onboarding.replay' | t }}
+            </ui-button>
           </div>
         </ui-form-row>
         <p class="settings__hint">
@@ -408,6 +411,21 @@ export class SettingsDialogComponent extends DialogBase implements OnInit {
   protected async installUpdate(): Promise<void> {
     try {
       await this.updates.install();
+    } catch (err: unknown) {
+      await this.dialogs.error(this.i18n.t('misc.error_title'), describe(err));
+    }
+  }
+
+  /**
+   * Replay the onboarding tour. The tour lives in the MAIN window: clearing
+   * `onboarding_seen` reaches it via `config://changed` (its watcher starts
+   * the tour); this dialog closes and the main window is brought forward.
+   */
+  protected async replayTour(): Promise<void> {
+    try {
+      await this.settings.setOnboardingSeen(false);
+      await this.commands.showMainWindow().catch(() => undefined);
+      this.closeSelf();
     } catch (err: unknown) {
       await this.dialogs.error(this.i18n.t('misc.error_title'), describe(err));
     }

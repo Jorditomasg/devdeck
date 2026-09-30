@@ -120,6 +120,7 @@ export function formatCardLine(entry: LogLine): string {
       <div class="card__panel" [class.card__panel--open]="state().expanded">
         <div class="card__panel-inner">
           <app-card-expand
+            data-tour="card-expand"
             [vm]="expandVm()"
             [text]="expandText()"
             (branchSelected)="onBranchSelected($event)"

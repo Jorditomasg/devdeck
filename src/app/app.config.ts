@@ -16,6 +16,7 @@ import { ThemeService } from './core/state/theme.service';
 import { UpdatesStore } from './core/state/updates.store';
 import { DIALOGS } from './features/dialogs/dialog-stack';
 import { DialogService } from './features/dialogs/dialog.service';
+import { OnboardingTourService } from './features/onboarding/onboarding-tour.service';
 
 /**
  * Application-wide providers.
@@ -56,6 +57,7 @@ export const appConfig: ApplicationConfig = {
       const updates = inject(UpdatesStore);
       const commands = inject(IpcCommands);
       const dialogs = inject(DialogService);
+      const onboarding = inject(OnboardingTourService);
       // Detached log/terminal/dialog windows and the tray panel run the same
       // SPA bootstrap; the update check + changelog are main-window-only.
       const search = new URLSearchParams(window.location.search);
@@ -97,14 +99,14 @@ export const appConfig: ApplicationConfig = {
       if (isMainWindow) {
         // After the window is shown: if the app was just updated, pop the
         // "What's new" dialog (fire-and-forget — never blocks bootstrap).
+        // The onboarding tour waits until that dialog is closed (or skipped).
         void commands.updates
           .whatsNewOnStartup()
-          .then((version) => {
-            if (version) {
-              dialogs.openKind('whats-new', { version });
-            }
-          })
-          .catch((err: unknown) => console.error('whats-new check failed', err));
+          .then((version) =>
+            version ? dialogs.openKindForResult('whats-new', { version }, null) : null,
+          )
+          .catch((err: unknown) => console.error('whats-new check failed', err))
+          .finally(() => onboarding.settleStartup());
       }
     }),
   ],

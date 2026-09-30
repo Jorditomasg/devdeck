@@ -85,13 +85,14 @@ literal `root` (`config::ROOT_MODULE_KEY`).
 
 ## 2. Commands
 
-112 commands across 9 groups (55 core + the 2 app-lifecycle extensions in §2.1
+113 commands across 9 groups (55 core + the 2 app-lifecycle extensions in §2.1
 + the 2 review additions: `set_last_profile` #58 in §2.5, `is_installed` #59
 in §2.3, + the post-v1 extensions numbered 60+ in their sections — detached
 log/terminal/dialog windows, tray panel, updates §2.9, stash/branch
 management, the git-history queries #91–#102 and the changes-window
 working-tree commands #103–#108 in §2.4, `read_active_environment` #111
-in §2.5, and `set_window_always_on_top` #112 in §2.1). The authoritative count
+in §2.5, `set_window_always_on_top` #112 in §2.1, and `set_onboarding_seen`
+#113 in §2.5). The authoritative count
 assertion lives in
 `src/app/core/ipc/commands.spec.ts`.
 
@@ -274,6 +275,7 @@ Paths outside the current scan (e.g. a clone destination) fall back to the basen
 | 23 | `get_app_config` | — | `AppConfig` | `ConfigStore::load` (sentinels normalized; v1 keys accepted forever) |
 | 24 | `set_language` | `{ language: string }` | `void` | `ConfigStore::update` — v1 codes (`en_EN`, `es_ES`) persisted |
 | 25 | `set_minimize_to_tray` | `{ value: boolean }` | `void` | `ConfigStore::update` |
+| 113 | `set_onboarding_seen` | `{ value: boolean }` | `void` | `ConfigStore::update` — `AppConfig.onboarding_seen` (absent → `false`). `true` = first-run tour finished/skipped; `false` = Settings "Replay tour" (the main window starts the tour on the resulting `config://changed`) |
 | 26 | `set_active_group` | `{ name: string }` | `void` | `ConfigStore::update` |
 | 27 | `save_workspace_groups` | `{ groups: WorkspaceGroup[] }` | `void` | `ConfigStore::update` |
 | 28 | `set_repo_state` | `{ repo: string, state: RepoState }` | `void` | `ConfigStore::update` — whole-entry replace per repo |
@@ -403,6 +405,6 @@ service ring buffer, 1000 lines global — enforced in `core/state/services.stor
 | `ReposStore` | `scan_workspace`, `git_refresh_badge` | `repo://scan-progress`, `git://badge` |
 | `ServicesStore` | `start_service`, `stop_service`, `restart_service`, `install_dependencies`, `list_services`, `stop_all_services` | `service://status-changed`, `service://log-line`, `service://log-opened` |
 | `ProfilesStore` | `list_profiles`, `load_profile`, `save_profile`, `delete_profile`, `export_profile`, `import_profile`, `get_missing_repos`, `apply_profile_environments` | — |
-| `SettingsStore` | `get_app_config`, `set_language`, `set_minimize_to_tray`, `set_active_group`, `save_workspace_groups`, `set_repo_state`, `save_java_versions`, `detect_jdks` | `app://single-instance` |
+| `SettingsStore` | `get_app_config`, `set_language`, `set_minimize_to_tray`, `set_onboarding_seen`, `set_active_group`, `save_workspace_groups`, `set_repo_state`, `save_java_versions`, `detect_jdks` | `app://single-instance` |
 | feature tasks (dialogs/cards) | git group, docker group, config env group (29–35) | via stores |
 | app shell (root component) | `frontend_ready`, `app_exit`, `app_hide_to_tray` | `app://close-requested` |

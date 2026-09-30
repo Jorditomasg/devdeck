@@ -26,7 +26,17 @@
             "inlineStyleLanguage": "scss",
             "styles": [
               "node_modules/@xterm/xterm/css/xterm.css",
-              "src/styles/styles.scss"
+              "src/styles/styles.scss",
+              {
+                "input": "node_modules/driver.js/dist/driver.css",
+                "bundleName": "onboarding",
+                "inject": false
+              },
+              {
+                "input": "src/styles/onboarding.scss",
+                "bundleName": "onboarding",
+                "inject": false
+              }
             ],
             "assets": [
               {

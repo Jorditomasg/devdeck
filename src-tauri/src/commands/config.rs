@@ -43,6 +43,15 @@ pub async fn set_minimize_to_tray(state: State<'_, AppState>, value: bool) -> Cm
     Ok(())
 }
 
+/// #113 `set_onboarding_seen { value }` — the first-run tour was finished or
+/// skipped (`true`), or Settings asked to replay it (`false`; the main window
+/// reacts through `config://changed`).
+#[tauri::command]
+pub async fn set_onboarding_seen(state: State<'_, AppState>, value: bool) -> CmdResult<()> {
+    state.config.update(|c| c.onboarding_seen = value)?;
+    Ok(())
+}
+
 /// #26 `set_active_group { name }`.
 #[tauri::command]
 pub async fn set_active_group(state: State<'_, AppState>, name: String) -> CmdResult<()> {

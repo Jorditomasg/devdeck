@@ -131,6 +131,7 @@ export const CMD = {
   getAppConfig: 'get_app_config',
   setLanguage: 'set_language',
   setMinimizeToTray: 'set_minimize_to_tray',
+  setOnboardingSeen: 'set_onboarding_seen',
   setActiveGroup: 'set_active_group',
   setLastProfile: 'set_last_profile',
   saveWorkspaceGroups: 'save_workspace_groups',
@@ -633,6 +634,10 @@ export class IpcCommands {
 
     setMinimizeToTray: (value: boolean): Promise<void> =>
       this.bridge.invoke<void>(CMD.setMinimizeToTray, { value }),
+
+    /** First-run tour finished/skipped (`true`) or replay requested (`false`). */
+    setOnboardingSeen: (value: boolean): Promise<void> =>
+      this.bridge.invoke<void>(CMD.setOnboardingSeen, { value }),
 
     setActiveGroup: (name: string): Promise<void> =>
       this.bridge.invoke<void>(CMD.setActiveGroup, { name }),

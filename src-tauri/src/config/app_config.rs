@@ -79,6 +79,11 @@ pub struct AppConfig {
     /// User opted out of the "What's new" popup permanently.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub whats_new_disabled: Option<bool>,
+    /// The first-run onboarding tour was finished or skipped. Absent (every
+    /// pre-onboarding config) → `false`, so existing users see it once too;
+    /// Settings "Replay" sets it back to `false`.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub onboarding_seen: bool,
 
     /// Lossless passthrough of unknown keys (forward/backward compat).
     #[serde(flatten)]
@@ -382,6 +387,15 @@ mod tests {
         assert_eq!(cfg.danger_configs("r::root"), vec!["a", "z"]);
         cfg.set_danger_configs("r::root", vec![]);
         assert!(cfg.repo_config_danger.is_empty());
+    }
+
+    #[test]
+    fn onboarding_seen_defaults_false_when_absent() {
+        let cfg: AppConfig = serde_json::from_str(SAMPLE).unwrap();
+        assert!(!cfg.onboarding_seen);
+        let seen = AppConfig { onboarding_seen: true, ..AppConfig::default() };
+        let back: AppConfig = serde_json::from_str(&serde_json::to_string(&seen).unwrap()).unwrap();
+        assert!(back.onboarding_seen);
     }
 
     #[test]

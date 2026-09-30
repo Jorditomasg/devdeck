@@ -514,6 +514,8 @@ export interface AppConfig {
   readonly window?: WindowState;
   /** Shell command for new terminals (undefined → per-platform default). */
   readonly terminal_shell?: string;
+  /** First-run tour finished/skipped (absent → `false`: show it). */
+  readonly onboarding_seen?: boolean;
 }
 
 /** One shell offered by `list_shells` for the Settings terminal picker. */

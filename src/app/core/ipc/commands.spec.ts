@@ -20,8 +20,9 @@ describe('CMD registry', () => {
     //   (docker live logs + selection, design doc 2026-07-05).
     // + read_active_environment (env-file drift deselection, design doc
     //   2026-07-05).
+    // + set_onboarding_seen (first-run tour).
     const names = Object.values(CMD);
-    expect(names.length).toBe(112);
+    expect(names.length).toBe(113);
     expect(new Set(names).size).toBe(names.length);
     for (const name of names) {
       expect(name).toMatch(/^[a-z][a-z0-9_]*$/);

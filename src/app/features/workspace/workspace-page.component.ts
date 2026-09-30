@@ -27,8 +27,11 @@ import { ProfilesStore, normalizeJavaVersion } from '../../core/state/profiles.s
 import { ReposStore } from '../../core/state/repos.store';
 import { ServicesStore } from '../../core/state/services.store';
 import { SettingsStore } from '../../core/state/settings.store';
-import { DividerComponent, IconComponent, SpinnerComponent } from '../../ui';
+import { ButtonComponent, DividerComponent, IconComponent, SpinnerComponent } from '../../ui';
 import { DialogService } from '../dialogs/dialog.service';
+import { NativePickers } from '../dialogs/shared/native-pickers';
+import { addGroupPath } from '../dialogs/workspace-groups/workspace-groups.logic';
+import { OnboardingTourService } from '../onboarding/onboarding-tour.service';
 import { GlobalPanelComponent } from './global-panel.component';
 import { RepoCardComponent } from './repo-card/repo-card.component';
 import { GlobalLogPanelComponent } from './statusbar/global-log-panel.component';
@@ -50,6 +53,7 @@ import {
   selector: 'workspace-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    ButtonComponent,
     DividerComponent,
     GlobalLogPanelComponent,
     GlobalPanelComponent,
@@ -100,7 +104,16 @@ import {
           <ui-spinner size="md" [label]="i18n.t('label.scanning_status')" />
         </div>
       } @else {
-        @if (visibleRepos().length === 0) {
+        @if (showWelcome()) {
+          <!-- First run: no workspace folder configured yet. -->
+          <div class="page__welcome">
+            <h2 class="page__welcome-title">{{ i18n.t('onboarding.welcome.title') }}</h2>
+            <p class="page__welcome-text">{{ i18n.t('onboarding.welcome.text') }}</p>
+            <ui-button variant="blue" size="lg" (clicked)="onChooseWorkspace()">
+              <ui-icon name="folder" [size]="15" /> {{ i18n.t('onboarding.welcome.choose_folder') }}
+            </ui-button>
+          </div>
+        } @else if (visibleRepos().length === 0) {
           <p class="page__empty">
             {{ ws.repoFilter().trim() ? i18n.t('label.no_repos_match') : i18n.t('label.no_repos') }}
           </p>
@@ -123,7 +136,7 @@ import {
                 (dragend)="onDragEnd()"
               ><ui-icon name="grip-vertical" [size]="20" /></span>
             }
-            <app-repo-card class="page__slot-card" [repo]="repo" />
+            <app-repo-card class="page__slot-card" data-tour="repo-card" [repo]="repo" />
           </div>
         }
       }
@@ -174,6 +187,13 @@ export class WorkspacePageComponent {
     const ordered = orderedRepos(this.repos.repos(), (n) => this.ws.card(n).order ?? undefined);
     return filterRepos(ordered, this.ws.repoFilter());
   });
+
+  /** No workspace folder configured at all (vs. folders with zero repos,
+   *  which keeps the plain "no repositories" line). */
+  protected readonly showWelcome = computed(
+    () =>
+      this.settings.config() !== null && (this.settings.activeGroup()?.paths.length ?? 0) === 0,
+  );
 
   /** Drag is live only in reorder mode AND when not filtering (the list is a
    *  full set then, so fractional ordering stays consistent). Reorder mode
@@ -243,8 +263,13 @@ export class WorkspacePageComponent {
     private readonly dialogs: DialogService,
     private readonly commands: IpcCommands,
     private readonly events: IpcEvents,
+    private readonly pickers: NativePickers,
+    onboarding: OnboardingTourService,
     destroyRef: DestroyRef,
   ) {
+    // First-run tour (main window only — this page is its sole host).
+    onboarding.watch(() => this.visibleRepos()[0]?.name);
+
     // Rescan whenever the ACTIVE environment changes — either switched, or its
     // directories edited (the environments dialog runs in its own window and
     // persists via `config://changed`, which re-syncs `activeGroup` here). The
@@ -285,6 +310,32 @@ export class WorkspacePageComponent {
 
   protected onRescan(): void {
     void this.scanAndReload();
+  }
+
+  /**
+   * Welcome "Choose workspace folder": add the picked folder to the active
+   * group (or create the Default group — Rust `DEFAULT_GROUP_NAME`), make it
+   * active; the scanKey effect then runs the normal scan. Cancel = no-op.
+   */
+  protected async onChooseWorkspace(): Promise<void> {
+    const dir = await this.pickers
+      .pickDirectory(this.i18n.t('dialog.workspace_groups.browse_title'))
+      .catch(() => null);
+    if (dir === null) {
+      return;
+    }
+    const groups = this.settings.workspaceGroups();
+    const active = this.settings.activeGroup();
+    const name = active?.name ?? 'Default';
+    const next = active
+      ? addGroupPath(groups, groups.indexOf(active), dir)
+      : [...groups, { name, paths: [dir] }];
+    try {
+      await this.settings.saveWorkspaceGroups(next);
+      await this.settings.setActiveGroup(name);
+    } catch (err: unknown) {
+      console.error('saving the workspace folder failed', err);
+    }
   }
 
   /** Styled "already running" prompt for a second launch; restore on confirm. */

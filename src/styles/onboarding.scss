@@ -1,0 +1,101 @@
+// Onboarding tour skin — driver.js popover restyled to the app's flat look.
+//
+// NOT part of styles.scss: angular.json bundles this file together with
+// `driver.js/dist/driver.css` as the non-injected `onboarding` style bundle
+// (emitted as `onboarding.css`), which OnboardingTourService links on the
+// first tour start. Scoped under `.driver-popover.devdeck-tour` so it outranks
+// driver's own single-class rules loaded in the same bundle.
+
+.driver-popover.devdeck-tour {
+  font-family: var(--font-family);
+  color: var(--color-text-primary);
+  background-color: var(--color-card);
+  border: var(--geo-border-width) solid var(--color-border-default);
+  border-radius: var(--geo-corner-card);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 45%);
+  max-width: 320px;
+  padding: 14px 16px;
+
+  .driver-popover-title {
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+    padding-right: 48px; // room for the "Skip" text button
+  }
+
+  .driver-popover-description {
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-base);
+  }
+
+  .driver-popover-progress-text {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-md);
+    font-family: var(--font-family-mono);
+  }
+
+  // Close (×) rendered as a translated "Skip" text button.
+  .driver-popover-close-btn {
+    width: auto;
+    height: auto;
+    top: 10px;
+    right: 12px;
+    color: var(--color-text-faint);
+    font-size: var(--font-size-md);
+
+    &:hover,
+    &:focus {
+      color: var(--color-text-primary);
+    }
+  }
+
+  .driver-popover-footer-btn {
+    height: var(--geo-btn-height-sm);
+    padding: 0 10px;
+    border: var(--geo-border-width) solid var(--color-border-default);
+    border-radius: var(--geo-corner-btn);
+    background-color: var(--color-section);
+    color: var(--color-text-primary);
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    text-shadow: none;
+
+    &:hover,
+    &:focus {
+      background-color: var(--color-card-hover);
+    }
+  }
+
+  .driver-popover-next-btn {
+    border-color: var(--color-text-accent);
+    color: var(--color-text-accent-bright);
+  }
+
+  .driver-popover-arrow {
+    border-color: var(--color-border-default);
+  }
+
+  // Keep only the side pointing at the target (driver's transparent sides).
+  .driver-popover-arrow-side-left {
+    border-top-color: transparent;
+    border-bottom-color: transparent;
+    border-right-color: transparent;
+  }
+
+  .driver-popover-arrow-side-right {
+    border-top-color: transparent;
+    border-bottom-color: transparent;
+    border-left-color: transparent;
+  }
+
+  .driver-popover-arrow-side-top {
+    border-bottom-color: transparent;
+    border-left-color: transparent;
+    border-right-color: transparent;
+  }
+
+  .driver-popover-arrow-side-bottom {
+    border-top-color: transparent;
+    border-left-color: transparent;
+    border-right-color: transparent;
+  }
+}

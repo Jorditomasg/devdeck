@@ -71,6 +71,9 @@ export class SettingsStore {
     () => this._config()?.repo_state ?? {},
   );
 
+  /** First-run tour already finished/skipped (absent → `false`). */
+  readonly onboardingSeen = computed(() => this._config()?.onboarding_seen ?? false);
+
   /** Shell command for new terminals (`''` = per-platform default). */
   readonly terminalShell = computed(() => this._config()?.terminal_shell ?? '');
 
@@ -126,6 +129,13 @@ export class SettingsStore {
   async setMinimizeToTray(value: boolean): Promise<void> {
     await this.commands.config.setMinimizeToTray(value);
     this.patch({ minimize_to_tray: value });
+  }
+
+  /** `true` on tour finish/skip; `false` replays it (Settings → every window
+   *  re-syncs via `config://changed`, the main window starts the tour). */
+  async setOnboardingSeen(value: boolean): Promise<void> {
+    await this.commands.config.setOnboardingSeen(value);
+    this.patch({ onboarding_seen: value });
   }
 
   /**

@@ -52,6 +52,7 @@ export interface CardHeaderText {
   template: `
     <div
       class="header"
+      data-tour="card-header"
       role="button"
       tabindex="0"
       [attr.aria-expanded]="expanded()"
@@ -112,6 +113,7 @@ export interface CardHeaderText {
       @if (behind() > 0) {
         <ui-badge
           class="header__git-badge"
+          data-tour="git-badges"
           tone="accent"
           [interactive]="true"
           [uiTooltip]="text().pullTip"
@@ -123,6 +125,7 @@ export interface CardHeaderText {
       @if (changes() > 0) {
         <ui-badge
           class="header__git-badge"
+          data-tour="git-badges"
           tone="accent"
           [interactive]="true"
           [uiTooltip]="text().changesTip"
@@ -158,7 +161,7 @@ export interface CardHeaderText {
           <span class="header__port">:{{ p }}</span>
         }
 
-        <div class="header__actions">
+        <div class="header__actions" data-tour="card-actions">
           @if (vis().showStart) {
             <ui-icon-button
               variant="start"

@@ -695,5 +695,50 @@
     "copy_subject": "Copiar mensaje",
     "copy_branch": "Copiar nombre de rama",
     "compare_from_here": "Comparar desde aquí"
+  },
+  "onboarding": {
+    "welcome": {
+      "title": "Te damos la bienvenida a DevDeck",
+      "text": "Arranca, detén y configura todos tus servicios locales (Spring Boot, Angular, React, Maven, Docker Compose…) desde un solo lugar. Empieza eligiendo la carpeta que contiene tus repositorios.",
+      "choose_folder": "Elegir carpeta de trabajo"
+    },
+    "tour": {
+      "next": "Siguiente",
+      "back": "Atrás",
+      "done": "Terminar",
+      "skip": "Omitir",
+      "progress": "{current} / {total}"
+    },
+    "steps": {
+      "repo_card": {
+        "title": "Tus servicios",
+        "text": "Cada tarjeta es un servicio detectado en tu carpeta de trabajo. Haz clic para desplegar su configuración."
+      },
+      "card_actions": {
+        "title": "Arrancar y detener",
+        "text": "Arranca, detén o reinicia este servicio desde aquí. Para lanzar varios a la vez, marca sus casillas y usa Iniciar (n) arriba."
+      },
+      "git_badges": {
+        "title": "Git de un vistazo",
+        "text": "Estas insignias son botones: ↓ trae los cambios remotos y el contador de cambios abre la ventana de git."
+      },
+      "card_header": {
+        "title": "Todas las acciones en un menú",
+        "text": "Haz clic derecho en la cabecera para ver todas las acciones del repositorio: pull, ramas, stash, merge, historial, abrir carpeta, terminal…"
+      },
+      "card_expand": {
+        "title": "Configuración del servicio",
+        "text": "Elige la rama, el entorno, la versión de Java y el comando. Las casillas deciden qué guarda un perfil."
+      },
+      "profile": {
+        "title": "Perfiles",
+        "text": "Guarda toda esta configuración como un perfil y recupérala con un clic. Un * indica que hay cambios sin guardar."
+      },
+      "tray": {
+        "title": "Siempre a mano",
+        "text": "Al minimizar, DevDeck sigue funcionando en la bandeja del sistema. Haz clic derecho en su icono para abrir el panel rápido."
+      }
+    },
+    "replay": "Repetir el recorrido de bienvenida"
   }
 }

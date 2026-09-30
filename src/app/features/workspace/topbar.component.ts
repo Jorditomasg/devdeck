@@ -92,6 +92,7 @@ export function profileGroupArg(groupName: string | undefined): string | undefin
       <span class="topbar__profile-label">{{ i18n.t('label.profile') }}</span>
       <ui-searchable-select
         class="topbar__profile"
+        data-tour="profile"
         [class.topbar__profile--dirty]="dirty()"
         [options]="profileOptions()"
         [value]="profileDisplay()"

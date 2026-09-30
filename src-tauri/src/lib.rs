@@ -295,6 +295,7 @@ pub fn run() {
             commands::config::get_app_config,
             commands::config::set_language,
             commands::config::set_minimize_to_tray,
+            commands::config::set_onboarding_seen,
             commands::config::set_active_group,
             commands::config::save_workspace_groups,
             commands::config::set_repo_state,

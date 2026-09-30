@@ -23,6 +23,7 @@ const DYNAMIC_PREFIXES = [
   /^dialog\.settings\.palette_/, // settings: t(`dialog.settings.palette_${p}`)
   /^dialog\.settings\.pattern_/, // settings: t(`dialog.settings.pattern_${p}`)
   /^dialog\.settings\.language_/, // settings: t(`dialog.settings.language_${code}`)
+  /^onboarding\.steps\./, // onboarding tour: t(`onboarding.steps.${id}.title|text`)
   // tn() plural pairs: the call site names the BASE key only
   // (confirm-close: tn('dialog.confirm_close.message', count)).
   /^dialog\.confirm_close\.message_(one|many)$/,

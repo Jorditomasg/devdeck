@@ -695,5 +695,50 @@
     "copy_subject": "Copy message",
     "copy_branch": "Copy branch name",
     "compare_from_here": "Compare from here"
+  },
+  "onboarding": {
+    "welcome": {
+      "title": "Welcome to DevDeck",
+      "text": "Launch, stop and configure all your local services (Spring Boot, Angular, React, Maven, Docker Compose…) from one place. Start by choosing the folder that contains your repositories.",
+      "choose_folder": "Choose workspace folder"
+    },
+    "tour": {
+      "next": "Next",
+      "back": "Back",
+      "done": "Finish",
+      "skip": "Skip",
+      "progress": "{current} / {total}"
+    },
+    "steps": {
+      "repo_card": {
+        "title": "Your services",
+        "text": "Each card is a service detected in your workspace. Click it to expand its configuration."
+      },
+      "card_actions": {
+        "title": "Start and stop",
+        "text": "Start, stop or restart this service here. To run several at once, tick their checkboxes and use Start (n) at the top."
+      },
+      "git_badges": {
+        "title": "Git at a glance",
+        "text": "These badges are buttons: ↓ pulls the remote changes, and the changes counter opens the git window."
+      },
+      "card_header": {
+        "title": "Every action in one menu",
+        "text": "Right-click the header for all repository actions: pull, branches, stash, merge, history, open folder, terminal…"
+      },
+      "card_expand": {
+        "title": "Service configuration",
+        "text": "Pick the branch, environment, Java version and command. The checkboxes decide what a profile saves."
+      },
+      "profile": {
+        "title": "Profiles",
+        "text": "Save this whole setup as a profile and restore it in one click. A * means there are unsaved changes."
+      },
+      "tray": {
+        "title": "Always at hand",
+        "text": "When minimized, DevDeck keeps running in the system tray. Right-click the tray icon for the quick panel."
+      }
+    },
+    "replay": "Replay onboarding tour"
   }
 }
