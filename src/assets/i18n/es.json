@@ -432,6 +432,7 @@
     "pull": {
       "error_title": "Error de Pull",
       "error_msg": "No se puede hacer pull en '{name}', tenés cambios locales sin guardar que podrían sobreescribirse:\n\n{changes}",
+      "failed_msg": "No se pudo hacer pull en '{name}':\n{msg}",
       "confirm_title": "Confirmar Pull",
       "confirm_msg": "Hay {commits} nuevo(s) commit(s) en '{branch}'. ¿Querés descargarlos ahora?"
     },
@@ -440,6 +441,7 @@
       "confirm_msg": "¿Seguro que querés borrar todos los cambios locales no commiteados? Se deseleccionará la configuración (Env/App) y se restaurarán los ficheros originales."
     },
     "git": {
+      "auth_hint": "Este repositorio necesita credenciales y DevDeck no puede pedirlas. Configúralas una vez fuera de DevDeck:\n  • HTTPS: ejecuta el mismo comando git en una terminal e inicia sesión (Git Credential Manager lo recuerda), o usa un token de acceso personal como contraseña\n  • SSH: añade tu clave SSH al servidor Git y usa la URL git@...",
       "checkout_error_title": "Error al cambiar de rama",
       "checkout_error_msg": "No se pudo cambiar a '{branch}'.\nComprobá si hay ficheros modificados en conflicto.\n\nDetalles:\n{msg}",
       "checkout_dirty_title": "Cambios sin confirmar",

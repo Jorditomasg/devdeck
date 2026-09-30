@@ -25,6 +25,7 @@ import {
 import { TPipe } from '../../../core/i18n/t.pipe';
 import { TranslationService } from '../../../core/i18n/translation.service';
 import { IpcCommands } from '../../../core/ipc/commands';
+import { isGitAuthError } from '../../../core/ipc/git-errors';
 import { ReposStore } from '../../../core/state/repos.store';
 import { ServicesStore } from '../../../core/state/services.store';
 import { SettingsStore } from '../../../core/state/settings.store';
@@ -260,7 +261,8 @@ export class CloneDialogComponent extends DialogBase {
     this.progress.set(0);
     await this.dialogs.error(
       this.i18n.t('misc.error_title'),
-      this.i18n.t('dialog.clone.error_clone_msg', { msg: message }),
+      this.i18n.t('dialog.clone.error_clone_msg', { msg: message }) +
+        (isGitAuthError(message) ? `\n\n${this.i18n.t('dialog.git.auth_hint')}` : ''),
     );
   }
 }

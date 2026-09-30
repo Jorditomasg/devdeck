@@ -31,6 +31,7 @@ import {
 import { TPipe } from '../../../core/i18n/t.pipe';
 import { TranslationService } from '../../../core/i18n/translation.service';
 import { IpcCommands } from '../../../core/ipc/commands';
+import { isGitAuthError } from '../../../core/ipc/git-errors';
 import type { MissingRepo, ProfileDocument } from '../../../core/ipc/tauri.types';
 import { normalizeJavaVersion } from '../../../core/state/profiles.store';
 import {
@@ -352,6 +353,9 @@ export class ImportOptionsDialogComponent extends DialogBase {
                 msg: cloned.message,
               }),
             );
+            if (isGitAuthError(cloned.message)) {
+              this.log(this.i18n.t('dialog.git.auth_hint'));
+            }
             return;
           }
           if (repo.branch) {

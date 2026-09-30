@@ -50,18 +50,29 @@ impl GitOutput {
     }
 }
 
+/// `wsl.exe` argv tail running the distro's git with terminal credential
+/// prompts disabled. Windows env vars don't cross into WSL (no WSLENV
+/// plumbing), so the var rides on `env` — a real binary, still no shell.
+pub(crate) const WSL_GIT: [&str; 4] = ["--exec", "env", "GIT_TERMINAL_PROMPT=0", "git"];
+
 /// The base `git` invocation for `repo`: the distro's git through
 /// `wsl.exe --exec` when the repo lives on a WSL share, plain `git` with
 /// `cwd=repo` otherwise. Callers append the git args.
+///
+/// `GIT_TERMINAL_PROMPT=0` on both paths: DevDeck has no terminal, so a
+/// username/password prompt can never be answered — git would sit on it
+/// until the timeout (forever for clone). Disabled, git fails fast with
+/// "terminal prompts disabled" and the UI shows an auth hint. GUI helpers
+/// (Git Credential Manager) still open their own window.
 fn git_command(repo: &Path) -> Command {
     #[cfg(windows)]
     if let Some(wsl) = wsl_path_for(repo) {
         let mut cmd = crate::wsl::base_command(&wsl.distro);
-        cmd.args(["--cd", &wsl.linux_path, "--exec", "git"]);
+        cmd.args(["--cd", &wsl.linux_path]).args(WSL_GIT);
         return cmd;
     }
     let mut cmd = Command::new("git");
-    cmd.current_dir(repo);
+    cmd.current_dir(repo).env("GIT_TERMINAL_PROMPT", "0");
     cmd
 }
 

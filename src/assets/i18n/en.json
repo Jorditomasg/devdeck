@@ -432,6 +432,7 @@
     "pull": {
       "error_title": "Pull Error",
       "error_msg": "Cannot pull '{name}', you have local unsaved changes that could be overwritten:\n\n{changes}",
+      "failed_msg": "Could not pull '{name}':\n{msg}",
       "confirm_title": "Confirm Pull",
       "confirm_msg": "There are {commits} new commit(s) in '{branch}'. Do you want to download them now?"
     },
@@ -440,6 +441,7 @@
       "confirm_msg": "Are you sure you want to delete all uncommitted local changes? The configuration (Env/App) will be deselected and original files restored."
     },
     "git": {
+      "auth_hint": "This repository needs credentials and DevDeck cannot ask for them. Set them up once outside DevDeck:\n  • HTTPS: run the same git command in a terminal and sign in (Git Credential Manager remembers it), or use a personal access token as the password\n  • SSH: add your SSH key to the Git server and use the git@... URL",
       "checkout_error_title": "Error changing branch",
       "checkout_error_msg": "Could not switch to '{branch}'.\nCheck for conflicting modified files.\n\nDetails:\n{msg}",
       "checkout_dirty_title": "Uncommitted changes",

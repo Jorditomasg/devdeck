@@ -18,7 +18,7 @@ use tokio::io::AsyncReadExt;
 use tokio::process::Command;
 
 use super::exec::{
-    is_option_like, repo_name, run_git, wsl_path_for, T_BRANCH_OP, T_FAST, T_FETCH,
+    is_option_like, repo_name, run_git, wsl_path_for, WSL_GIT, T_BRANCH_OP, T_FAST, T_FETCH,
     T_FETCH_QUIET, T_LONG, T_QUERY,
 };
 use super::parse;
@@ -333,10 +333,14 @@ pub async fn clone(
     let mut cmd = match &wsl {
         Some(w) => {
             let mut c = Command::new("wsl.exe");
-            c.args(["-d", &w.distro, "--exec", "git"]).env("WSL_UTF8", "1");
+            c.args(["-d", &w.distro]).args(WSL_GIT).env("WSL_UTF8", "1");
             c
         }
-        None => Command::new("git"),
+        None => {
+            let mut c = Command::new("git");
+            c.env("GIT_TERMINAL_PROMPT", "0"); // see exec::git_command
+            c
+        }
     };
     cmd.arg("clone").arg("--progress").arg("--").arg(url);
     match &wsl {

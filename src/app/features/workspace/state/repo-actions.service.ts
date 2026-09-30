@@ -12,6 +12,7 @@
 import { Injectable, signal } from '@angular/core';
 
 import { IpcCommands } from '../../../core/ipc/commands';
+import { isGitAuthError } from '../../../core/ipc/git-errors';
 import { isAppError } from '../../../core/ipc/tauri.types';
 import type { ProfileDocument, RepoInfo } from '../../../core/ipc/tauri.types';
 import { ReposStore } from '../../../core/state/repos.store';
@@ -166,7 +167,9 @@ export class RepoActionsService {
   /**
    * Pull flow (§12 "Pull"): blocked with an error listing up to 10 dirty
    * files (ignoring `env_pull_ignore_patterns`); confirmed when commits are
-   * pending; silent pull otherwise. Returns true when a pull ran.
+   * pending; silent pull otherwise; a failed pull shows the git error (plus
+   * the auth hint when credentials are the cause). Returns true when a pull
+   * succeeded.
    *
    * `confirm: false` skips the pending-commits confirmation — the batch
    * pull-all already fetched, filtered to the repos actually behind and asked
@@ -208,8 +211,16 @@ export class RepoActionsService {
           return false;
         }
       }
-      await this.commands.git.pull(repo.path);
+      const result = await this.commands.git.pull(repo.path);
       await this.refreshGitState(repo);
+      if (!result.ok) {
+        await this.dialogs.error(
+          this.i18n.t('dialog.pull.error_title'),
+          this.i18n.t('dialog.pull.failed_msg', { name: repo.name, msg: result.message }) +
+            (isGitAuthError(result.message) ? `\n\n${this.i18n.t('dialog.git.auth_hint')}` : ''),
+        );
+        return false;
+      }
       return true;
     } finally {
       this.setPulling(repo.name, false);
