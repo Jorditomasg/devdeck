@@ -627,20 +627,37 @@ fn tray_panel_show_is_recent() -> bool {
         .unwrap_or(false)
 }
 
-/// Anchor the panel so its bottom-right corner sits near `click`, clamped to
-/// `≥0`. The click position is physical, the inner size logical — convert via
-/// the window scale factor. ponytail: single-monitor anchor; multi-monitor edge
-/// math deferred until someone reports a clipped panel.
+/// Anchor the panel so its bottom-right corner sits at `click`, clamped inside
+/// the work area (excludes the taskbar) of the monitor that was CLICKED. The
+/// scale must come from that monitor, not `window.scale_factor()` — the hidden
+/// panel may still sit on another monitor with a different DPI, which shoved
+/// the panel off the tray on mixed-DPI setups.
 fn position_tray_panel(
     window: &tauri::WebviewWindow,
     click: tauri::PhysicalPosition<f64>,
     logical_w: f64,
     logical_h: f64,
 ) {
-    let scale = window.scale_factor().unwrap_or(1.0);
-    let x = (click.x - logical_w * scale).max(0.0);
-    let y = (click.y - logical_h * scale).max(0.0);
-    let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
+    let monitor = window.monitor_from_point(click.x, click.y).ok().flatten();
+    let scale = monitor
+        .as_ref()
+        .map(|m| m.scale_factor())
+        .unwrap_or_else(|| window.scale_factor().unwrap_or(1.0));
+    let (w, h) = (logical_w * scale, logical_h * scale);
+    let (mut x, mut y) = (click.x - w, click.y - h);
+    if let Some(area) = monitor.as_ref().map(|m| *m.work_area()) {
+        let (left, top) = (area.position.x as f64, area.position.y as f64);
+        let right = left + area.size.width as f64 - w;
+        let bottom = top + area.size.height as f64 - h;
+        x = x.min(right).max(left);
+        y = y.min(bottom).max(top);
+    }
+    let position = tauri::PhysicalPosition::new(x, y);
+    let _ = window.set_position(position);
+    // Crossing into a monitor with another DPI rescales the window (WM_DPICHANGED)
+    // and can nudge it; re-apply the logical size and the position once settled.
+    let _ = window.set_size(tauri::LogicalSize::new(logical_w, logical_h));
+    let _ = window.set_position(position);
 }
 
 /// Tray "Quit" — same protocol as the window close (inventory-gui.md §25:
