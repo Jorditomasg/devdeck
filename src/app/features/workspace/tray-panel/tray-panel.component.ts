@@ -94,6 +94,7 @@ import {
                 <ui-icon-button
                   variant="danger"
                   size="sm"
+                  [disabled]="svc.status === 'stopping'"
                   [uiTooltip]="i18n.t('tooltip.stop_btn')"
                   (clicked)="stop(svc)"
                   ><ui-icon name="square" [size]="14"
@@ -101,6 +102,7 @@ import {
                 <ui-icon-button
                   variant="warning"
                   size="sm"
+                  [disabled]="svc.status === 'stopping'"
                   [uiTooltip]="i18n.t('tooltip.restart_btn')"
                   (clicked)="restart(svc)"
                   ><ui-icon name="refresh" [size]="14"

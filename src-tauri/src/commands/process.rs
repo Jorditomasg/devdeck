@@ -18,7 +18,7 @@ use crate::events::ServiceStatusPayload;
 use crate::java;
 use crate::process::constants::SHUTDOWN_ALL_CAP;
 use crate::process::{
-    InstallSpec, ServiceSnapshot, ServiceSpec, StopCommand, StopOutcome,
+    InstallSpec, ProcessError, ServiceSnapshot, ServiceSpec, StopCommand, StopOutcome,
 };
 use crate::state::AppState;
 
@@ -126,22 +126,29 @@ pub async fn restart_service(
             process.wait_port_free(&id, port).await;
         }
         tokio::time::sleep(delay).await;
-        if let Err(err) = process.start_service(spec).await {
-            log::error!("restart {id}: start phase failed: {err}");
-            // Nothing spawned ⇒ no supervisor ⇒ no further status event will
-            // EVER arrive, and the card / tray panel flipped optimistically
-            // to `stopping` when the button was clicked. Announce the failure
-            // or that row stays pinned on "stopping" for the rest of the
-            // session (the "restart got stuck" report). The command itself
-            // already returned Ok, so this event is the only channel left.
-            emitter.emit_status(&ServiceStatusPayload {
-                name: id.clone(),
-                status: ServiceStatus::Error,
-                exit_code: None,
-                error: Some(err.to_string()),
-                port: None,
-                pid: None,
-            });
+        match process.start_service(spec).await {
+            // Another start of this id won the race (a second restart click
+            // during a slow stop): the service IS running, which is what this
+            // restart wanted. Emitting `error` here painted a live service as
+            // dead — the "restart from the tray just stops it" report.
+            Ok(_) | Err(ProcessError::AlreadyRunning(_)) => {}
+            Err(err) => {
+                log::error!("restart {id}: start phase failed: {err}");
+                // Nothing spawned ⇒ no supervisor ⇒ no further status event will
+                // EVER arrive, and the card / tray panel flipped optimistically
+                // to `stopping` when the button was clicked. Announce the failure
+                // or that row stays pinned on "stopping" for the rest of the
+                // session (the "restart got stuck" report). The command itself
+                // already returned Ok, so this event is the only channel left.
+                emitter.emit_status(&ServiceStatusPayload {
+                    name: id.clone(),
+                    status: ServiceStatus::Error,
+                    exit_code: None,
+                    error: Some(err.to_string()),
+                    port: None,
+                    pid: None,
+                });
+            }
         }
     });
     Ok(())
