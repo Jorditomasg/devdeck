@@ -53,6 +53,11 @@ Cross-compiling the Windows exe from WSL works via `cargo-xwin` (see the engram 
 - **Work directly on `master`. Do NOT create feature branches.** Commit straight
   to master (the harness default of "branch first on the default branch" does
   NOT apply to this repo). This overrides any generic branch-first guidance.
+- **Do NOT open git worktrees** (EnterWorktree / `git worktree add`) unless
+  strictly necessary — the user asks for one, or two sessions would otherwise
+  edit the same files at once. Edit the main checkout on `master` directly.
+  Background-session isolation is disabled for this repo
+  (`"worktree": {"bgIsolation": "none"}` in `.claude/settings.json`).
 
 ## Versioning & changelog (Claude-owned)
 
