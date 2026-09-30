@@ -12,7 +12,7 @@ name = "devdeck"
 version = "3.11.0"
 description = "DevDeck — desktop app for managing local development services"
 authors = ["Jorditomasg"]
-edition = "2021"
+edition = "2024"
 
 [lib]
 # Library target so the binary stays a thin shim (src/main.rs) and the core is
