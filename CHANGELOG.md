@@ -5,6 +5,31 @@ All notable changes to DevDeck are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.10.0] - 2026-09-30
+
+### Changed
+
+- **Spring environments work like IntelliJ's "Active profiles" again.**
+  Selecting an environment writes it to its own `application-{profile}.yml`
+  and DevDeck starts the app with that profile active, so Spring layers it
+  over your untouched `application.yml`. This undoes the 3.9.0 change that
+  overwrote `application.yml`, which could drop keys that only lived in the
+  base file and make apps fail on startup ("required a bean ... that could
+  not be found"). If 3.9.0 already overwrote a repo's `application.yml`,
+  restore it (for example `git checkout -- src/main/resources/application.yml`)
+  and pick the environment again.
+
+### Fixed
+
+- Git operations no longer hang when a repository needs credentials. Clone,
+  pull and profile import now fail right away with a hint on how to set up
+  HTTPS or SSH credentials once outside DevDeck.
+- The tray panel opens next to the tray icon on multi-monitor setups with
+  different display scaling.
+- Restarting a service from the tray panel while it is still stopping is
+  blocked instead of racing, and a restart that wins that race is no longer
+  reported as an error.
+
 ## [3.9.0] - 2026-09-02
 
 ### Changed

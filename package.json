@@ -1,6 +1,6 @@
 {
   "name": "devdeck",
-  "version": "3.9.0",
+  "version": "3.10.0",
   "private": true,
   "license": "MIT",
   "description": "DevDeck - Tauri 2 + Angular desktop app for managing local development services",
