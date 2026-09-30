@@ -5,6 +5,14 @@ All notable changes to DevDeck are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.11.1] - 2026-09-30
+
+### Changed
+
+- **Up-to-date internals.** DevDeck now runs on refreshed versions of its
+  underlying libraries, picking up their latest stability and security
+  fixes. Nothing changes in how you use the app.
+
 ## [3.11.0] - 2026-09-30
 
 ### Added
