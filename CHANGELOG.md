@@ -5,6 +5,21 @@ All notable changes to DevDeck are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.11.0] - 2026-09-30
+
+### Added
+
+- **Welcome screen on first launch.** When no workspace is set up yet,
+  DevDeck now greets you with a single "Choose workspace folder" button
+  instead of an empty list. Pick the folder that holds your repositories and
+  DevDeck scans it straight away.
+- **Guided tour of the main window.** A short, skippable walkthrough shows
+  the essentials: service cards, starting and stopping services, the
+  clickable git badges, the right-click menu on each card, the per-service
+  settings, profiles and the system tray. It runs once automatically (also
+  for existing users after this update) and you can replay it any time from
+  Settings → "Replay onboarding tour".
+
 ## [3.10.0] - 2026-09-30
 
 ### Changed
