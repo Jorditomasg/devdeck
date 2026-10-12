@@ -5,6 +5,25 @@ All notable changes to DevDeck are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.12.0] - 2026-10-12
+
+### Added
+
+- **Git worktrees.** Each repo card now has a "Worktrees" section where you
+  can create, remove and manage git worktrees without leaving DevDeck. Create
+  one from a new branch, an existing local branch or a remote branch
+  (right-click a card → "New worktree…"). Worktrees are placed in a
+  `<repo>.worktrees` folder next to the repo.
+- **Run several worktrees at once.** Every worktree runs as its own service,
+  so you can start the same app from different branches side by side. Each
+  worktree gets its own port, pre-filled with the next free one and editable
+  at any time (Spring Boot, React, Angular and Nx). Worktrees use the parent
+  repo's Java version, start command and environment until you change them.
+- **Safe worktree removal.** Removing a worktree stops its service first,
+  warns you about uncommitted changes and can delete its branch too, asking
+  again before deleting unmerged work. A "Clean" button forgets worktrees
+  whose folder you deleted by hand.
+
 ## [3.11.1] - 2026-09-30
 
 ### Changed
