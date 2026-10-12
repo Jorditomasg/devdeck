@@ -34,6 +34,7 @@ pub mod process;
 pub mod profiles;
 pub mod terminal;
 pub mod updates;
+pub mod worktrees;
 
 pub use error::{AppError, CmdResult};
 

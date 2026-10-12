@@ -1,0 +1,60 @@
+// New git worktree dialog (git-worktrees design 2026-10-12).
+@use '../shared/controls' as c;
+
+.wt {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.wt__modes {
+  display: flex;
+  gap: 16px;
+}
+
+.wt__check {
+  @include c.checkbox-row;
+}
+
+.wt__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wt__label {
+  flex: 0 0 90px;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-base);
+}
+
+.wt__input {
+  @include c.text-input;
+  flex: 1 1 auto;
+}
+
+.wt__input--port {
+  flex: 0 0 90px;
+}
+
+.wt__combo {
+  flex: 1 1 auto;
+}
+
+.wt__hint {
+  @include c.hint;
+}
+
+.wt__path {
+  flex: 1 1 auto;
+  overflow-wrap: anywhere;
+  color: var(--color-text-secondary);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+}
+
+.wt__error {
+  @include c.inline-error;
+  margin: 0;
+}

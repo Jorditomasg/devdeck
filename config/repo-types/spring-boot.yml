@@ -12,6 +12,7 @@ detect:
 run:
   install: { default: "mvn clean install -DskipTests -B" }
   start: { default: "mvn spring-boot:run", unix: "./mvnw spring-boot:run" }
+  port_injection: { env: "SERVER_PORT" }
 logs:
   ready: "Started \\w+ in"
   error: "Application run failed"

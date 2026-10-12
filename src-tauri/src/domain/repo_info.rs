@@ -90,6 +90,13 @@ pub struct RepoInfo {
     /// Empty at detection time — the config layer fills it from
     /// `repo_config_danger` when assembling the frontend payload.
     pub danger_flags: Vec<String>,
+    /// Git worktree only: name of the repo this worktree belongs to
+    /// (`name` is then `"<parent>@<folder>"`). `None` for ordinary repos.
+    pub parent: Option<String>,
+    /// Git worktree only: checked-out branch (`None` = detached HEAD).
+    pub worktree_branch: Option<String>,
+    /// YAML `run.port_injection` — how a worktree port reaches the service.
+    pub port_injection: Option<crate::domain::repo_type::PortInjection>,
 }
 
 impl RepoInfo {

@@ -57,6 +57,10 @@ export const DIALOG_WINDOW_COMPONENTS: Readonly<Record<string, DialogComponentLo
     ),
   branch: () => import('./branch/branch-dialog.component').then((m) => m.BranchDialogComponent),
   stash: () => import('./stash/stash-dialog.component').then((m) => m.StashDialogComponent),
+  'worktree-add': () =>
+    import('./worktree-add/worktree-add-dialog.component').then(
+      (m) => m.WorktreeAddDialogComponent,
+    ),
   'confirm-close': () =>
     import('./confirm-close/confirm-close-dialog.component').then(
       (m) => m.ConfirmCloseDialogComponent,

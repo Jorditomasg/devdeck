@@ -579,14 +579,108 @@ export class RepoActionsService {
     this.ws.scheduleDirtyCheck();
   }
 
+  // -- git worktrees (design doc 2026-10-12) -----------------------------------
+
+  /** New-worktree dialog; rescans on success so the row appears. */
+  async addWorktree(parent: RepoInfo): Promise<void> {
+    const name = await this.dialogs.openWorktreeAdd(parent.name);
+    if (name) {
+      await this.repos.rescan().catch(() => undefined);
+    }
+  }
+
+  /**
+   * Remove a worktree: confirm (warning about uncommitted changes / a running
+   * service, which Rust stops first) → `git worktree remove` (forced when the
+   * badge says dirty, or after a second confirm if git refuses) → optionally
+   * delete its branch (`-d`, then `-D` after confirm when not merged) → rescan.
+   */
+  async removeWorktree(wt: RepoInfo): Promise<void> {
+    const t = (key: string, params?: Record<string, string | number>): string =>
+      this.i18n.t(key, params);
+    const parent = wt.parent ? this.repos.repoByName(wt.parent) : undefined;
+    if (!parent) {
+      return;
+    }
+    const badge = this.repos.badges()[wt.name];
+    const dirty = !!badge && badge.staged + badge.unstaged + badge.conflicts > 0;
+    const running = Object.entries(this.services.services()).some(
+      ([id, rt]) =>
+        (id === wt.name || id.startsWith(`${wt.name}::`)) && rt.status !== 'stopped' && rt.status !== 'error',
+    );
+    const lines = [t('dialog.worktree.remove_confirm', { path: wt.path })];
+    if (dirty) lines.push(t('dialog.worktree.remove_dirty'));
+    if (running) lines.push(t('dialog.worktree.remove_running'));
+    if (!(await this.dialogs.confirm(t('dialog.worktree.remove_title'), lines.join('\n\n')))) {
+      return;
+    }
+
+    let out = await this.commands.git.worktreeRemove(wt.name, dirty);
+    if (
+      !out.ok &&
+      /modified or untracked|contains modified/i.test(out.message) &&
+      (await this.dialogs.confirm(t('dialog.worktree.remove_title'), t('dialog.worktree.force_confirm')))
+    ) {
+      out = await this.commands.git.worktreeRemove(wt.name, true);
+    }
+    if (!out.ok) {
+      await this.dialogs.error(t('misc.error_title'), out.message);
+      await this.repos.rescan().catch(() => undefined);
+      return;
+    }
+
+    const branch = wt.worktreeBranch;
+    if (
+      branch &&
+      (await this.dialogs.confirm(
+        t('dialog.worktree.remove_title'),
+        t('dialog.worktree.delete_branch_confirm', { branch }),
+      ))
+    ) {
+      let del = await this.commands.git.deleteBranches(parent.path, [branch], false);
+      if (
+        !del.ok &&
+        /not fully merged/i.test(del.message) &&
+        (await this.dialogs.confirm(
+          t('dialog.worktree.remove_title'),
+          t('dialog.worktree.force_branch_confirm', { branch }),
+        ))
+      ) {
+        del = await this.commands.git.deleteBranches(parent.path, [branch], true);
+      }
+      if (!del.ok) {
+        await this.dialogs.error(t('misc.error_title'), del.message);
+      }
+    }
+    await this.repos.rescan().catch(() => undefined);
+  }
+
+  /** `git worktree prune` — forget worktrees whose folder was deleted by hand. */
+  async pruneWorktrees(parent: RepoInfo): Promise<void> {
+    const out = await this.commands.git.worktreePrune(parent.name);
+    if (!out.ok) {
+      await this.dialogs.error(this.i18n.t('misc.error_title'), out.message);
+    }
+    await this.repos.rescan().catch(() => undefined);
+  }
+
+  /** Persist a worktree port (`null` clears it); errors surface as a dialog. */
+  async setWorktreePort(wt: RepoInfo, port: number | null): Promise<void> {
+    try {
+      await this.commands.git.setWorktreePort(wt.name, port);
+    } catch (err: unknown) {
+      const message = isAppError(err) ? err.message : String(err);
+      await this.dialogs.error(this.i18n.t('misc.error_title'), message);
+    }
+  }
+
   // -- helpers --------------------------------------------------------------------
 
   private startOverrides(repo: RepoInfo): { javaLabel?: string } {
-    const state = this.ws.card(repo.name);
-    const javaLabel =
-      repo.features.includes('java_version') && state.javaLabel
-        ? state.javaLabel
-        : undefined;
+    // A worktree inherits its parent's JDK until it gets one of its own.
+    const label =
+      this.ws.card(repo.name).javaLabel || (repo.parent ? this.ws.card(repo.parent).javaLabel : '');
+    const javaLabel = repo.features.includes('java_version') && label ? label : undefined;
     return { javaLabel };
   }
 

@@ -1,0 +1,42 @@
+:host {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px;
+  border-radius: 6px;
+  font-size: var(--font-size-sm);
+}
+
+:host(:hover) {
+  background: var(--color-card-hover);
+}
+
+.wt__branch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.wt__changes {
+  color: var(--color-status-starting);
+}
+
+.wt__port {
+  width: 70px;
+  padding: 2px 4px;
+  font: inherit;
+  font-family: var(--font-family-mono);
+  color: inherit;
+  background: transparent;
+  border: var(--geo-border-width) solid var(--color-border-default);
+  border-radius: 4px;
+}
+
+.wt__spacer {
+  flex: 1;
+}

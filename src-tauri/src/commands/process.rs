@@ -37,10 +37,7 @@ pub async fn start_service(
 ) -> CmdResult<()> {
     let config = load_config(&state);
     let repo = find_repo(&state, &service_id)?;
-    let mut env = java_env_from_config(&config, java_label.as_deref(), runs_in_wsl(&repo));
-    env.extend(spring_profile_env(&config, &repo));
-    let override_cmd = resolved_command_override(&config, &repo.name);
-    let spec = build_service_spec(&repo, &service_id, override_cmd.as_deref(), env)?;
+    let spec = start_spec(&config, &repo, &service_id, java_label.as_deref())?;
     state.process.start_service(spec).await?;
     Ok(())
 }
@@ -89,10 +86,7 @@ pub async fn restart_service(
 ) -> CmdResult<()> {
     let config = load_config(&state);
     let repo = find_repo(&state, &service_id)?;
-    let mut env = java_env_from_config(&config, java_label.as_deref(), runs_in_wsl(&repo));
-    env.extend(spring_profile_env(&config, &repo));
-    let override_cmd = resolved_command_override(&config, &repo.name);
-    let spec = build_service_spec(&repo, &service_id, override_cmd.as_deref(), env)?;
+    let spec = start_spec(&config, &repo, &service_id, java_label.as_deref())?;
     let delay = restart_delay(&repo);
     let process = state.process.clone();
     let emitter = state.emitter.clone();
@@ -336,16 +330,55 @@ fn spring_profile_env(config: &AppConfig, repo: &RepoInfo) -> Option<(String, St
         return None;
     }
     repo.modules.iter().find_map(|module| {
-        let name = config.active_config(&config_key(&repo.name, &module.key))?;
+        // A worktree inherits its parent's selection until it has its own.
+        let name = config
+            .active_config(&config_key(&repo.name, &module.key))
+            .or_else(|| config.active_config(&config_key(repo.parent.as_deref()?, &module.key)))?;
         (!name.is_empty() && name != "default")
             .then(|| ("SPRING_PROFILES_ACTIVE".to_string(), name.to_string()))
     })
 }
 
+/// Everything one start/restart needs: java + spring env, command-profile
+/// override and — for a git worktree — its port.
+fn start_spec(
+    config: &AppConfig,
+    repo: &RepoInfo,
+    service_id: &str,
+    java_label: Option<&str>,
+) -> Result<ServiceSpec, AppError> {
+    let mut env = java_env_from_config(config, java_label, runs_in_wsl(repo));
+    env.extend(spring_profile_env(config, repo));
+    let override_cmd = resolved_command_override(config, repo);
+    let mut spec = build_service_spec(repo, service_id, override_cmd.as_deref(), env)?;
+    if let Some(&port) = config.worktree_ports.get(&repo.name) {
+        apply_port(repo, &mut spec, port);
+    }
+    Ok(spec)
+}
+
 /// Resolve the active command-profile line for a repo (`None` = repo default).
-fn resolved_command_override(config: &AppConfig, repo_name: &str) -> Option<String> {
-    let name = config.repo_state.get(repo_name)?.command_profile.as_ref()?;
-    config.command_profiles_for(repo_name).get(name).cloned()
+/// A worktree with no profile of its own inherits its parent's.
+fn resolved_command_override(config: &AppConfig, repo: &RepoInfo) -> Option<String> {
+    let lookup = |owner: &str| -> Option<String> {
+        let name = config.repo_state.get(owner)?.command_profile.as_ref()?;
+        config.command_profiles_for(owner).get(name).cloned()
+    };
+    lookup(&repo.name).or_else(|| lookup(repo.parent.as_deref()?))
+}
+
+/// Inject a worktree port per the repo type's `run.port_injection`
+/// (`env` var or `arg` appended to the command). No rule ⇒ unchanged.
+fn apply_port(repo: &RepoInfo, spec: &mut ServiceSpec, port: u16) {
+    let Some(rule) = &repo.port_injection else { return };
+    if let Some(var) = rule.env.as_deref().filter(|v| !v.is_empty()) {
+        spec.env.insert(var.to_string(), port.to_string());
+    } else if let Some(arg) = rule.arg.as_deref().filter(|a| !a.is_empty()) {
+        spec.command = format!("{} {}", spec.command, arg.replace("{port}", &port.to_string()));
+    } else {
+        return;
+    }
+    spec.known_port = Some(port);
 }
 
 /// Build the `ServiceSpec` from the scanned `RepoInfo` + per-start
@@ -423,6 +456,59 @@ mod tests {
             run_command: Some(cmd.into()),
             ..Default::default()
         }
+    }
+
+    #[test]
+    fn worktree_port_injected_as_env_or_arg() {
+        use crate::domain::repo_type::PortInjection;
+        let mut r = repo("api@wt");
+        r.port_injection = Some(PortInjection { env: Some("SERVER_PORT".into()), arg: None });
+        let mut spec = build_service_spec(&r, "api@wt", None, HashMap::new()).unwrap();
+        apply_port(&r, &mut spec, 8081);
+        assert_eq!(spec.env.get("SERVER_PORT").map(String::as_str), Some("8081"));
+        assert_eq!(spec.known_port, Some(8081));
+
+        r.port_injection = Some(PortInjection { env: None, arg: Some("--port {port}".into()) });
+        let mut spec = build_service_spec(&r, "api@wt", None, HashMap::new()).unwrap();
+        apply_port(&r, &mut spec, 4201);
+        assert_eq!(spec.command, "mvn spring-boot:run --port 4201");
+
+        r.port_injection = None;
+        let mut spec = build_service_spec(&r, "api@wt", None, HashMap::new()).unwrap();
+        apply_port(&r, &mut spec, 9000);
+        assert_eq!(spec.known_port, Some(8080));
+    }
+
+    #[test]
+    fn worktree_inherits_parent_command_profile_until_own() {
+        use crate::config::RepoState;
+        let mut config = AppConfig::default();
+        config.repo_state.insert(
+            "api".into(),
+            RepoState { command_profile: Some("batch".into()), ..Default::default() },
+        );
+        config.command_profiles.insert(
+            "api".into(),
+            [("batch".to_string(), "mvn -Pbatch spring-boot:run".to_string())].into(),
+        );
+        let mut wt = repo("api@wt");
+        wt.parent = Some("api".into());
+        assert_eq!(
+            resolved_command_override(&config, &wt).as_deref(),
+            Some("mvn -Pbatch spring-boot:run")
+        );
+        config.repo_state.insert(
+            "api@wt".into(),
+            RepoState { command_profile: Some("own".into()), ..Default::default() },
+        );
+        config.command_profiles.insert(
+            "api@wt".into(),
+            [("own".to_string(), "mvn -Pown spring-boot:run".to_string())].into(),
+        );
+        assert_eq!(
+            resolved_command_override(&config, &wt).as_deref(),
+            Some("mvn -Pown spring-boot:run")
+        );
     }
 
     #[test]

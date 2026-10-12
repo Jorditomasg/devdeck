@@ -22,7 +22,7 @@ describe('CMD registry', () => {
     //   2026-07-05).
     // + set_onboarding_seen (first-run tour).
     const names = Object.values(CMD);
-    expect(names.length).toBe(113);
+    expect(names.length).toBe(118);
     expect(new Set(names).size).toBe(names.length);
     for (const name of names) {
       expect(name).toMatch(/^[a-z][a-z0-9_]*$/);

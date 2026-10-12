@@ -88,6 +88,19 @@ pub struct Run {
     /// Card restart delay; `None` ⇒ caller's default (300 ms).
     pub restart_delay_ms: Option<u64>,
     pub app_resolution: Option<AppResolution>,
+    /// How a per-worktree port reaches the service (git-worktrees design):
+    /// `None` ⇒ the port cannot be overridden for this type.
+    pub port_injection: Option<PortInjection>,
+}
+
+/// `run.port_injection:` — exactly one of `env` (variable name, e.g.
+/// `SERVER_PORT`) or `arg` (appended to the start command, `{port}` replaced,
+/// e.g. `--port {port}`).
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct PortInjection {
+    pub env: Option<String>,
+    pub arg: Option<String>,
 }
 
 /// A command with optional per-OS overrides. `resolved()` picks the OS-specific

@@ -63,6 +63,28 @@ describe('ReposStore', () => {
     });
   });
 
+  it('nests git worktrees under their parent and rescan() replays the paths', async () => {
+    const bridge = new FakeTauriBridge();
+    const store = makeStore(bridge);
+    await store.init();
+    bridge.whenInvoked(CMD.scanWorkspace, () => [
+      repo('api'),
+      repo('web'),
+      repo('api@feature-x', { parent: 'api', worktreeBranch: 'feature/x' }),
+    ]);
+
+    await store.scan(['/ws']);
+
+    expect(store.repos().map((r) => r.name)).toEqual(['api', 'web']);
+    expect(store.allRepos().length).toBe(3);
+    expect(store.worktreesOf('api').map((r) => r.name)).toEqual(['api@feature-x']);
+    expect(store.worktreesOf('web')).toEqual([]);
+    expect(store.repoByName('api@feature-x')?.parent).toBe('api');
+
+    await store.rescan();
+    expect(bridge.invokesOf(CMD.scanWorkspace).at(-1)?.args).toEqual({ paths: ['/ws'] });
+  });
+
   it('folds git://badge events into the badge map (Rust poll loop feed)', async () => {
     const bridge = new FakeTauriBridge();
     const store = makeStore(bridge);

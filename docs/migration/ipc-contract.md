@@ -85,14 +85,14 @@ literal `root` (`config::ROOT_MODULE_KEY`).
 
 ## 2. Commands
 
-113 commands across 9 groups (55 core + the 2 app-lifecycle extensions in §2.1
+118 commands across 9 groups (55 core + the 2 app-lifecycle extensions in §2.1
 + the 2 review additions: `set_last_profile` #58 in §2.5, `is_installed` #59
 in §2.3, + the post-v1 extensions numbered 60+ in their sections — detached
 log/terminal/dialog windows, tray panel, updates §2.9, stash/branch
 management, the git-history queries #91–#102 and the changes-window
 working-tree commands #103–#108 in §2.4, `read_active_environment` #111
 in §2.5, `set_window_always_on_top` #112 in §2.1, and `set_onboarding_seen`
-#113 in §2.5). The authoritative count
+#113 in §2.5, and the git-worktree commands #114–#118 in §2.4). The authoritative count
 assertion lives in
 `src/app/core/ipc/commands.spec.ts`.
 
@@ -158,7 +158,7 @@ Closing a single terminal window does NOT confirm — it kills that PTY only.
 
 | # | Command | Args | Returns | Backing |
 |---|---|---|---|---|
-| 2 | `scan_workspace` | `{ paths: string[] }` | `RepoInfo[]` | `detection::detect_repos_for_group` |
+| 2 | `scan_workspace` | `{ paths: string[] }` | `RepoInfo[]` | `detection::detect_repos_for_group` + linked git worktrees appended as child `RepoInfo`s (`name: "<repo>@<folder>"`, `parent`, `worktreeBranch`) |
 | — | `list_repos` | — | `RepoInfo[]` | the last `scan_workspace` result cached in `AppState` (empty before the first scan). Lets dialog **windows** — which never scan — hydrate `ReposStore` so `repoByName` works (docs/migration/dialogs-as-windows.md Phase 3) |
 
 Notes:
@@ -263,6 +263,11 @@ Paths outside the current scan (e.g. a clone destination) fall back to the basen
 | 106 | `git_discard_file` | `{ repoPath: string, path: string, untracked: boolean }` | `OpOutput` | `git::discard_file` — tracked: `git restore -- <path>`; untracked: `git clean -f -- <path>`. DESTRUCTIVE; the frontend confirms first |
 | 107 | `git_read_working_file` | `{ repoPath: string, path: string }` | `GitFileAtCommit` | `git::read_working_file` — working-tree contents, same caps as #95 (512 KiB ⇒ `tooLarge`, NUL ⇒ `binary`). Path guarded inside the repo (canonicalized prefix check, no `..`/absolute/symlink escapes). Badge semaphore |
 | 108 | `git_write_working_file` | `{ repoPath: string, path: string, content: string }` | `void` | `git::write_working_file` — saves the changes-window editor. Same path guard; only writes files that already exist |
+| 114 | `git_worktree_suggest_port` | `{ repoName: string }` | `number \| null` | `git::worktrees::suggest_port` — first port above the parent's (static `server.port`, else live port) not assigned to any worktree and bindable; `null` when the parent port is unknown. Git worktrees (design doc 2026-10-12) |
+| 115 | `git_worktree_add` | `{ repoName: string, branch: string, mode: "new"\|"existing"\|"remote", base?: string, port?: number }` | `{ ok, message, name? }` | `git::worktrees::add` — `worktree add` into `<root>/<repo>.worktrees/<folder>` (`folder` = branch with path-unsafe chars → `-`). `new`: `-b branch [base]`; `existing`: checks out `branch`; `remote`: `--track -b branch <base=origin/x>`. Stores `port` in `AppConfig.worktree_ports[name]`. `name` = `"<repo>@<folder>"`; the frontend re-runs `scan_workspace`. Port taken by another worktree ⇒ rejects `invalid_args` |
+| 116 | `git_worktree_remove` | `{ name: string, force: boolean }` | `OpOutput` | stops every run `name` / `name::*` (normal escalation), then `worktree remove [--force]` in the parent, then drops the worktree's config (port, repo state, command profiles, active envs). Branch deletion = #68 afterwards |
+| 117 | `git_worktree_prune` | `{ repoName: string }` | `OpOutput` | `git::worktrees::prune` — `worktree prune -v` |
+| 118 | `set_worktree_port` | `{ name: string, port: number \| null }` | `void` | `ConfigStore::update` — `AppConfig.worktree_ports`; `null` clears. Port taken by another worktree ⇒ rejects `invalid_args`. Injected at start per the repo type's `run.port_injection` (`env` var or `arg`) |
 
 > `StashEntry` type (§1.2): `{ index: number, message: string, branch: string }` (camelCase wire).
 > `GitChangeEntry` (§1.2, camelCase wire): `{ path, oldPath?, staged: boolean, status }` — `status` is the porcelain letter (`M`/`A`/`D`/`R`/`T`…) with `??` folded to `U` and conflict states to `C`.

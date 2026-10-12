@@ -29,6 +29,7 @@ fn dialog_size(kind: &str) -> (f64, f64) {
         // share the same footprint — coherent side-by-side git dialogs.
         "branch" => (620.0, 560.0),
         "stash" => (620.0, 560.0),
+        "worktree-add" => (520.0, 420.0),
         "merge-branch" => (600.0, 600.0),
         "settings" => (640.0, 740.0),
         // Table layout (version | path | labeled actions) needs the width.

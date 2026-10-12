@@ -88,8 +88,30 @@ export class ReposStore {
   private readonly _scanProgress = signal<ScanProgressEvent | null>(null);
   private readonly _badges = signal<Readonly<Record<string, GitBadge>>>({});
 
-  /** Detected repos, alphabetical (order preserved Rust-side, §6.2 backend). */
-  readonly repos = this._repos.asReadonly();
+  /** Workspace roots of the last scan — `rescan()` replays them. */
+  private lastPaths: readonly string[] = [];
+
+  /**
+   * Top-level detected repos, alphabetical (order preserved Rust-side, §6.2
+   * backend). Git worktrees are excluded — they render nested in their parent
+   * card (`worktreesOf`), so cards, profiles, ordering and batch selection keep
+   * operating on top-level repos only.
+   */
+  readonly repos = computed(() => this._repos().filter((r) => !r.parent));
+
+  /** Every scanned repo, worktrees included. */
+  readonly allRepos = this._repos.asReadonly();
+
+  /** parent name → its worktrees (git-worktrees design 2026-10-12). */
+  private readonly worktreesByParent = computed(() => {
+    const map = new Map<string, RepoInfo[]>();
+    for (const repo of this._repos()) {
+      if (repo.parent) {
+        map.set(repo.parent, [...(map.get(repo.parent) ?? []), repo]);
+      }
+    }
+    return map;
+  });
 
   /** True while a `scan_workspace` is in flight (statusbar "Scanning…"). */
   readonly scanning = this._scanning.asReadonly();
@@ -102,7 +124,7 @@ export class ReposStore {
 
   /** Repo names with docker compose support (docker poller targets). */
   readonly dockerRepoNames = computed(() =>
-    this._repos()
+    this.repos()
       .filter((r) => r.dockerComposeFiles.length > 0)
       .map((r) => r.name),
   );
@@ -145,6 +167,7 @@ export class ReposStore {
    * re-targets its badge/docker pollers as a side effect (ipc-contract §2.2).
    */
   async scan(paths: readonly string[]): Promise<readonly RepoInfo[]> {
+    this.lastPaths = paths;
     this._scanning.set(true);
     try {
       const repos = await this.commands.detection.scanWorkspace(paths);
@@ -160,6 +183,16 @@ export class ReposStore {
     } finally {
       this._scanning.set(false);
     }
+  }
+
+  /** Re-run the last scan (after a worktree add/remove/prune). */
+  async rescan(): Promise<readonly RepoInfo[]> {
+    return this.lastPaths.length > 0 ? this.scan(this.lastPaths) : this._repos();
+  }
+
+  /** Worktrees of a repo (empty when none). */
+  worktreesOf(parentName: string): readonly RepoInfo[] {
+    return this.worktreesByParent().get(parentName) ?? [];
   }
 
   /** Force one badge poll for a repo; the result arrives as `git://badge`. */

@@ -30,6 +30,7 @@ pub mod poll;
 pub mod stash;
 pub mod types;
 pub mod worktree;
+pub mod worktrees;
 
 pub use ops::{
     capture_revert_point, checkout, clean_repo, clone, count_modified_files, fetch, fetch_quiet,

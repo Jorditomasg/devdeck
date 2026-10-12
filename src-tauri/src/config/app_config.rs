@@ -60,6 +60,10 @@ pub struct AppConfig {
     /// Named start-command profiles per repo: `command_profiles[repo][name] = full command line`.
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub command_profiles: BTreeMap<String, BTreeMap<String, String>>,
+    /// Per-worktree service port (`"repo@wt"` → port), injected at start via
+    /// the repo type's `run.port_injection` (git-worktrees design).
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub worktree_ports: BTreeMap<String, u16>,
 
     /// Recently used workspace roots (most recent first).
     #[serde(skip_serializing_if = "Vec::is_empty")]

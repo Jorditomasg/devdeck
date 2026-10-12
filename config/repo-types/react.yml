@@ -9,6 +9,8 @@ detect:
 run:
   install: { default: "npm ci" }
   start: { default: "npm start" }
+  # CRA reads PORT; for Vite override with  arg: "-- --port {port}"
+  port_injection: { env: "PORT" }
 logs:
   ready: "compiled successfully|Compiled|localhost:\\d+"
   ports:

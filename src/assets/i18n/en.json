@@ -93,7 +93,9 @@
     "batch_fetching": "Fetching",
     "batch_pulling": "Pulling",
     "batch_checking_install": "Checking",
-    "batch_installing": "Installing"
+    "batch_installing": "Installing",
+    "worktrees": "Worktrees ({count})",
+    "worktree_detached": "(detached)"
   },
   "tooltip": {
     "drag_reorder": "Drag to reorder",
@@ -143,7 +145,13 @@
     "branches_btn": "Manage branches: create, rename, publish or delete",
     "git_history_btn": "Commit history, diffs and file versions",
     "git_batch": "Batch git actions over the selected repos",
-    "select_all": "Select or deselect every repo"
+    "select_all": "Select or deselect every repo",
+    "worktree_new": "New worktree",
+    "worktree_prune": "Clean up worktrees whose folder was deleted (git worktree prune)",
+    "worktree_port": "Port for this worktree — applied on the next start",
+    "worktree_port_unsupported": "This repo type does not declare how to override the port (run.port_injection)",
+    "worktree_changes": "Uncommitted changes",
+    "worktree_remove": "Remove worktree"
   },
   "dialog": {
     "settings": {
@@ -569,6 +577,24 @@
     },
     "conflicts": {
       "title": "Conflicted files"
+    },
+    "worktree": {
+      "title": "New worktree — {name}",
+      "mode_new": "New branch",
+      "mode_existing": "Existing branch",
+      "branch_label": "Branch",
+      "port_label": "Port",
+      "port_hint": "Suggested: first free port after the repo's",
+      "path_label": "Folder",
+      "btn_create": "Create worktree",
+      "error_port": "The port must be a number between 1 and 65535",
+      "remove_title": "Remove worktree",
+      "remove_confirm": "Remove the worktree at {path}?",
+      "remove_dirty": "⚠ It has uncommitted changes — they will be LOST.",
+      "remove_running": "Its running service will be stopped first.",
+      "force_confirm": "Git refused because the worktree has modified or untracked files. Remove it anyway? Those changes will be lost.",
+      "delete_branch_confirm": "Also delete the local branch \"{branch}\"?",
+      "force_branch_confirm": "The branch \"{branch}\" is not fully merged. Delete it anyway? Its unmerged commits will be lost."
     }
   },
   "tray": {
@@ -694,7 +720,8 @@
     "view_changes": "View changes",
     "copy_subject": "Copy message",
     "copy_branch": "Copy branch name",
-    "compare_from_here": "Compare from here"
+    "compare_from_here": "Compare from here",
+    "new_worktree": "New worktree…"
   },
   "onboarding": {
     "welcome": {

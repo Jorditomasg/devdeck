@@ -1,6 +1,9 @@
 //! Detection command (ipc-contract.md §2.2).
 
 use std::path::PathBuf;
+use std::sync::Arc;
+
+use tokio::sync::Semaphore;
 
 use tauri::State;
 
@@ -8,7 +11,7 @@ use super::error::CmdResult;
 use crate::config::AppConfig;
 use crate::detection;
 use crate::docker::StatusTarget;
-use crate::domain::RepoInfo;
+use crate::domain::{RepoInfo, RepoTypeDef};
 use crate::events::{EventEmitter, ScanProgressPayload, REPO_SCAN_PROGRESS};
 use crate::state::AppState;
 
@@ -42,6 +45,7 @@ pub async fn scan_workspace(
     };
     let mut repos =
         detection::detect_repos_for_group(&paths, &defs, Some(&on_progress)).await;
+    append_worktrees(&mut repos, &defs, &state.badge_semaphore).await;
 
     // Danger flags come from config, not detection (domain/repo_info.rs doc).
     // A broken config must not block scanning — warn and continue empty.
@@ -59,7 +63,7 @@ pub async fn scan_workspace(
         .set_targets(docker_targets(&repos))
         .await;
 
-    state.tray.set_total(repos.len());
+    state.tray.set_total(repos.iter().filter(|r| r.parent.is_none()).count());
     if let Ok(mut guard) = state.repos.write() {
         *guard = repos.clone();
     }
@@ -67,6 +71,67 @@ pub async fn scan_workspace(
     let n = repos.len() as u32;
     emit_progress(&app, "done", n, n);
     Ok(repos)
+}
+
+/// Append every linked git worktree of each scanned repo as a child
+/// `RepoInfo` (`name = "<repo>@<folder>"`, `parent = <repo>`), detected with
+/// the normal pipeline on its own path (git-worktrees design). One
+/// `git worktree list` per main repo, under the shared badge semaphore. A
+/// worktree whose folder is gone or that matches no repo type is skipped.
+pub(crate) async fn append_worktrees(
+    repos: &mut Vec<RepoInfo>,
+    defs: &[RepoTypeDef],
+    semaphore: &Arc<Semaphore>,
+) {
+    let defs = Arc::new(defs.to_vec());
+    let handles: Vec<_> = repos
+        .iter()
+        .map(|parent| {
+            let (name, path) = (parent.name.clone(), PathBuf::from(&parent.path));
+            let (defs, semaphore) = (Arc::clone(&defs), Arc::clone(semaphore));
+            tokio::spawn(async move { worktrees_of(&name, &path, &defs, &semaphore).await })
+        })
+        .collect();
+    for handle in handles {
+        repos.extend(handle.await.unwrap_or_default());
+    }
+}
+
+async fn worktrees_of(
+    parent: &str,
+    repo: &std::path::Path,
+    defs: &Arc<Vec<RepoTypeDef>>,
+    semaphore: &Semaphore,
+) -> Vec<RepoInfo> {
+    // Only main repos own worktrees (`.git` dir; a linked worktree has a file).
+    if !tokio::fs::metadata(repo.join(".git")).await.is_ok_and(|m| m.is_dir()) {
+        return Vec::new();
+    }
+    let entries = {
+        let Ok(_permit) = semaphore.acquire().await else { return Vec::new() };
+        crate::git::worktrees::list(repo).await.unwrap_or_default()
+    };
+    let mut children = Vec::new();
+    for entry in entries.into_iter().skip(1).filter(|e| !e.bare) {
+        let host = crate::git::worktrees::host_path(repo, &entry.path);
+        let Some(folder) = host.file_name().map(|f| f.to_string_lossy().into_owned()) else {
+            continue;
+        };
+        let name = format!("{parent}@{folder}");
+        let defs = Arc::clone(defs);
+        let classified = tokio::task::spawn_blocking(move || {
+            host.is_dir().then(|| detection::classify_repo(&name, &host, &defs)).flatten()
+        })
+        .await
+        .ok()
+        .flatten();
+        if let Some(mut info) = classified {
+            info.parent = Some(parent.to_string());
+            info.worktree_branch = entry.branch;
+            children.push(info);
+        }
+    }
+    children
 }
 
 /// `list_repos` → the last `scan_workspace` result cached in `AppState`

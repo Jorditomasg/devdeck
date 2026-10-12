@@ -8,6 +8,7 @@ run:
   install: { default: "npm i" }
   reinstall: { unix: "rm -rf node_modules && npm i" }
   start: { default: "npx nx serve {main_app}" }
+  port_injection: { arg: "--port {port}" }
   app_resolution:
     placeholder: "main_app"
     scan_dir: "apps"

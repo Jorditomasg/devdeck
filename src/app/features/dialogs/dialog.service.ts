@@ -101,6 +101,14 @@ export class DialogService implements DialogsApi {
     this.openKind('branch', { repoName });
   }
 
+  /**
+   * New git worktree dialog (git-worktrees design 2026-10-12). Resolves the
+   * created worktree's repo name, or `null` when cancelled.
+   */
+  openWorktreeAdd(repoName: string): Promise<string | null> {
+    return this.openKindForResult<string | null>('worktree-add', { repoName }, null);
+  }
+
   /** Docker Compose manager, locked to the picked compose file (§19). */
   openDockerCompose(
     repoName: string,

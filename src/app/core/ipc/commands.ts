@@ -40,6 +40,8 @@ import type {
   StashEntry,
   UpdateInfo,
   WorkspaceGroup,
+  WorktreeAddMode,
+  WorktreeAddResult,
 } from './tauri.types';
 
 /**
@@ -107,6 +109,12 @@ export const CMD = {
   gitDeleteRemoteBranch: 'git_delete_remote_branch',
   gitRenameBranch: 'git_rename_branch',
   gitPublishBranch: 'git_publish_branch',
+  // git worktrees (design doc 2026-10-12)
+  gitWorktreeSuggestPort: 'git_worktree_suggest_port',
+  gitWorktreeAdd: 'git_worktree_add',
+  gitWorktreeRemove: 'git_worktree_remove',
+  gitWorktreePrune: 'git_worktree_prune',
+  setWorktreePort: 'set_worktree_port',
   // git history (git suite phase 1, design doc 2026-07-02)
   openGitWindow: 'open_git_window',
   gitLog: 'git_log',
@@ -484,6 +492,37 @@ export class IpcCommands {
       force: boolean,
     ): Promise<OpOutput> =>
       this.bridge.invoke<OpOutput>(CMD.gitDeleteBranch, { repoPath, names, force }),
+
+    // -- worktrees (design doc 2026-10-12) --------------------------------
+
+    worktreeSuggestPort: (repoName: string): Promise<number | null> =>
+      this.bridge.invoke<number | null>(CMD.gitWorktreeSuggestPort, { repoName }),
+
+    worktreeAdd: (
+      repoName: string,
+      branch: string,
+      mode: WorktreeAddMode,
+      base: string | null,
+      port: number | null,
+    ): Promise<WorktreeAddResult> =>
+      this.bridge.invoke<WorktreeAddResult>(CMD.gitWorktreeAdd, {
+        repoName,
+        branch,
+        mode,
+        base,
+        port,
+      }),
+
+    /** Stops the worktree's runs first; branch deletion = `deleteBranches`. */
+    worktreeRemove: (name: string, force: boolean): Promise<OpOutput> =>
+      this.bridge.invoke<OpOutput>(CMD.gitWorktreeRemove, { name, force }),
+
+    worktreePrune: (repoName: string): Promise<OpOutput> =>
+      this.bridge.invoke<OpOutput>(CMD.gitWorktreePrune, { repoName }),
+
+    /** `null` clears the port. */
+    setWorktreePort: (name: string, port: number | null): Promise<void> =>
+      this.bridge.invoke<void>(CMD.setWorktreePort, { name, port }),
 
     deleteRemoteBranch: (repoPath: string, name: string): Promise<OpOutput> =>
       this.bridge.invoke<OpOutput>(CMD.gitDeleteRemoteBranch, { repoPath, name }),

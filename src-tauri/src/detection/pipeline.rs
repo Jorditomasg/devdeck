@@ -41,9 +41,10 @@ pub fn matches_definition(
     files_in_root: &HashSet<String>,
     def: &RepoTypeDef,
 ) -> bool {
-    // 1. Git gate — `.git` DIRECTORY required unless `detect.git_required: false`
+    // 1. Git gate — `.git` required unless `detect.git_required: false`
     //    (v1 hardcoded the docker-infra exemption, §1.3 step 1).
-    if def.detect.git_required && !repo_root.join(".git").is_dir() {
+    //    `.git` is a FILE in a linked worktree / submodule — still a git repo.
+    if def.detect.git_required && !repo_root.join(".git").exists() {
         return false;
     }
     // 2. required files: every name exists as a plain file in the root.
@@ -194,7 +195,12 @@ pub async fn detect_repos(
                     p.file_name()
                         .map(|n| (n.to_string_lossy().into_owned(), p.clone()))
                 })
-                .filter(|(name, _)| !name.starts_with('.') && name != "node_modules")
+                .filter(|(name, _)| {
+                    !name.starts_with('.')
+                        && name != "node_modules"
+                        // worktree containers are surfaced under their parent repo
+                        && !name.ends_with(crate::git::worktrees::WORKTREES_DIR_SUFFIX)
+                })
                 .collect(),
             Err(_) => return Vec::new(),
         };
@@ -496,6 +502,31 @@ mod tests {
         make_git(&repo);
         let info = classify_repo("no-git-spring", &repo, &shipped_defs()).unwrap();
         assert_eq!(info.repo_type, "spring-boot");
+        let _ = fs::remove_dir_all(ws);
+    }
+
+    #[test]
+    fn git_file_passes_gate_for_linked_worktrees() {
+        let ws = temp_ws("gitfile");
+        let repo = ws.join("wt");
+        write(&repo, ".git", "gitdir: /ws/app/.git/worktrees/wt");
+        write(&repo, "pom.xml", "<project/>");
+        write(&repo, "src/main/resources/application.yml", "a: 1");
+        assert!(classify_repo("wt", &repo, &shipped_defs()).is_some());
+        let _ = fs::remove_dir_all(ws);
+    }
+
+    #[tokio::test]
+    async fn scanner_skips_worktree_containers() {
+        let ws = temp_ws("wtskip");
+        make_spring(&ws, "app");
+        make_spring(&ws, "app.worktrees");
+        let names: Vec<String> = detect_repos(&ws, &shipped_defs(), None)
+            .await
+            .into_iter()
+            .map(|r| r.name)
+            .collect();
+        assert_eq!(names, vec!["app"]);
         let _ = fs::remove_dir_all(ws);
     }
 

@@ -962,7 +962,7 @@ async fn kill_run_tree(
 /// listen on `::` — an IPv6-only survivor passes a v4-only probe and the
 /// relaunch still dies with "port in use". A v6 error OTHER than
 /// in-use/denied (e.g. no IPv6 stack) counts as free.
-fn port_bindable(port: u16) -> bool {
+pub(crate) fn port_bindable(port: u16) -> bool {
     if std::net::TcpListener::bind(("127.0.0.1", port)).is_err() {
         return false;
     }

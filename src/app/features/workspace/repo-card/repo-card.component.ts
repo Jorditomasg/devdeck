@@ -37,6 +37,7 @@ import { ServicesStore, type LogLine } from '../../../core/state/services.store'
 import { SettingsStore } from '../../../core/state/settings.store';
 import { DialogService } from '../../dialogs/dialog.service';
 import { OpenerService } from '../opener.service';
+import { WorktreeSectionComponent } from './worktree-section.component';
 import { RepoActionsService } from '../state/repo-actions.service';
 import { WorkspaceStore } from '../state/workspace.store';
 import { composeDisplayName, isDockerRepo } from '../workspace-logic';
@@ -70,7 +71,7 @@ export function formatCardLine(entry: LogLine): string {
 @Component({
   selector: 'app-repo-card',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CardExpandComponent, CardHeaderComponent, CardLogComponent],
+  imports: [CardExpandComponent, CardHeaderComponent, CardLogComponent, WorktreeSectionComponent],
   styleUrl: './repo-card.component.scss',
   host: {
     // §accent: deselected repos recede so the marked set stands out — but a
@@ -114,6 +115,12 @@ export function formatCardLine(entry: LogLine): string {
       (changesClicked)="onShowChanges()"
       (conflictsClicked)="onShowConflicts()"
     />
+
+    <!-- Git worktrees (design doc 2026-10-12): always visible, not lazy —
+         they are services of their own and must be controllable collapsed. -->
+    @if (hasWorktrees()) {
+      <app-worktree-section [parent]="repo()" />
+    }
 
     <!-- Lazy subtree: only exists after the first expand (§7) -->
     @if (built()) {
@@ -205,6 +212,10 @@ export class RepoCardComponent {
   // -- reactive state ----------------------------------------------------------
 
   protected readonly state = computed(() => this.ws.cardSignal(this.repo().name)());
+
+  protected readonly hasWorktrees = computed(
+    () => this.repos.worktreesOf(this.repo().name).length > 0,
+  );
 
   private readonly runtime = computed(() => this.services.services()[this.repo().name]);
 
@@ -675,6 +686,7 @@ export class RepoCardComponent {
       { id: 'changes', label: t('menu.view_changes'), icon: 'file-text' },
       { id: 'history', label: t('btn.git_history'), icon: 'history' },
       { id: 'branches', label: t('btn.branches'), icon: 'git-branch' },
+      { id: 'worktree-new', label: t('menu.new_worktree'), icon: 'plus' },
       { id: 'stash', label: t('btn.stash'), icon: 'archive' },
       { id: 'merge', label: t('btn.merge'), icon: 'git-merge' },
       { id: 'explorer', label: t('menu.open_folder'), icon: 'folder', separator: true },
@@ -698,6 +710,7 @@ export class RepoCardComponent {
       case 'changes': return this.onShowChanges();
       case 'history': return this.onHistory();
       case 'branches': return this.onBranches();
+      case 'worktree-new': return void this.actions.addWorktree(this.repo());
       case 'stash': return this.onStash();
       case 'merge': return this.onMerge();
       case 'explorer': return this.onOpenExplorer();

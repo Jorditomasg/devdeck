@@ -36,6 +36,7 @@ pub fn build_repo_info(name: &str, path: &Path, def: &RepoTypeDef) -> RepoInfo {
         run_command: resolve_run_command(path, &def.run),
         stop_command: def.run.stop.resolved(),
         restart_delay_ms: def.run.restart_delay_ms,
+        port_injection: def.run.port_injection.clone(),
         config_editable: def.config.editable,
         ready_pattern: def.logs.ready.clone(),
         error_pattern: def.logs.error.clone(),

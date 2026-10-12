@@ -453,6 +453,22 @@ export interface RepoInfo {
   readonly detectedFramework: string;
   /** Filled from `repo_config_danger` by the config layer before returning. */
   readonly dangerFlags: readonly string[];
+  /** Git worktree only: parent repo name (`name` is `"<parent>@<folder>"`). */
+  readonly parent?: string | null;
+  /** Git worktree only: checked-out branch (null = detached HEAD). */
+  readonly worktreeBranch?: string | null;
+  /** YAML `run.port_injection`; absent ⇒ a worktree port cannot be applied. */
+  readonly portInjection?: { readonly env?: string | null; readonly arg?: string | null } | null;
+}
+
+/** How `git_worktree_add` picks the branch (design doc 2026-10-12). */
+export type WorktreeAddMode = 'new' | 'existing' | 'remote';
+
+/** `git_worktree_add` result: `OpOutput` + the new worktree's repo name. */
+export interface WorktreeAddResult {
+  readonly ok: boolean;
+  readonly message: string;
+  readonly name?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -516,6 +532,8 @@ export interface AppConfig {
   readonly terminal_shell?: string;
   /** First-run tour finished/skipped (absent → `false`: show it). */
   readonly onboarding_seen?: boolean;
+  /** Per-worktree service port (`"repo@wt"` → port). */
+  readonly worktree_ports?: Readonly<Record<string, number>>;
 }
 
 /** One shell offered by `list_shells` for the Settings terminal picker. */

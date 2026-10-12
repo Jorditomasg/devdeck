@@ -269,6 +269,11 @@ pub fn run() {
             // §2.4 git — branch management
             commands::git::git_create_branch,
             commands::git::git_delete_branch,
+            commands::worktrees::git_worktree_suggest_port,
+            commands::worktrees::git_worktree_add,
+            commands::worktrees::git_worktree_remove,
+            commands::worktrees::git_worktree_prune,
+            commands::worktrees::set_worktree_port,
             commands::git::git_delete_remote_branch,
             commands::git::git_rename_branch,
             commands::git::git_publish_branch,
