@@ -5,6 +5,23 @@ All notable changes to DevDeck are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.12.1] - 2026-10-13
+
+### Added
+
+- **New worktree button.** Each repo card header now has a branch button that
+  opens the "New worktree" dialog directly.
+- **Worktrees in the onboarding tour.** The guided tour now explains how to
+  run several branches in parallel with worktrees.
+
+### Fixed
+
+- Starting a worktree for the first time no longer fails because its
+  dependencies are missing: DevDeck installs them automatically (e.g.
+  `npm i`) before starting it.
+- The update actions in Settings now wrap instead of causing a horizontal
+  scrollbar.
+
 ## [3.12.0] - 2026-10-12
 
 ### Added
