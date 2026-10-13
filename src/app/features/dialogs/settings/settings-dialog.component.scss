@@ -81,6 +81,7 @@
 .settings__updates {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
   min-width: 0;
 }
