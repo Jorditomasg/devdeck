@@ -19,6 +19,7 @@ export const TOUR_STEPS: readonly TourStepDef[] = [
   { id: 'card_actions', anchor: 'card-actions' },
   { id: 'git_badges', anchor: 'git-badges' },
   { id: 'card_header', anchor: 'card-header' },
+  { id: 'worktrees', anchor: 'worktree-new' },
   { id: 'card_expand', anchor: 'card-expand', requires: 'repo-card' },
   { id: 'profile', anchor: 'profile' },
   { id: 'tray', anchor: null },

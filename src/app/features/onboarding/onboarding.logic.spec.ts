@@ -4,9 +4,9 @@ import { TOUR_STEPS, availableSteps, shouldStartTour, type TourTrigger } from '.
 
 describe('availableSteps', () => {
   it('drops steps whose anchor is missing but keeps the anchorless last step', () => {
-    const present = new Set(['repo-card', 'card-actions', 'card-header', 'profile']);
+    const present = new Set(['repo-card', 'card-actions', 'card-header', 'worktree-new', 'profile']);
     const ids = availableSteps(TOUR_STEPS, (a) => present.has(a)).map((s) => s.id);
-    expect(ids).toEqual(['repo_card', 'card_actions', 'card_header', 'card_expand', 'profile', 'tray']);
+    expect(ids).toEqual(['repo_card', 'card_actions', 'card_header', 'worktrees', 'card_expand', 'profile', 'tray']);
   });
 
   it('keeps only the tray step when nothing is rendered', () => {

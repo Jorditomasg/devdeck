@@ -753,6 +753,10 @@
         "title": "Every action in one menu",
         "text": "Right-click the header for all repository actions: pull, branches, stash, merge, history, open folder, terminal…"
       },
+      "worktrees": {
+        "title": "Parallel branches with worktrees",
+        "text": "The branch button creates a git worktree: a second checkout of another branch in a sibling folder (repo.worktrees/branch). It appears under this card as its own service with its own port, so you can run several branches at once. Its dependencies (e.g. npm i) are installed automatically on its first start."
+      },
       "card_expand": {
         "title": "Service configuration",
         "text": "Pick the branch, environment, Java version and command. The checkboxes decide what a profile saves."

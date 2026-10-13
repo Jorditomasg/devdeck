@@ -109,6 +109,7 @@ export function formatCardLine(entry: LogLine): string {
       (stop)="onStop()"
       (restart)="onRestart()"
       (openExplorer)="onOpenExplorer()"
+      (newWorktree)="onNewWorktree()"
       (openTerminal)="onOpenTerminal($event)"
       (menuRequested)="onHeaderMenu($event)"
       (pullClicked)="onPull()"
@@ -319,6 +320,7 @@ export class RepoCardComponent {
     restartTip: this.i18n.t('tooltip.restart_btn'),
     openExplorerTip: this.i18n.t('tooltip.open_explorer'),
     openTerminalTip: this.i18n.t('tooltip.open_terminal'),
+    newWorktreeTip: this.i18n.t('tooltip.worktree_new'),
     expandTip: this.i18n.t('tooltip.expand'),
     openRepoTip: this.i18n.t('tooltip.open_repo'),
     pullTip: this.i18n.t('tooltip.pending_pulls'),
@@ -614,6 +616,10 @@ export class RepoCardComponent {
 
   protected onOpenExplorer(): void {
     void this.opener.openPath(this.repo().path);
+  }
+
+  protected onNewWorktree(): void {
+    void this.actions.addWorktree(this.repo());
   }
 
   /** Terminal button (design doc 2026-07-05): menu with a clean shell plus

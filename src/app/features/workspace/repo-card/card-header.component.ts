@@ -27,6 +27,7 @@ export interface CardHeaderText {
   readonly restartTip: string;
   readonly openExplorerTip: string;
   readonly openTerminalTip: string;
+  readonly newWorktreeTip: string;
   readonly expandTip: string;
   readonly openRepoTip: string;
   readonly pullTip: string;
@@ -188,6 +189,12 @@ export interface CardHeaderText {
           }
           <ui-icon-button
             variant="neutral"
+            data-tour="worktree-new"
+            [uiTooltip]="text().newWorktreeTip"
+            (clicked)="newWorktree.emit()"
+          ><ui-icon name="git-branch" /></ui-icon-button>
+          <ui-icon-button
+            variant="neutral"
             [uiTooltip]="text().openExplorerTip"
             (clicked)="openExplorer.emit()"
           ><ui-icon name="folder" /></ui-icon-button>
@@ -245,6 +252,8 @@ export class CardHeaderComponent {
   readonly stop = output<void>();
   readonly restart = output<void>();
   readonly openExplorer = output<void>();
+  /** "New worktree" button — the container opens the worktree dialog. */
+  readonly newWorktree = output<void>();
   /** Terminal button click — the container opens the terminal/commands menu
    * anchored on the event (design doc 2026-07-05). */
   readonly openTerminal = output<MouseEvent>();

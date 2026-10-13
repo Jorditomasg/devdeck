@@ -85,7 +85,34 @@ export class RepoActionsService {
       );
       return;
     }
+    if (!(await this.ensureWorktreeDeps(repo))) {
+      return;
+    }
     await this.runLifecycle(repo, () => this.services.start(repo.name, opts));
+  }
+
+  /**
+   * A fresh git worktree is a bare checkout — no `node_modules` & co. — so a
+   * first start would die on "Could not find Nx modules". When the repo type's
+   * `install_check_dirs` are missing, run its install command first and wait
+   * for it. Worktrees only: top-level cards already show the deps warning and
+   * an Install button. Returns false when the deps are still missing.
+   */
+  private async ensureWorktreeDeps(repo: RepoInfo): Promise<boolean> {
+    const dirs = repo.uiConfig.install_check_dirs ?? [];
+    const installed = (): Promise<boolean> =>
+      this.commands.process.isInstalled(repo.path, dirs).catch(() => true);
+    if (!repo.parent || !repo.runInstallCmd || dirs.length === 0 || (await installed())) {
+      return true;
+    }
+    if (!(await this.install(repo, false))) {
+      return false;
+    }
+    // ponytail: 500 ms poll of the status signal; an install takes minutes.
+    while (this.services.services()[repo.name]?.status === 'installing') {
+      await new Promise((r) => setTimeout(r, 500));
+    }
+    return installed();
   }
 
   async stop(repo: RepoInfo): Promise<void> {
