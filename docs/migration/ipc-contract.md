@@ -282,7 +282,7 @@ Paths outside the current scan (e.g. a clone destination) fall back to the basen
 | 25 | `set_minimize_to_tray` | `{ value: boolean }` | `void` | `ConfigStore::update` |
 | 113 | `set_onboarding_seen` | `{ value: boolean }` | `void` | `ConfigStore::update` — `AppConfig.onboarding_seen` (absent → `false`). `true` = first-run tour finished/skipped; `false` = Settings "Replay tour" (the main window starts the tour on the resulting `config://changed`) |
 | 26 | `set_active_group` | `{ name: string }` | `void` | `ConfigStore::update` |
-| 27 | `save_workspace_groups` | `{ groups: WorkspaceGroup[] }` | `void` | `ConfigStore::update` |
+| 27 | `save_workspace_groups` | `{ groups: WorkspaceGroup[] }` | `void` | `ConfigStore::update` — `WorkspaceGroup.run_in_wsl` (absent → `false`) makes `start/restart_service` + `install_dependencies` reroute drive paths through the default WSL distro (`wsl::reroute_drive_path`) |
 | 28 | `set_repo_state` | `{ repo: string, state: RepoState }` | `void` | `ConfigStore::update` — whole-entry replace per repo |
 | 29 | `get_saved_environments` | `{ configKey: string }` | `Record<string, string>` | `AppConfig::repo_configs_for` |
 | 30 | `save_saved_environments` | `{ configKey: string, environments: Record<string, string> }` | `void` | `AppConfig::set_repo_configs_for` (empty map removes the entry) |
