@@ -246,7 +246,9 @@
       "btn_set_active": "Set active",
       "confirm_delete_title": "Delete environment",
       "confirm_delete_msg": "Delete the environment '{name}'?",
-      "error_last_group": "Cannot delete the last remaining environment."
+      "error_last_group": "Cannot delete the last remaining environment.",
+      "run_in_wsl": "Run services in WSL",
+      "run_in_wsl_hint": "Services start inside the default WSL distro (C:\\… → /mnt/c/…), using its Maven, Node and node_modules. Applies on the next start."
     },
     "single_instance": {
       "title": "Already running",

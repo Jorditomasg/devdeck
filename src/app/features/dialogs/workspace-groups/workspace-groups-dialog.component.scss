@@ -22,6 +22,10 @@
   font-weight: 700;
 }
 
+.groups__check {
+  @include c.checkbox-row;
+}
+
 .groups__list {
   @include c.list-surface;
   display: flex;

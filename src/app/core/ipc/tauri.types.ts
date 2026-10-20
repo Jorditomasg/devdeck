@@ -479,6 +479,8 @@ export interface WorktreeAddResult {
 export interface WorkspaceGroup {
   readonly name: string;
   readonly paths: readonly string[];
+  /** Run services inside the default WSL distro (Windows; absent = false). */
+  readonly run_in_wsl?: boolean;
 }
 
 /** Per-repo persisted UI state (`repo_state` values — v1 snake_case keys). */

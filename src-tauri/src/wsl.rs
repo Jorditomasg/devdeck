@@ -193,9 +193,65 @@ pub fn exec_plain(wsl: &WslPath, program: &str) -> Command {
     cmd
 }
 
+/// A `run_in_wsl` workspace group's drive path (`C:\x`) re-addressed
+/// through the default distro's drvfs mount, so [`wsl_path_for`] routes it
+/// like any UNC repo. `None` off Windows, without WSL, or for a non-drive
+/// path (a `\\wsl.localhost` repo already routes by itself).
+pub fn reroute_drive_path(path: &str) -> Option<String> {
+    if !cfg!(windows) {
+        return None;
+    }
+    drive_path_as_wsl_unc(path, &default_distro()?)
+}
+
+/// `C:\x\y` → `\\wsl.localhost\<distro>\mnt\c\x\y`.
+/// ponytail: assumes the default `/mnt` automount root; read the distro's
+/// `/etc/wsl.conf` `[automount] root` if someone changes it.
+fn drive_path_as_wsl_unc(path: &str, distro: &str) -> Option<String> {
+    let s = path.replace('/', "\\");
+    let drive = s.chars().next().filter(char::is_ascii_alphabetic)?;
+    let rest = s.get(1..)?.strip_prefix(':')?.trim_end_matches('\\');
+    if !rest.is_empty() && !rest.starts_with('\\') {
+        return None; // `C:foo` is drive-relative, not a workspace path
+    }
+    Some(format!(
+        r"\\wsl.localhost\{distro}\mnt\{}{rest}",
+        drive.to_ascii_lowercase()
+    ))
+}
+
+/// The default distro (`*` row of `wsl.exe --list --verbose`), resolved once
+/// per app run. ponytail: blocking one-shot (~1 s cold) on the first
+/// rerouted start; a missing WSL stays cached as `None` until restart.
+fn default_distro() -> Option<String> {
+    static DISTRO: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
+    DISTRO
+        .get_or_init(|| {
+            let mut cmd = std::process::Command::new("wsl.exe");
+            cmd.args(["--list", "--verbose"]).env("WSL_UTF8", "1");
+            #[cfg(windows)]
+            {
+                use std::os::windows::process::CommandExt;
+                cmd.creation_flags(crate::process::constants::CREATE_NO_WINDOW);
+            }
+            let out = cmd.output().ok()?;
+            // Old wsl.exe ignores WSL_UTF8 and prints UTF-16LE: drop the NULs.
+            parse_default_distro(&String::from_utf8_lossy(&out.stdout).replace('\0', ""))
+        })
+        .clone()
+}
+
+fn parse_default_distro(list: &str) -> Option<String> {
+    list.lines()
+        .find_map(|l| l.trim_start().strip_prefix('*'))
+        .and_then(|row| row.split_whitespace().next())
+        .map(str::to_string)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
+        drive_path_as_wsl_unc, parse_default_distro,
         parse_wsl_path, shell_script, parse_pid_line, is_bash_noise, kill_group_script,
         exec_in_distro, exec_plain, WslPath,
     };
@@ -497,5 +553,30 @@ mod tests {
             args_of(&cmd),
             ["-d", "Ubuntu", "--cd", "/srv/stack", "--exec", "docker"]
         );
+    }
+
+    #[test]
+    fn drive_paths_reroute_through_the_distro_mount() {
+        let unc = |p| drive_path_as_wsl_unc(p, "Ubuntu");
+        assert_eq!(
+            unc(r"C:\Users\Jordi\prueba-asv\").as_deref(),
+            Some(r"\\wsl.localhost\Ubuntu\mnt\c\Users\Jordi\prueba-asv")
+        );
+        assert_eq!(unc("D:/src/app").as_deref(), Some(r"\\wsl.localhost\Ubuntu\mnt\d\src\app"));
+        assert_eq!(unc(r"\\wsl.localhost\Ubuntu\home\x"), None);
+        assert_eq!(unc("C:foo"), None);
+        assert_eq!(unc("/home/x"), None);
+        // The rerouted path must hit the existing UNC routing.
+        let w = parse_wsl_path(Path::new(&unc(r"C:\a\b").unwrap())).unwrap();
+        assert_eq!((w.distro.as_str(), w.linux_path.as_str()), ("Ubuntu", "/mnt/c/a/b"));
+    }
+
+    #[test]
+    fn default_distro_is_the_starred_row() {
+        let list = "  NAME            STATE           VERSION\n\
+                    * Ubuntu-24.04    Running         2\n\
+                    \x20 docker-desktop  Stopped         2\n";
+        assert_eq!(parse_default_distro(list).as_deref(), Some("Ubuntu-24.04"));
+        assert_eq!(parse_default_distro("no distros"), None);
     }
 }

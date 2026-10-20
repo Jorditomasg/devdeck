@@ -246,7 +246,9 @@
       "btn_set_active": "Marcar activo",
       "confirm_delete_title": "Eliminar entorno",
       "confirm_delete_msg": "¿Eliminar el entorno '{name}'?",
-      "error_last_group": "No se puede eliminar el último entorno."
+      "error_last_group": "No se puede eliminar el último entorno.",
+      "run_in_wsl": "Ejecutar servicios en WSL",
+      "run_in_wsl_hint": "Los servicios arrancan dentro de la distro WSL por defecto (C:\\… → /mnt/c/…), con su Maven, Node y node_modules. Se aplica en el siguiente arranque."
     },
     "single_instance": {
       "title": "Ya en ejecución",

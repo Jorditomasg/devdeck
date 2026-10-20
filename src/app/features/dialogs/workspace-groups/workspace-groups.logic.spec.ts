@@ -8,6 +8,7 @@ import {
   emptyPathGroupNames,
   removeGroupPath,
   renameGroup,
+  toggleRunInWsl,
   uniqueGroupName,
 } from './workspace-groups.logic';
 
@@ -96,5 +97,14 @@ describe('effectiveActiveName', () => {
 
   it('returns empty for an empty list', () => {
     expect(effectiveActiveName([], 'X')).toBe('');
+  });
+});
+
+describe('toggleRunInWsl', () => {
+  it('flips only the targeted group', () => {
+    const on = toggleRunInWsl(groups, 1);
+    expect(on[1]?.run_in_wsl).toBe(true);
+    expect(on[0]?.run_in_wsl).toBeFalsy();
+    expect(toggleRunInWsl(on, 1)[1]?.run_in_wsl).toBe(false);
   });
 });

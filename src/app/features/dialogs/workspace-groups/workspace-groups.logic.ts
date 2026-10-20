@@ -78,6 +78,14 @@ export function removeGroupPath(
   );
 }
 
+/** Toggle a group's run-in-WSL flag. */
+export function toggleRunInWsl(
+  groups: readonly WorkspaceGroup[],
+  index: number,
+): readonly WorkspaceGroup[] {
+  return groups.map((g, i) => (i === index ? { ...g, run_in_wsl: !g.run_in_wsl } : g));
+}
+
 /** Names of groups with zero paths — the save-time rejection list (§24). */
 export function emptyPathGroupNames(
   groups: readonly WorkspaceGroup[],

@@ -52,8 +52,8 @@ pub async fn start_service(
 #[tauri::command]
 pub async fn stop_service(state: State<'_, AppState>, service_id: String) -> CmdResult<()> {
     let process = state.process.clone();
-    let fallback_stop = state
-        .find_repo_for_service(&service_id)
+    let fallback_stop = find_repo(&state, &service_id)
+        .ok()
         .and_then(|repo| untracked_stop_command(&repo));
 
     tauri::async_runtime::spawn(async move {
@@ -253,12 +253,21 @@ pub async fn is_installed(path: String, check_dirs: Vec<String>) -> CmdResult<bo
 // Spec building (pure where possible — unit-tested below)
 // ---------------------------------------------------------------------------
 
+/// The scanned repo, with its path rerouted into WSL when the active group
+/// is flagged `run_in_wsl` — every launch path below (start, install,
+/// stop_cmd, Java env) then takes the existing UNC routing.
 fn find_repo(state: &State<'_, AppState>, service_id: &str) -> Result<RepoInfo, AppError> {
-    state.find_repo_for_service(service_id).ok_or_else(|| {
+    let mut repo = state.find_repo_for_service(service_id).ok_or_else(|| {
         AppError::process(format!(
             "unknown service id '{service_id}' — repo not in the last scan"
         ))
-    })
+    })?;
+    if load_config(state).active_group_runs_in_wsl() {
+        if let Some(path) = crate::wsl::reroute_drive_path(&repo.path) {
+            repo.path = path;
+        }
+    }
+    Ok(repo)
 }
 
 fn load_config(state: &State<'_, AppState>) -> AppConfig {

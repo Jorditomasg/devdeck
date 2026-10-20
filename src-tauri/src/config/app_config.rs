@@ -100,6 +100,11 @@ pub struct AppConfig {
 pub struct WorkspaceGroup {
     pub name: String,
     pub paths: Vec<String>,
+    /// Run this group's services inside the default WSL distro: drive paths
+    /// are re-addressed as `\\wsl.localhost\<distro>\mnt\<drive>\...`
+    /// (`wsl::reroute_drive_path`), so the UNC routing applies unchanged.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub run_in_wsl: bool,
 }
 
 /// Per-repo persisted UI state (`repo_state` values).
@@ -146,6 +151,17 @@ impl AppConfig {
     /// `minimize_to_tray` with its default (`true`).
     pub fn minimize_to_tray_or_default(&self) -> bool {
         self.minimize_to_tray.unwrap_or(true)
+    }
+
+    /// `run_in_wsl` of the active group; a dangling `active_group` falls back
+    /// to the first group (mirrors the frontend's `effectiveActiveGroup`).
+    pub fn active_group_runs_in_wsl(&self) -> bool {
+        let groups = &self.workspace_groups;
+        groups
+            .iter()
+            .find(|g| self.active_group.as_ref() == Some(&g.name))
+            .or(groups.first())
+            .is_some_and(|g| g.run_in_wsl)
     }
 
     /// Active saved-environment name for a config key (`None` when unset).
@@ -314,6 +330,23 @@ mod tests {
       },
       "repo_config_danger": { "spring-petclinic::src/main/resources": ["postgres"] }
     }"##;
+
+    #[test]
+    fn run_in_wsl_follows_the_active_group_with_first_group_fallback() {
+        let group = |name: &str, run_in_wsl| WorkspaceGroup {
+            name: name.into(),
+            paths: vec![],
+            run_in_wsl,
+        };
+        let mut cfg = AppConfig {
+            workspace_groups: vec![group("A", false), group("B", true)],
+            active_group: Some("B".into()),
+            ..Default::default()
+        };
+        assert!(cfg.active_group_runs_in_wsl());
+        cfg.active_group = Some("gone".into());
+        assert!(!cfg.active_group_runs_in_wsl()); // falls back to A
+    }
 
     #[test]
     fn parses_the_full_schema() {

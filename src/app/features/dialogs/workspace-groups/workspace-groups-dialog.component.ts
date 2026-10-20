@@ -45,6 +45,7 @@ import {
   emptyPathGroupNames,
   removeGroupPath,
   renameGroup,
+  toggleRunInWsl,
   uniqueGroupName,
 } from './workspace-groups.logic';
 
@@ -117,6 +118,15 @@ import {
           >
             {{ 'dialog.workspace_groups.btn_set_active' | t }}
           </ui-button>
+
+          <label class="groups__check" [title]="'dialog.workspace_groups.run_in_wsl_hint' | t">
+            <input
+              type="checkbox"
+              [checked]="selectedRunsInWsl()"
+              (change)="toggleWsl()"
+            />
+            {{ 'dialog.workspace_groups.run_in_wsl' | t }}
+          </label>
 
           <p class="groups__label">{{ 'dialog.workspace_groups.paths_label' | t }}</p>
           <div class="groups__list groups__list--paths">
@@ -194,6 +204,15 @@ export class WorkspaceGroupsDialogComponent extends DialogBase {
   protected readonly selectedIsActive = computed(
     () => this.groups()[this.selectedIndex()]?.name === this.activeName(),
   );
+
+  protected readonly selectedRunsInWsl = computed(
+    () => this.groups()[this.selectedIndex()]?.run_in_wsl === true,
+  );
+
+  /** Takes effect on the next start — running services keep their runtime. */
+  protected toggleWsl(): void {
+    this.groups.update((g) => toggleRunInWsl(g, this.selectedIndex()));
+  }
 
   protected select(index: number): void {
     this.selectedIndex.set(index);
