@@ -5,6 +5,24 @@ All notable changes to DevDeck are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.12.2] - 2026-10-21
+
+### Added
+
+- **Run a workspace group inside WSL.** A new "Run services in WSL" option in
+  the workspace groups dialog starts that group's services inside the default
+  WSL distro (`C:\…` → `/mnt/c/…`), using the distro's own Maven, Node and
+  `node_modules`. Applies on the next start.
+
+### Fixed
+
+- Applying a profile to an Angular/Nx app now writes `environment.ts` instead
+  of overwriting another environment file such as `environment.dev.ts`.
+- Dropdowns inside an expanded repo card are no longer cut off at the card's
+  edge.
+- Restarting a service no longer briefly shows a Start button while the
+  service is still coming back up.
+
 ## [3.12.1] - 2026-10-13
 
 ### Added
