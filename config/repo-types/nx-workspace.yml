@@ -22,6 +22,7 @@ logs:
 config:
   writer: "angular"
   dir: "apps/{main_app}/src/environments"
+  main_file: "environment.ts"
   patterns: ["environment*.ts", ".env", ".env.*"]
 ui:
   icon: "🅰"
