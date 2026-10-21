@@ -107,6 +107,17 @@ pub async fn restart_service(
             Ok(StopOutcome::Stopped | StopOutcome::AlreadyTerminal) => {}
             Err(err) => log::warn!("restart {id}: stop phase failed: {err}"),
         }
+        // The stop phase just emitted `stopped`, and the start below is still
+        // port-wait + delay away — without this the card / tray row shows a
+        // Start button mid-restart while work is still happening behind it.
+        emitter.emit_status(&ServiceStatusPayload {
+            name: id.clone(),
+            status: ServiceStatus::Starting,
+            exit_code: None,
+            error: None,
+            port: None,
+            pid: None,
+        });
         // stop() returning does not guarantee the socket was released (a
         // tree member may have survived the kill) — without this guard the
         // relaunch races the old listener and dies with "port in use".
