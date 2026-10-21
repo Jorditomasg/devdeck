@@ -58,5 +58,14 @@
 
   .card__panel--open & {
     padding: 0 8px 8px;
+    // Clip only while the 0fr→1fr reveal runs; once open, let the
+    // ui-searchable-select popups escape the card instead of being cut off.
+    animation: card-panel-unclip 0s 150ms forwards;
+  }
+}
+
+@keyframes card-panel-unclip {
+  to {
+    overflow: visible;
   }
 }
