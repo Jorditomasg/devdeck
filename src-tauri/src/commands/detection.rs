@@ -95,6 +95,31 @@ pub(crate) async fn append_worktrees(
     for handle in handles {
         repos.extend(handle.await.unwrap_or_default());
     }
+    drop_worktrees_listed_as_repos(repos);
+}
+
+/// A worktree created outside `<repo>.worktrees/` is also scanned as a
+/// top-level folder; keep only the child so it shows under its parent.
+fn drop_worktrees_listed_as_repos(repos: &mut Vec<RepoInfo>) {
+    let children: std::collections::HashSet<String> = repos
+        .iter()
+        .filter(|r| r.parent.is_some())
+        .map(|r| path_key(&r.path))
+        .collect();
+    repos.retain(|r| r.parent.is_some() || !children.contains(&path_key(&r.path)));
+}
+
+/// git prints `C:/x`, the workspace listing `C:\x`.
+fn path_key(path: &str) -> String {
+    let key = path
+        .replace('\\', "/")
+        .trim_end_matches('/')
+        .replace("//wsl$/", "//wsl.localhost/");
+    if cfg!(windows) {
+        key.to_lowercase()
+    } else {
+        key
+    }
 }
 
 async fn worktrees_of(
@@ -202,6 +227,26 @@ mod tests {
                 .collect(),
             ..Default::default()
         }
+    }
+
+    #[test]
+    fn worktree_also_scanned_as_top_level_repo_is_kept_only_as_child() {
+        let repo = |name: &str, path: &str, parent: Option<&str>| RepoInfo {
+            name: name.into(),
+            path: path.into(),
+            parent: parent.map(Into::into),
+            ..Default::default()
+        };
+        let mut repos = vec![
+            repo("app", "/ws/app", None),
+            repo("app-feat", "/ws/app-feat", None),
+            repo("other", "/ws/other", None),
+            repo("app@app-feat", "/ws/app-feat/", Some("app")),
+        ];
+        drop_worktrees_listed_as_repos(&mut repos);
+        let names: Vec<_> = repos.iter().map(|r| r.name.as_str()).collect();
+        assert_eq!(names, ["app", "other", "app@app-feat"]);
+        assert_eq!(path_key(r"\\wsl$\Ubuntu\ws\x"), path_key("//wsl.localhost/Ubuntu/ws/x"));
     }
 
     #[test]
