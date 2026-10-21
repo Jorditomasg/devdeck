@@ -47,8 +47,8 @@ export {
   TableRowDirective,
 } from './filter-table/filter-table.component';
 export { DiffViewComponent } from './diff-view/diff-view.component';
-export { WorktreeRowComponent } from './worktree-row/worktree-row.component';
-export type { WorktreeRowText } from './worktree-row/worktree-row.component';
+export { BranchTabsComponent } from './branch-tabs/branch-tabs.component';
+export type { BranchTab, BranchTabsText } from './branch-tabs/branch-tabs.component';
 // CodeViewComponent is deliberately NOT re-exported here: it statically
 // imports CodeMirror (~0.5 MB), and a barrel export drags that into the
 // INITIAL bundle of every window that imports `ui`. Lazy consumers import

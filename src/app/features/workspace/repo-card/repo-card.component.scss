@@ -36,6 +36,10 @@
   }
 }
 
+:host([hidden]) {
+  display: none;
+}
+
 // Smooth expand/collapse: grid-rows 0fr→1fr animates to the natural height
 // (no max-height magic numbers) — EXPAND_ANIM_MS = 150.
 .card__panel {

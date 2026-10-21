@@ -29,7 +29,13 @@ import {
 } from '@angular/core';
 
 import { TranslationService } from '../../../core/i18n/translation.service';
-import { ContextMenuService, type MenuEntry } from '../../../ui';
+import {
+  BranchTabsComponent,
+  ContextMenuService,
+  type BranchTab,
+  type BranchTabsText,
+  type MenuEntry,
+} from '../../../ui';
 import { IpcCommands } from '../../../core/ipc/commands';
 import type { RepoInfo, ServiceStatus } from '../../../core/ipc/tauri.types';
 import { ReposStore } from '../../../core/state/repos.store';
@@ -37,7 +43,6 @@ import { ServicesStore, type LogLine } from '../../../core/state/services.store'
 import { SettingsStore } from '../../../core/state/settings.store';
 import { DialogService } from '../../dialogs/dialog.service';
 import { OpenerService } from '../opener.service';
-import { WorktreeSectionComponent } from './worktree-section.component';
 import { RepoActionsService } from '../state/repo-actions.service';
 import { WorkspaceStore } from '../state/workspace.store';
 import { composeDisplayName, isDockerRepo } from '../workspace-logic';
@@ -71,12 +76,12 @@ export function formatCardLine(entry: LogLine): string {
 @Component({
   selector: 'app-repo-card',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CardExpandComponent, CardHeaderComponent, CardLogComponent, WorktreeSectionComponent],
+  imports: [BranchTabsComponent, CardExpandComponent, CardHeaderComponent, CardLogComponent],
   styleUrl: './repo-card.component.scss',
   host: {
     // §accent: deselected repos recede so the marked set stands out — but a
-    // running repo stays accented even when unmarked (CSS-only).
-    '[class.card--dimmed]': '!state().selected && status() !== "running"',
+    // repo with any running tab stays accented even when unmarked (CSS-only).
+    '[class.card--dimmed]': '!headSelected() && !familyRunning()',
     // Any focus inside the card (click on a control, keyboard tab-in) reads as
     // "I'm looking at this repo" → acknowledge a failed run. `focusin` bubbles;
     // `focus` does not. Clicking dead card space focuses nothing, which is why
@@ -86,10 +91,10 @@ export function formatCardLine(entry: LogLine): string {
   },
   template: `
     <app-card-header
-      [name]="repo().name"
+      [name]="head().name"
       [typeLabel]="typeLabel()"
       [typeColor]="typeColor()"
-      [selected]="state().selected"
+      [selected]="headSelected()"
       [expanded]="state().expanded"
       [dot]="dot()"
       [statusText]="statusText()"
@@ -117,10 +122,20 @@ export function formatCardLine(entry: LogLine): string {
       (conflictsClicked)="onShowConflicts()"
     />
 
-    <!-- Git worktrees (design doc 2026-10-12): always visible, not lazy —
-         they are services of their own and must be controllable collapsed. -->
-    @if (hasWorktrees()) {
-      <app-worktree-section [parent]="repo()" />
+    @if (family().length > 1) {
+      <ui-branch-tabs
+        [tabs]="tabs()"
+        [active]="repo().name"
+        [worktreeActive]="!!repo().parent"
+        [port]="worktreePort()"
+        [portConfigurable]="!!repo().portInjection"
+        [text]="tabsText()"
+        (selected)="onTabSelected($event)"
+        (menuRequested)="onTabMenu($event.id, $event.event)"
+        (add)="onNewWorktree()"
+        (portChange)="onWorktreePort($event)"
+        (remove)="onRemoveWorktree()"
+      />
     }
 
     <!-- Lazy subtree: only exists after the first expand (§7) -->
@@ -214,9 +229,63 @@ export class RepoCardComponent {
 
   protected readonly state = computed(() => this.ws.cardSignal(this.repo().name)());
 
-  protected readonly hasWorktrees = computed(
-    () => this.repos.worktreesOf(this.repo().name).length > 0,
+  /** The family's repo: itself, or the parent when this card shows a worktree. */
+  protected readonly head = computed(() => {
+    const repo = this.repo();
+    return (repo.parent && this.repos.repoByName(repo.parent)) || repo;
+  });
+
+  protected readonly family = computed(() => [
+    this.head(),
+    ...this.repos.worktreesOf(this.head().name),
+  ]);
+
+  // Batch selection and profiles cover top-level repos only.
+  protected readonly headSelected = computed(
+    () => this.ws.cardSignal(this.head().name)().selected,
   );
+
+  protected readonly familyRunning = computed(() => {
+    const runtimes = this.services.services();
+    return (
+      this.status() === 'running' ||
+      this.family().some((m) => runtimes[m.name]?.status === 'running')
+    );
+  });
+
+  protected readonly tabs = computed<readonly BranchTab[]>(() => {
+    const runtimes = this.services.services();
+    const badges = this.repos.badges();
+    const ports = this.settings.config()?.worktree_ports ?? {};
+    const head = this.head();
+    return this.family().map((member) => {
+      const runtime = runtimes[member.name];
+      const badge = badges[member.name];
+      return {
+        id: member.name,
+        label: member.parent
+          ? (member.worktreeBranch ?? this.i18n.t('label.worktree_detached'))
+          : this.ws.cardSignal(head.name)().branch || badge?.branch || head.name,
+        status: dotStatusFor(runtime?.status ?? 'stopped'),
+        port: member.parent
+          ? (ports[member.name] ?? runtime?.port ?? null)
+          : (runtime?.port ?? member.serverPort ?? null),
+        changes: badge ? badge.staged + badge.unstaged : 0,
+      };
+    });
+  });
+
+  protected readonly worktreePort = computed(
+    () => this.settings.config()?.worktree_ports?.[this.repo().name] ?? null,
+  );
+
+  protected readonly tabsText = computed<BranchTabsText>(() => ({
+    add: this.i18n.t('tooltip.worktree_new'),
+    changes: this.i18n.t('tooltip.worktree_changes'),
+    port: this.i18n.t('tooltip.worktree_port'),
+    portUnsupported: this.i18n.t('tooltip.worktree_port_unsupported'),
+    remove: this.i18n.t('tooltip.worktree_remove'),
+  }));
 
   private readonly runtime = computed(() => this.services.services()[this.repo().name]);
 
@@ -238,7 +307,7 @@ export class RepoCardComponent {
   protected readonly vis = computed(() => visibilityForStatus(this.status()));
 
   protected readonly port = computed<number | null>(
-    () => this.runtime()?.port ?? this.repo().serverPort ?? null,
+    () => this.runtime()?.port ?? this.worktreePort() ?? this.repo().serverPort ?? null,
   );
 
   protected readonly behind = computed(() => this.badge()?.behind ?? 0);
@@ -578,8 +647,8 @@ export class RepoCardComponent {
   // -- header handlers (§6, §12) ---------------------------------------------------
 
   protected onSelectedChange(selected: boolean): void {
-    this.ws.patchCard(this.repo().name, { selected });
-    void this.persistRepoState();
+    this.ws.patchCard(this.head().name, { selected });
+    void this.persistRepoState(this.head().name);
   }
 
   /**
@@ -619,7 +688,64 @@ export class RepoCardComponent {
   }
 
   protected onNewWorktree(): void {
-    void this.actions.addWorktree(this.repo());
+    void this.actions.addWorktree(this.head());
+  }
+
+  /** The target tab inherits this tab's expanded state, so switching feels
+   * like one card changing branch. */
+  protected onTabSelected(name: string): void {
+    this.ws.patchCard(name, { expanded: this.state().expanded }, { silent: true });
+    this.ws.setActiveTab(this.head().name, name);
+  }
+
+  protected async onTabMenu(name: string, event: MouseEvent): Promise<void> {
+    const member = this.family().find((m) => m.name === name);
+    if (!member) {
+      return;
+    }
+    const t = (key: string): string => this.i18n.t(key);
+    const vis = visibilityForStatus(this.services.services()[name]?.status ?? 'stopped');
+    const items: MenuEntry[] = [
+      ...(vis.showStart
+        ? [{ id: 'start', label: t('btn.start'), icon: 'play', disabled: !vis.startEnabled } as const]
+        : []),
+      ...(vis.showStop
+        ? [{ id: 'stop', label: t('btn.stop'), icon: 'square', disabled: !vis.stopEnabled } as const]
+        : []),
+      ...(vis.showRestart
+        ? [{ id: 'restart', label: t('btn.restart'), icon: 'refresh', disabled: !vis.restartEnabled } as const]
+        : []),
+      { id: 'explorer', label: t('menu.open_folder'), icon: 'folder', separator: true },
+      { id: 'terminal', label: t('menu.open_terminal'), icon: 'terminal' },
+      { id: 'history', label: t('btn.git_history'), icon: 'history' },
+      ...(member.parent
+        ? [{ id: 'remove', label: t('tooltip.worktree_remove'), icon: 'trash', separator: true } as const]
+        : []),
+    ];
+    const title = (key: string): string => `${member.name} — ${t(key)}`;
+    switch (await this.menu.openFromEvent(event, items)) {
+      case 'start': return void this.actions.start(member);
+      case 'stop': return void this.actions.stop(member);
+      case 'restart': return void this.actions.restart(member);
+      case 'explorer': return void this.opener.openPath(member.path);
+      case 'terminal':
+        return void this.commands.terminal
+          .openWindow(member.name, member.path, title('label.terminal'))
+          .catch((err: unknown) => console.error('open terminal window failed', err));
+      case 'history':
+        return void this.commands.git
+          .openWindow(member.name, title('git.title_history'))
+          .catch((err: unknown) => console.error('open git window failed', err));
+      case 'remove': return void this.actions.removeWorktree(member);
+    }
+  }
+
+  protected onWorktreePort(port: number | null): void {
+    void this.actions.setWorktreePort(this.repo(), port);
+  }
+
+  protected onRemoveWorktree(): void {
+    void this.actions.removeWorktree(this.repo());
   }
 
   /** Terminal button (design doc 2026-07-05): menu with a clean shell plus
@@ -693,6 +819,7 @@ export class RepoCardComponent {
       { id: 'history', label: t('btn.git_history'), icon: 'history' },
       { id: 'branches', label: t('btn.branches'), icon: 'git-branch' },
       { id: 'worktree-new', label: t('menu.new_worktree'), icon: 'plus' },
+      { id: 'worktree-prune', label: t('menu.prune_worktrees'), icon: 'eraser' },
       { id: 'stash', label: t('btn.stash'), icon: 'archive' },
       { id: 'merge', label: t('btn.merge'), icon: 'git-merge' },
       { id: 'explorer', label: t('menu.open_folder'), icon: 'folder', separator: true },
@@ -716,7 +843,8 @@ export class RepoCardComponent {
       case 'changes': return this.onShowChanges();
       case 'history': return this.onHistory();
       case 'branches': return this.onBranches();
-      case 'worktree-new': return void this.actions.addWorktree(this.repo());
+      case 'worktree-new': return this.onNewWorktree();
+      case 'worktree-prune': return void this.actions.pruneWorktrees(this.head());
       case 'stash': return this.onStash();
       case 'merge': return this.onMerge();
       case 'explorer': return this.onOpenExplorer();
@@ -942,9 +1070,9 @@ export class RepoCardComponent {
   }
 
   /** Persist the `repo_state` (§34). */
-  private persistRepoState(): Promise<void> {
+  private persistRepoState(name = this.repo().name): Promise<void> {
     return this.settings
-      .setRepoState(this.repo().name, this.ws.repoStatePatch(this.repo().name))
+      .setRepoState(name, this.ws.repoStatePatch(name))
       .catch(() => undefined);
   }
 }

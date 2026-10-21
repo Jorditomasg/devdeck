@@ -608,11 +608,12 @@ export class RepoActionsService {
 
   // -- git worktrees (design doc 2026-10-12) -----------------------------------
 
-  /** New-worktree dialog; rescans on success so the row appears. */
+  /** New-worktree dialog; rescans on success and focuses the new tab. */
   async addWorktree(parent: RepoInfo): Promise<void> {
     const name = await this.dialogs.openWorktreeAdd(parent.name);
     if (name) {
       await this.repos.rescan().catch(() => undefined);
+      this.ws.setActiveTab(parent.name, name);
     }
   }
 

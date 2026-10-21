@@ -159,6 +159,14 @@ export class WorkspaceStore {
     this._repoFilter.set(query);
   }
 
+  private readonly _activeTabs = signal<Readonly<Record<string, string>>>({});
+  /** parent repo name → the member (itself or a worktree) its card shows. */
+  readonly activeTabs = this._activeTabs.asReadonly();
+
+  setActiveTab(parent: string, member: string): void {
+    this._activeTabs.update((tabs) => ({ ...tabs, [parent]: member }));
+  }
+
   /** True while drag-reorder mode is active (gates card expansion). */
   readonly reorderMode = this._reorderMode.asReadonly();
 

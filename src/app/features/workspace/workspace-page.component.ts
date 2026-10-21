@@ -136,7 +136,15 @@ import {
                 (dragend)="onDragEnd()"
               ><ui-icon name="grip-vertical" [size]="20" /></span>
             }
-            <app-repo-card class="page__slot-card" data-tour="repo-card" [repo]="repo" />
+            @let family = families().get(repo.name)!;
+            @for (member of family.members; track member.name) {
+              <app-repo-card
+                class="page__slot-card"
+                [hidden]="member.name !== family.active"
+                [attr.data-tour]="member.name === family.active ? 'repo-card' : null"
+                [repo]="member"
+              />
+            }
           </div>
         }
       }
@@ -186,6 +194,20 @@ export class WorkspacePageComponent {
   protected readonly visibleRepos = computed(() => {
     const ordered = orderedRepos(this.repos.repos(), (n) => this.ws.card(n).order ?? undefined);
     return filterRepos(ordered, this.ws.repoFilter());
+  });
+
+  /** Every member keeps its own mounted card (lazy panel, logs); only the
+   * active tab is shown, so switching branch is instant. */
+  protected readonly families = computed(() => {
+    const tabs = this.ws.activeTabs();
+    return new Map(
+      this.visibleRepos().map((repo) => {
+        const members = [repo, ...this.repos.worktreesOf(repo.name)];
+        const want = tabs[repo.name];
+        const active = want && members.some((m) => m.name === want) ? want : repo.name;
+        return [repo.name, { members, active }] as const;
+      }),
+    );
   });
 
   /** No workspace folder configured at all (vs. folders with zero repos,
