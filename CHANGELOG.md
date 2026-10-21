@@ -5,6 +5,30 @@ All notable changes to DevDeck are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.13.0] - 2026-10-21
+
+### Added
+
+- **Worktrees as branch tabs.** A repo's git worktrees now appear as tabs on
+  its card, one per branch. Each tab shows its run status, port and
+  uncommitted changes, and you start and stop its service from that tab. You
+  set a worktree's port or remove it from the active tab. "Clean up worktrees"
+  is now in the tab's right-click menu.
+- **WSL-aware terminals.** A terminal opened for a repo inside WSL now starts
+  in that repo's distro and folder, whatever shell you picked in Settings.
+
+### Changed
+
+- The Settings shell picker only lists shells this computer actually has. It
+  finds Git Bash next to your installed git and reads `/etc/shells` on
+  Linux/macOS. If the shell you picked is missing, the terminal opens with the
+  system default instead of failing.
+
+### Fixed
+
+- A worktree created outside `<repo>.worktrees/` no longer also shows up as a
+  separate repo. It now appears only under its parent.
+
 ## [3.12.2] - 2026-10-21
 
 ### Added
