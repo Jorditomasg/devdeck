@@ -13,7 +13,8 @@
 //! - [`session`] — one live PTY session: reader thread + output `Channel` + writer.
 //! - [`manager`] — `HashMap<TermId, Session>` registry; `any_open()` for the
 //!   app-close guard.
-//! - [`shell`]   — default per-platform shell resolution.
+//! - [`shell`]   — which shell a terminal spawns (WSL routing, override,
+//!   per-platform default) and runtime shell detection.
 
 pub mod error;
 pub mod manager;

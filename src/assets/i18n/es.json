@@ -94,7 +94,6 @@
     "batch_pulling": "Haciendo pull",
     "batch_checking_install": "Comprobando",
     "batch_installing": "Instalando",
-    "worktrees": "Worktrees ({count})",
     "worktree_detached": "(detached)"
   },
   "tooltip": {
@@ -147,7 +146,6 @@
     "git_batch": "Acciones git en lote sobre los repos seleccionados",
     "select_all": "Seleccionar o deseleccionar todos los repos",
     "worktree_new": "Nuevo worktree",
-    "worktree_prune": "Limpiar worktrees cuya carpeta se borró (git worktree prune)",
     "worktree_port": "Puerto de este worktree — se aplica en el siguiente arranque",
     "worktree_port_unsupported": "Este tipo de repo no declara cómo sobrescribir el puerto (run.port_injection)",
     "worktree_changes": "Cambios sin commitear",
@@ -160,7 +158,7 @@
       "workspace_title": "Workspace",
       "behavior_title": "Comportamiento",
       "terminal_title": "Terminal",
-      "terminal_desc": "Shell usado al abrir una terminal nueva para un repo. Se aplica a las terminales que abras a partir de ahora.",
+      "terminal_desc": "Shell usado al abrir una terminal nueva para un repo. Los repos dentro de WSL abren siempre la shell de su distro. Si el shell elegido no existe en este equipo, se usa el predeterminado.",
       "terminal_default": "Por defecto del sistema",
       "terminal_custom": "Personalizado…",
       "terminal_custom_ph": "ej. C:\\\\ruta\\\\al\\\\shell.exe",
@@ -723,7 +721,8 @@
     "copy_subject": "Copiar mensaje",
     "copy_branch": "Copiar nombre de rama",
     "compare_from_here": "Comparar desde aquí",
-    "new_worktree": "Nuevo worktree…"
+    "new_worktree": "Nuevo worktree…",
+    "prune_worktrees": "Limpiar worktrees"
   },
   "onboarding": {
     "welcome": {
@@ -757,7 +756,7 @@
       },
       "worktrees": {
         "title": "Ramas en paralelo con worktrees",
-        "text": "El botón de rama crea un worktree de git: una segunda copia de otra rama en una carpeta hermana (repo.worktrees/rama). Aparece bajo esta tarjeta como un servicio propio con su propio puerto, así puedes arrancar varias ramas a la vez. Sus dependencias (p. ej. npm i) se instalan solas en el primer arranque."
+        "text": "El botón de rama crea un worktree de git: una segunda copia de otra rama en una carpeta hermana (repo.worktrees/rama). Aparece como una pestaña de esta tarjeta, un servicio propio con su propio puerto, así puedes arrancar varias ramas a la vez. Sus dependencias (p. ej. npm i) se instalan solas en el primer arranque."
       },
       "card_expand": {
         "title": "Configuración del servicio",

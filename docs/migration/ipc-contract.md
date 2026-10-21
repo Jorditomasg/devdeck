@@ -126,13 +126,13 @@ Rust-side: `<repoId>::term::<n>`, monotonic per repo.
 
 | # | Command | Args | Returns | Backing |
 |---|---|---|---|---|
-| 62 | `open_terminal_window` | `{ repoId: string, cwd: string, title: string, command?: string }` | `string` (the new terminal id) | allocates the id, spawns a PTY shell (`$SHELL`/`pwsh`→`powershell` default) rooted at `cwd`, opens the `term-<id>` window loading `?terminal=<id>`; a non-empty `command` is typed-ahead (`<command>\r`) into the shell right after spawn |
+| 62 | `open_terminal_window` | `{ repoId: string, cwd: string, title: string, command?: string }` | `string` (the new terminal id) | allocates the id, spawns a PTY shell rooted at `cwd` — a WSL repo (`\\wsl.localhost\…`, or any repo while the active group is `run_in_wsl`) always gets `wsl.exe -d <distro> --cd <linux path>`; otherwise `AppConfig::terminal_shell`, falling back to the per-platform default (`$SHELL`/`pwsh`→`powershell`) when unset or when it fails to spawn on this machine — opens the `term-<id>` window loading `?terminal=<id>`; a non-empty `command` is typed-ahead (`<command>\r`) into the shell right after spawn |
 | 63 | `attach_terminal` | `{ id: string, channel: Channel<ArrayBuffer> }` | `void` | binds the window's output channel: flushes the pre-attach ring buffer, then streams live raw PTY bytes |
 | 64 | `terminal_write` | `{ id: string, data: string }` | `void` | forwards keystrokes (the `xterm.onData` string) to the PTY input |
 | 65 | `terminal_resize` | `{ id: string, cols: number, rows: number }` | `void` | resizes the PTY viewport (SIGWINCH) |
 | 66 | `close_terminal` | `{ id: string }` | `void` | force-kills the PTY process tree (`kill.rs`) and drops the session — invoked by the window on close (no confirmation: closing a terminal window kills its shell) |
-| — | `list_shells` | — | `ShellInfo[]` (`{ label, command }`) | shells detected on this machine (PATH + well-known paths: pwsh/powershell/cmd/wsl/Git Bash on Windows; `$SHELL`/bash/zsh/fish/sh on Unix) — for the Settings terminal picker |
-| — | `set_terminal_shell` | `{ shell: string \| null }` | `void` | persist the shell command for NEW terminals (`null`/empty → per-platform default); `open_terminal_window` reads `AppConfig::terminal_shell`. Emits `config://changed` |
+| — | `list_shells` | — | `ShellInfo[]` (`{ label, command }`) | shells detected on this machine at call time (Windows: pwsh/powershell/cmd/wsl on PATH + Git Bash derived from `git.exe` on PATH or the standard install roots; Unix: `$SHELL` + `/etc/shells`, PATH probing of bash/zsh/fish/sh only when `/etc/shells` is missing) — for the Settings terminal picker |
+| — | `set_terminal_shell` | `{ shell: string \| null }` | `void` | persist the shell command for NEW terminals of non-WSL repos (`null`/empty → per-platform default); `open_terminal_window` reads `AppConfig::terminal_shell`. Emits `config://changed` |
 
 **Minimize-to-tray** (config key `minimize_to_tray`, v1 default `true`):
 Rust-side only — `lib.rs` watches the main window's `Resized` events, probes

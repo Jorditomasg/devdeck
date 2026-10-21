@@ -71,7 +71,7 @@ pub struct Session {
 }
 
 impl Session {
-    /// Spawn `shell` in a PTY rooted at `cwd`, start the reader thread, and
+    /// Spawn `argv` in a PTY rooted at `cwd`, start the reader thread, and
     /// return the session buffering output until [`Session::attach`].
     ///
     /// `command`, when set, is typed into the shell ONCE IT IS READY (first
@@ -81,13 +81,13 @@ impl Session {
     /// from lines it edits itself — so `↑` never recalled the very command the
     /// terminal was opened with.
     pub fn spawn(
-        shell: &str,
+        argv: &[String],
         cwd: &Path,
         cols: u16,
         rows: u16,
         command: Option<String>,
     ) -> Result<Self, TerminalError> {
-        let pty = Pty::spawn(shell, cwd, cols, rows)?;
+        let pty = Pty::spawn(argv, cwd, cols, rows)?;
         let pid = pty.pid();
         let writer = Arc::new(Mutex::new(pty.writer()?));
         let mut reader = pty.reader()?;

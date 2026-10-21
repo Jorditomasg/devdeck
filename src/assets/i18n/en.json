@@ -94,7 +94,6 @@
     "batch_pulling": "Pulling",
     "batch_checking_install": "Checking",
     "batch_installing": "Installing",
-    "worktrees": "Worktrees ({count})",
     "worktree_detached": "(detached)"
   },
   "tooltip": {
@@ -147,7 +146,6 @@
     "git_batch": "Batch git actions over the selected repos",
     "select_all": "Select or deselect every repo",
     "worktree_new": "New worktree",
-    "worktree_prune": "Clean up worktrees whose folder was deleted (git worktree prune)",
     "worktree_port": "Port for this worktree — applied on the next start",
     "worktree_port_unsupported": "This repo type does not declare how to override the port (run.port_injection)",
     "worktree_changes": "Uncommitted changes",
@@ -160,7 +158,7 @@
       "workspace_title": "Workspace",
       "behavior_title": "Behavior",
       "terminal_title": "Terminal",
-      "terminal_desc": "Shell used when opening a new terminal for a repo. Applies to terminals opened from now on.",
+      "terminal_desc": "Shell used when opening a new terminal for a repo. Repos inside WSL always open their distro's shell. If the chosen shell is missing on this computer, the default is used.",
       "terminal_default": "System default",
       "terminal_custom": "Custom…",
       "terminal_custom_ph": "e.g. C:\\\\path\\\\to\\\\shell.exe",
@@ -723,7 +721,8 @@
     "copy_subject": "Copy message",
     "copy_branch": "Copy branch name",
     "compare_from_here": "Compare from here",
-    "new_worktree": "New worktree…"
+    "new_worktree": "New worktree…",
+    "prune_worktrees": "Clean up worktrees"
   },
   "onboarding": {
     "welcome": {
@@ -757,7 +756,7 @@
       },
       "worktrees": {
         "title": "Parallel branches with worktrees",
-        "text": "The branch button creates a git worktree: a second checkout of another branch in a sibling folder (repo.worktrees/branch). It appears under this card as its own service with its own port, so you can run several branches at once. Its dependencies (e.g. npm i) are installed automatically on its first start."
+        "text": "The branch button creates a git worktree: a second checkout of another branch in a sibling folder (repo.worktrees/branch). It appears as a tab on this card, a service of its own with its own port, so you can run several branches at once. Its dependencies (e.g. npm i) are installed automatically on its first start."
       },
       "card_expand": {
         "title": "Service configuration",

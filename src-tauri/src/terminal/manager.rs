@@ -52,13 +52,13 @@ impl TerminalManager {
     pub fn open(
         &self,
         id: &str,
-        shell: &str,
+        argv: &[String],
         cwd: &Path,
         cols: u16,
         rows: u16,
         command: Option<String>,
     ) -> Result<(), TerminalError> {
-        let session = Session::spawn(shell, cwd, cols, rows, command)?;
+        let session = Session::spawn(argv, cwd, cols, rows, command)?;
         self.sessions
             .lock()
             .expect("terminal sessions poisoned")

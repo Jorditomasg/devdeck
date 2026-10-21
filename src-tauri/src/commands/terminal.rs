@@ -12,7 +12,7 @@ use tauri::ipc::{Channel, InvokeResponseBody};
 use super::app::{center_on_cursor_monitor, urlencode_component, window_label};
 use super::error::{AppError, CmdResult};
 use crate::state::AppState;
-use crate::terminal::shell::{detect_shells, resolve_shell, ShellInfo};
+use crate::terminal::shell::{default_shell, detect_shells, terminal_argv, ShellInfo};
 
 /// PTY size before the webview's first fit/resize (corrected immediately after
 /// `attach_terminal` by a `terminal_resize`).
@@ -38,23 +38,35 @@ pub async fn open_terminal_window(
     command: Option<String>,
 ) -> CmdResult<String> {
     let id = state.terminals.next_id(&repo_id);
-    // Honor the Settings shell override (`AppConfig::terminal_shell`); fall
-    // back to the per-platform default when unset/empty or config is unreadable.
-    let override_shell = state.config.load().ok().and_then(|c| c.terminal_shell);
-    let shell = resolve_shell(override_shell.as_deref());
+    let config = state.config.load().ok();
+    let routed_cwd = config
+        .as_ref()
+        .filter(|c| c.active_group_runs_in_wsl())
+        .and_then(|_| crate::wsl::reroute_drive_path(&cwd))
+        .unwrap_or_else(|| cwd.clone());
+    let wsl = crate::wsl::wsl_path_for(std::path::Path::new(&routed_cwd));
+    let override_shell = config.and_then(|c| c.terminal_shell);
+    let argv = terminal_argv(wsl.as_ref(), override_shell.as_deref());
     let command = command
         .as_deref()
         .map(str::trim)
         .filter(|c| !c.is_empty())
         .map(str::to_string);
-    state.terminals.open(
-        &id,
-        &shell,
-        std::path::Path::new(&cwd),
-        DEFAULT_COLS,
-        DEFAULT_ROWS,
-        command,
-    )?;
+    let cwd = std::path::Path::new(&cwd);
+    let opened = state
+        .terminals
+        .open(&id, &argv, cwd, DEFAULT_COLS, DEFAULT_ROWS, command.clone());
+    // The override is machine-specific (a synced/restored config can name a
+    // shell this PC doesn't have): fall back instead of failing the terminal.
+    match opened {
+        Err(err) if wsl.is_none() && argv[0] != default_shell() => {
+            log::warn!("terminal shell {argv:?} failed ({err}); using the default");
+            state
+                .terminals
+                .open(&id, &[default_shell()], cwd, DEFAULT_COLS, DEFAULT_ROWS, command)?;
+        }
+        other => other?,
+    }
 
     let label = window_label("term", &id);
     let url = format!("index.html?terminal={}", urlencode_component(&id));

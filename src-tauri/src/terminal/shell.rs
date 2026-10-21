@@ -1,14 +1,18 @@
 //! Shell resolution for new terminals (design doc §"Shell, cwd").
 //!
-//! `default_shell` is the per-platform fallback; `resolve_shell` applies the
-//! user's Settings override (`AppConfig::terminal_shell`); `detect_shells`
-//! lists the shells found on this machine for the Settings picker.
+//! `terminal_argv` picks what a new terminal spawns: a repo inside WSL opens
+//! its own distro's shell (`wsl.exe -d <distro> --cd <path>`), anything else
+//! the user's Settings override (`AppConfig::terminal_shell`) or the
+//! per-platform `default_shell`. `detect_shells` lists the shells found on
+//! THIS machine for the Settings picker — probed at runtime, never assumed.
 
 use std::path::PathBuf;
 #[cfg(unix)]
 use std::path::Path;
 
 use serde::Serialize;
+
+use crate::wsl::WslPath;
 
 /// One shell offered in the Settings picker. `command` is what gets spawned
 /// (an executable name resolvable on `PATH`, or an absolute path); `label` is
@@ -26,6 +30,17 @@ pub fn resolve_shell(override_shell: Option<&str>) -> String {
     match override_shell {
         Some(s) if !s.trim().is_empty() => s.trim().to_string(),
         _ => default_shell(),
+    }
+}
+
+/// A WSL repo ignores the override: a Windows shell can't run the distro's
+/// toolchain, so the terminal matches what the repo's services do (`wsl.rs`).
+pub fn terminal_argv(wsl: Option<&WslPath>, override_shell: Option<&str>) -> Vec<String> {
+    match wsl {
+        Some(w) => ["wsl.exe", "-d", w.distro.as_str(), "--cd", w.linux_path.as_str()]
+            .map(str::to_string)
+            .to_vec(),
+        None => vec![resolve_shell(override_shell)],
     }
 }
 
@@ -62,8 +77,9 @@ pub fn default_shell() -> String {
 pub fn detect_shells() -> Vec<ShellInfo> {
     let mut out: Vec<ShellInfo> = Vec::new();
     let mut push = |label: &str, command: String| {
-        // Dedup by command so the same shell isn't listed twice.
-        if !out.iter().any(|s| s.command == command) {
+        // Resolved-path dedupe: usrmerge lists both `/bin/bash` and `/usr/bin/bash`.
+        let real = |c: &str| std::fs::canonicalize(c).unwrap_or_else(|_| PathBuf::from(c));
+        if !out.iter().any(|s| real(&s.command) == real(&command)) {
             out.push(ShellInfo {
                 label: label.to_string(),
                 command,
@@ -84,13 +100,20 @@ pub fn detect_shells() -> Vec<ShellInfo> {
                 push(label, exe.to_string());
             }
         }
-        // Git Bash — not usually on PATH; probe the standard install paths.
-        for base in ["ProgramFiles", "ProgramFiles(x86)", "LocalAppData"] {
-            if let Some(dir) = std::env::var_os(base) {
-                let bash = PathBuf::from(dir).join("Git").join("bin").join("bash.exe");
-                if bash.is_file() {
-                    push("Git Bash", bash.to_string_lossy().into_owned());
-                }
+        // Git Bash sits at `<Git>\bin\bash.exe`, `git.exe` at `<Git>\cmd`
+        // or `<Git>\mingw64\bin`. Never probe `bash.exe` on PATH: that is
+        // System32's WSL launcher.
+        let from_git: Vec<PathBuf> = find_on_path("git.exe")
+            .and_then(|git| git.parent().map(|d| d.ancestors().take(3).map(PathBuf::from).collect()))
+            .unwrap_or_default();
+        let roots = ["ProgramFiles", "ProgramFiles(x86)", "LocalAppData"]
+            .into_iter()
+            .filter_map(std::env::var_os)
+            .map(|dir| PathBuf::from(dir).join("Git"));
+        for root in from_git.into_iter().chain(roots) {
+            let bash = root.join("bin").join("bash.exe");
+            if bash.is_file() {
+                push("Git Bash", bash.to_string_lossy().into_owned());
             }
         }
     }
@@ -104,14 +127,29 @@ pub fn detect_shells() -> Vec<ShellInfo> {
                 push(&format!("{label} (login)"), shell.trim().to_string());
             }
         }
-        for exe in ["bash", "zsh", "fish", "sh"] {
-            if let Some(path) = find_on_path(exe) {
-                push(&shell_label(exe), path.to_string_lossy().into_owned());
-            }
+        let listed = std::fs::read_to_string("/etc/shells").ok();
+        let candidates: Vec<PathBuf> = match listed.as_deref() {
+            Some(text) => parse_etc_shells(text).into_iter().map(PathBuf::from).collect(),
+            None => ["bash", "zsh", "fish", "sh"]
+                .into_iter()
+                .filter_map(find_on_path)
+                .collect(),
+        };
+        for path in candidates.into_iter().filter(|p| p.is_file()) {
+            let path = path.to_string_lossy().into_owned();
+            push(&shell_label(&path), path);
         }
     }
 
     out
+}
+
+#[cfg(unix)]
+fn parse_etc_shells(text: &str) -> Vec<&str> {
+    text.lines()
+        .map(str::trim)
+        .filter(|l| l.starts_with('/'))
+        .collect()
 }
 
 /// Title-case-ish label for a shell from its executable name/path.
@@ -134,4 +172,35 @@ fn find_on_path(exe: &str) -> Option<PathBuf> {
     std::env::split_paths(&paths)
         .map(|dir| dir.join(exe))
         .find(|candidate| candidate.is_file())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_wsl_repo_opens_its_own_distro_and_ignores_the_override() {
+        let w = WslPath {
+            distro: "Ubuntu-24.04".into(),
+            linux_path: "/home/me/api".into(),
+        };
+        assert_eq!(
+            terminal_argv(Some(&w), Some("pwsh.exe")),
+            ["wsl.exe", "-d", "Ubuntu-24.04", "--cd", "/home/me/api"]
+        );
+    }
+
+    #[test]
+    fn a_native_repo_uses_the_override_or_the_default() {
+        assert_eq!(terminal_argv(None, Some(" cmd.exe ")), ["cmd.exe"]);
+        assert_eq!(terminal_argv(None, Some("  ")), [default_shell()]);
+        assert_eq!(terminal_argv(None, None), [default_shell()]);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn etc_shells_keeps_only_absolute_paths() {
+        let text = "# /etc/shells: valid login shells\n/bin/sh\n\n  /usr/bin/zsh \nnot-a-path\n";
+        assert_eq!(parse_etc_shells(text), ["/bin/sh", "/usr/bin/zsh"]);
+    }
 }

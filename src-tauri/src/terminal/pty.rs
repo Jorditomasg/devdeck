@@ -30,12 +30,12 @@ pub struct Pty {
 }
 
 impl Pty {
-    /// Open a PTY of `cols`×`rows` and spawn `shell` with working directory
+    /// Open a PTY of `cols`×`rows` and spawn `argv` with working directory
     /// `cwd`. The slave handle is dropped right after spawn so reads on the
     /// master observe EOF once the child exits (otherwise reads can block
     /// forever on some platforms).
     pub fn spawn(
-        shell: &str,
+        argv: &[String],
         cwd: &Path,
         cols: u16,
         rows: u16,
@@ -50,12 +50,16 @@ impl Pty {
             })
             .map_err(|e| TerminalError::Pty(format!("openpty: {e}")))?;
 
-        let mut cmd = CommandBuilder::new(shell);
+        let (program, args) = argv
+            .split_first()
+            .ok_or_else(|| TerminalError::Pty("empty shell command".into()))?;
+        let mut cmd = CommandBuilder::new(program);
+        cmd.args(args);
         cmd.cwd(cwd);
         let child = pair
             .slave
             .spawn_command(cmd)
-            .map_err(|e| TerminalError::Pty(format!("spawn shell {shell:?}: {e}")))?;
+            .map_err(|e| TerminalError::Pty(format!("spawn shell {argv:?}: {e}")))?;
 
         // Drop the slave: keeps the master's read EOF correct on child exit.
         drop(pair.slave);
@@ -112,7 +116,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn opens_a_pty_and_spawns_a_shell() {
-        let pty = Pty::spawn("/bin/sh", Path::new("/"), 80, 24).expect("spawn pty");
+        let pty = Pty::spawn(&["/bin/sh".into()], Path::new("/"), 80, 24).expect("spawn pty");
         assert!(pty.pid().is_some(), "shell should report a pid");
         assert!(pty.reader().is_ok());
         assert!(pty.resize(100, 30).is_ok());
