@@ -471,7 +471,7 @@ impl ProcessManager {
         if command.trim().is_empty() {
             return Err(ProcessError::EmptyCommand(id));
         }
-        if !cwd.is_dir() {
+        if !crate::wsl::host_visible_path(&cwd).is_dir() {
             return Err(ProcessError::InvalidWorkdir(cwd.display().to_string()));
         }
         let stream = match kind {

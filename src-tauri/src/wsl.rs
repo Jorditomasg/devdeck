@@ -4,7 +4,7 @@
 //! or legacy `\\wsl$\...`) runs its commands INSIDE the distro.
 
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use tokio::process::Command;
 
@@ -220,6 +220,28 @@ fn drive_path_as_wsl_unc(path: &str, distro: &str) -> Option<String> {
     ))
 }
 
+/// The path Windows can stat for `path`: a rerouted `\\wsl.localhost\<distro>\mnt\c\x`
+/// maps back to `C:\x`, because WSL's share denies Windows access to its own
+/// drvfs mounts. Anything else is returned unchanged.
+pub fn host_visible_path(path: &Path) -> PathBuf {
+    wsl_path_for(path)
+        .and_then(|w| drvfs_to_drive(&w.linux_path))
+        .map_or_else(|| path.to_path_buf(), PathBuf::from)
+}
+
+/// `/mnt/c/x/y` → `C:\x\y`.
+#[cfg_attr(not(windows), allow(dead_code))]
+fn drvfs_to_drive(linux_path: &str) -> Option<String> {
+    let rest = linux_path.strip_prefix("/mnt/")?;
+    let (drive, tail) = rest.split_once('/').unwrap_or((rest, ""));
+    let mut chars = drive.chars();
+    let letter = chars.next().filter(char::is_ascii_alphabetic)?;
+    if chars.next().is_some() {
+        return None;
+    }
+    Some(format!(r"{}:\{}", letter.to_ascii_uppercase(), tail.replace('/', "\\")))
+}
+
 /// The default distro (`*` row of `wsl.exe --list --verbose`), resolved once
 /// per app run. ponytail: blocking one-shot (~1 s cold) on the first
 /// rerouted start; a missing WSL stays cached as `None` until restart.
@@ -251,7 +273,7 @@ fn parse_default_distro(list: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        drive_path_as_wsl_unc, parse_default_distro,
+        drive_path_as_wsl_unc, drvfs_to_drive, parse_default_distro,
         parse_wsl_path, shell_script, parse_pid_line, is_bash_noise, kill_group_script,
         exec_in_distro, exec_plain, WslPath,
     };
@@ -569,6 +591,16 @@ mod tests {
         // The rerouted path must hit the existing UNC routing.
         let w = parse_wsl_path(Path::new(&unc(r"C:\a\b").unwrap())).unwrap();
         assert_eq!((w.distro.as_str(), w.linux_path.as_str()), ("Ubuntu", "/mnt/c/a/b"));
+    }
+
+    #[test]
+    fn drvfs_paths_map_back_to_their_drive() {
+        assert_eq!(drvfs_to_drive("/mnt/c/Users/Jordi/x").as_deref(), Some(r"C:\Users\Jordi\x"));
+        assert_eq!(drvfs_to_drive("/mnt/d").as_deref(), Some(r"D:\"));
+        assert_eq!(drvfs_to_drive("/mnt/wsl/x"), None);
+        assert_eq!(drvfs_to_drive("/home/x"), None);
+        let w = parse_wsl_path(Path::new(&drive_path_as_wsl_unc(r"C:\a\b", "Ubuntu").unwrap())).unwrap();
+        assert_eq!(drvfs_to_drive(&w.linux_path).as_deref(), Some(r"C:\a\b"));
     }
 
     #[test]
